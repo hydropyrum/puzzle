@@ -57,28 +57,7 @@ var arrow_geometry = function () {
 
 /* Build puzzle */
 
-var puzzle = [make_shell(cube(1/Math.sqrt(3)))];
-
-// to do: make make_cuts destructive
-
-//puzzle = cut_tetrahedron(0, puzzle); // same as cut_octahedron(0)
-//puzzle = cut_tetrahedron(-5/9, puzzle); // tetra: Pyraminx tips. bug: they don't turn
-//puzzle = cut_tetrahedron(-1/9, puzzle); // tetra: Pyraminx
-//puzzle = make_cuts(cube(0), puzzle); // tetra: Pyramorphix; cube: 2x2x2; octa: PyraDiamond
-//puzzle = cut_cube(Math.sqrt(3)/9, puzzle); // tetra: Mastermorphynx
-puzzle = make_cuts(cube(1/Math.sqrt(3)/3), puzzle); // cube: 3x3x3
-//const n=10; for (let i=0; i<Math.floor(n/2); i++) puzzle = make_cuts(cube(i/n), puzzle);
-//puzzle = cut_rhombic_dodecahedron(0, puzzle); // Little Chop
-//puzzle = cut_rhombic_dodecahedron(Math.sqrt(2)/4, puzzle); // Helicopter Cube
-//puzzle = cut_octahedron(Math.sqrt(3)/6, puzzle); // cube: Dino Cube; octa: Dino-Octa
-//puzzle = cut_octahedron(Math.sqrt(3)/9, puzzle); // octa: face-turning octahedron
-//puzzle = make_cuts(octahedron(0), puzzle); // tetra: Halpern-Maier; cube: Skewb; octa: Skewb Diamond
-
-//puzzle = cut_dodecahedron((2*Math.sqrt(6)+Math.sqrt(30)) / (3*Math.sqrt(11*Math.sqrt(5)+25)), puzzle); // dodeca: Megaminx
-//puzzle = cut_dodecahedron(0.36, puzzle); // dodeca: Pyraminx Crystal
-//puzzle = cut_dodecahedron(0.19, puzzle); // dodeca: star on each face
-//puzzle = cut_dodecahedron(0.447, puzzle); // icosa: Impossiball with wrong colors
-//puzzle = cut_dodecahedron(0, puzzle); // dodeca: Penultimate; icosa: ?
+var puzzle: PolyGeometry[] = [];
 
 const face_material = new THREE.MeshStandardMaterial({
     vertexColors: THREE.FaceColors,
@@ -237,7 +216,7 @@ canvas.addEventListener('click', function (event: MouseEvent) {
 
 // HTML controls
 
-document.getElementById('new_cut')!.addEventListener('click', function (e) {
+function new_cut() {
     let cut_menu = document.getElementById("cuts")!;
     let cut_item = cut_menu.firstChild!.cloneNode(true) as HTMLElement;
     cut_item.style.display="list-item";
@@ -246,10 +225,13 @@ document.getElementById('new_cut')!.addEventListener('click', function (e) {
         cut_menu.removeChild(cut_item);
     });
     cut_menu.appendChild(cut_item);
-});
+    return cut_item;
+}
 
-document.getElementById('apply_cuts')!.addEventListener('click', function (e) {
-    let shell_menu = document.getElementById("shell_shape")! as HTMLSelectElement;
+document.getElementById('new_cut')!.addEventListener('click', e => new_cut());
+
+function apply_cuts() {
+    let shell_menu = document.getElementById("shell_menu")! as HTMLSelectElement;
     let shell_shape = shell_menu.options[shell_menu.selectedIndex].value;
 
     let shell: THREE.Plane[] = [];
@@ -283,8 +265,8 @@ document.getElementById('apply_cuts')!.addEventListener('click', function (e) {
             else if (he.className == "cut_distance")
                 distance = parseFloat(he.value);
         });
+        if (isNaN(distance)) return;
         switch(shape) {
-            // to do: dual tetrahedron, or make slider go negative? or is octa good enough?
         case "T": newpuzzle = make_cuts(tetrahedron(distance), newpuzzle); break;
         case "C": newpuzzle = make_cuts(cube(distance), newpuzzle); break;
         case "O": newpuzzle = make_cuts(octahedron(distance), newpuzzle); break;
@@ -295,7 +277,8 @@ document.getElementById('apply_cuts')!.addEventListener('click', function (e) {
         }
     });
     draw_puzzle(newpuzzle, scene);
-});
+}
+document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts());
 
 function scramble(n: number) {
     if (n > 0)
@@ -303,6 +286,170 @@ function scramble(n: number) {
 }
 document.getElementById('scramble')!.addEventListener('click', function (e) {
     scramble(20);
+});
+
+function select_option(select: HTMLSelectElement, value: string) {
+    for (let i=0; i<select.options.length; i++)
+        if (select.options[i].value == value) {
+            select.selectedIndex = i;
+            return;
+        }
+}
+
+/*
+  Shells have circumradius 0.5, while cut distances are inradii.
+ */
+
+var presets_grouped = [
+    {
+        label: "Face/corner-turning tetrahedra",
+        options: [
+            { label: "Pyraminx",
+              shell: "T",
+              cuts: [{shape: "T", distance: -1/9},
+                     {shape: "T", distance: -5/9}] },
+            { label: "Halpern-Meier pyramid",
+              shell: "T",
+              cuts: [{shape: "T", distance: 0}] },
+        ],
+    },
+    {
+        label: "Edge-turning tetrahedra",
+        options: [
+            { label: "Pyramorphix",
+              shell: "T",
+              cuts: [{shape: "C", distance: 0}] },
+            { label: "Mastermorphix",
+              shell: "T",
+              cuts: [{shape: "C", distance: 1/Math.sqrt(3)/5}] },
+            { label: "Mastermorphynx", 
+              shell: "T",
+              cuts: [{shape: "C", distance: 1/Math.sqrt(3)/3}] },
+        ],
+    },
+    {
+        label: "Face-turning cubes",
+        options: [
+            { label: "Pocket Cube (2x2x2)",
+              shell: "C",
+              cuts: [{shape: "C", distance: 0}] },
+            { label: "Rubik's Cube (3x3x3)",
+              shell: "C",
+              cuts: [{shape: "C", distance: Math.sqrt(3)/9}] },
+            { label: "Rubik's Revenge (4x4x4)",
+              shell: "C",
+              cuts: [{shape: "C", distance: 0},
+                     {shape: "C", distance: Math.sqrt(3)/6}] },
+            { label: "Professor's Cube (5x5x5)",
+              shell: "C",
+              cuts: [{shape: "C", distance: Math.sqrt(3)/15},
+                     {shape: "C", distance: Math.sqrt(3)/5}] },
+        ],
+    },
+    {
+        label: "Corner-turning cubes",
+        options: [
+            { label: "Skewb",
+              shell: "C",
+              cuts: [{shape: "T", distance: 0}] },
+            { label: "Dino Cube",
+              shell: "C",
+              cuts: [{shape: "O", distance: 1/3}] },
+        ],
+    },
+    {
+        label: "Edge-turning cubes",
+        options: [
+            { label: "Little Chop",
+              shell: "C",
+              cuts: [{shape: "jC", distance: 0}] },
+            { label: "Helicopter Cube",
+              shell: "C",
+              cuts: [{shape: "jC", distance: Math.sqrt(6)/6}] }, 
+        ],
+    },
+    {
+        label: "Face-turning octahedra",
+        options: [
+            { label: "Skewb Diamond",
+              shell: "O",
+              cuts: [{shape: "O", distance: 0}] },
+            { label: "Face-turning octahedron",
+              shell: "O",
+              cuts: [{shape: "O", distance: Math.sqrt(3)/9}] },
+        ],
+    },
+    {
+        label: "Face-turning dodecahedra",
+        options: [
+            { label: "Penultimate",
+              shell: "D",
+              cuts: [{shape: "D", distance: 0}] },
+            { label: "Face-turning dodecahedron",
+              shell: "D",
+              cuts: [{shape: "D", distance: 0.19 }] }, // to do: exact
+            { label: "Pyraminx Crystal",
+              shell: "D",
+              cuts: [{shape: "D", distance: 0.36 }] }, // to do: exact
+            { label: "Megaminx",
+              shell: "D",
+              cuts: [{shape: "D", distance: (2*Math.sqrt(6)+Math.sqrt(30)) / (3*Math.sqrt(11*Math.sqrt(5)+25))}] },
+        ],
+    },
+    {
+        label: "Corner-turning icosahedra",
+        options: [
+            { label: "Deep-cut corner-turning icosahedron",
+              shell: "I",
+              cuts: [{shape: "D", distance: 0 }] },
+            { label: "Impossiball (with wrong colors)",
+              shell: "I",
+              cuts: [{shape: "D", distance: 0.447 }] }, // to do: exact
+        ]
+    },
+
+];
+
+var presets: { shell: string, cuts: {shape: string, distance: number}[] }[] = [];
+const preset_menu = document.getElementById("preset_menu")! as HTMLSelectElement;
+
+function apply_preset(i: number) {
+    preset_menu.selectedIndex = i;
+    let shell_menu = document.getElementById("shell_menu")! as HTMLSelectElement;
+    select_option(shell_menu, presets[i].shell);
+    let cuts_menu = document.getElementById("cuts")!;
+    while (cuts_menu.childNodes.length > 1)
+        cuts_menu.removeChild(cuts_menu.lastChild!);
+    for (let cut of presets[i].cuts) {
+        let li = new_cut();
+        li.childNodes.forEach(function (e) {
+            let he = e as HTMLSelectElement;
+            if (he.className == "cut_shape")
+                select_option(he, cut.shape);
+            else if (he.className == "cut_distance")
+                he.value = cut.distance.toString();
+        });
+    }
+    apply_cuts();
+}
+
+for (let g of presets_grouped) {
+    let optgroup = document.createElement('optgroup');
+    optgroup.setAttribute('label', g.label);
+    preset_menu.appendChild(optgroup);
+    for (let o of g.options) {
+        let option = document.createElement('option');
+        option.appendChild(document.createTextNode(o.label));
+        option.value = o.label;
+        optgroup.appendChild(option);
+        presets.push({shell: o.shell, cuts: o.cuts});
+    }
+}
+
+apply_preset(6);
+
+document.getElementById('apply_preset')!.addEventListener('click', function (e) {
+    apply_preset(preset_menu.selectedIndex);
 });
 
 // Animation

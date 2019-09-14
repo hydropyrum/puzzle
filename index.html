@@ -10,7 +10,7 @@
     <div id="controls">
 
       <p>Shell:
-        <select id="shell_shape">
+        <select id="shell_menu">
           <option value="T">Tetrahedron</option>
           <option value="C" selected>Hexahedron (Cube)</option>
           <option value="O">Octahedron</option>
@@ -29,7 +29,7 @@
               <option value="I">Icosahedron</option>
               <option value="jD">Rhombic Triacontahedron</option>
             </select>
-            Distance <input class="cut_distance" type="range" min="0" max="1" step="0.01"></input>
+            Distance <input class="cut_distance" type="text"></input>
             <button type="button" id="delete_cut">Delete cut</button>
           </li>
         </ol>
@@ -37,10 +37,8 @@
       <p><button type="button" id="apply_cuts">Apply</button></p>
       
       <p>Presets:
-        <select id="preset">
-          <option></option>
-          <option value="pyraminx">Pyraminx</option>
-          <option value="rubiks_cube_2x2x2">Rubik's Cube (2x2x2)</option>
+        <select id="preset_menu">
+          <!-- filled in by twist.js -->
         </select>
       <button type="button" id="apply_preset">Apply</button></p>
       
