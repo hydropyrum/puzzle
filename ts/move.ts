@@ -1,7 +1,20 @@
 import * as THREE from 'three';
 import { setdefault, canonicalize_plane, floathash, pointhash, planehash } from './util.js';
+import { PolyGeometry } from './piece.js';
+import { keys } from './util.js';
 
-export function find_cuts(puzzle, ps) {
+export class Cut {
+    plane: THREE.Plane;
+    front: () => number[];
+back: () => number[];
+    constructor (plane: THREE.Plane, front: () => number[], back: () => number[]) {
+        this.plane = plane;
+        this.front = front;
+        this.back = back;
+    }
+}
+
+export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
     /* Given a list of (indexes of) pieces, find all planes that touch
        but don't cut them. The return value is a list of objects; each
        has three fields:
@@ -21,7 +34,7 @@ export function find_cuts(puzzle, ps) {
     }
 
     // Make list of candidate planes, grouping together parallel planes
-    let planes = {};
+    let planes: {[key: string]: THREE.Plane} = {};
     for (let p of ps)
         for (let face of puzzle[p].faces) {
             let plane = face.plane.clone();
@@ -30,7 +43,7 @@ export function find_cuts(puzzle, ps) {
             setdefault(planes, pointhash(plane.normal), {})[planehash(plane)] = plane;
         }
 
-    let ret = [];
+    let ret: Cut[] = [];
 
     for (let nh of Object.keys(planes)) {
         
@@ -43,8 +56,8 @@ export function find_cuts(puzzle, ps) {
 
         const BEGIN_PIECE = 1, END_PIECE = -1, PLANE = 0;
         
-        let a = [];
-        let plane;
+        let a: [number, number, number|THREE.Plane][] = [];
+        let plane: THREE.Plane;
         for (plane of Object.values(planes[nh]))
             a.push([floathash(-plane.constant), PLANE, plane]);
         for (let p of ps) {
@@ -62,11 +75,11 @@ export function find_cuts(puzzle, ps) {
             return d == 0 ? x[1] - y[1] : d;
         });
 
-        function get_pieces(start, stop) {
+        function get_pieces(start: number, stop: number) {
             let ret = [];
             for (let i=start; i<stop; i++) {
                 let [hash, type, what] = a[i];
-                if (type == BEGIN_PIECE)
+                if (type == BEGIN_PIECE && typeof what === "number")
                     ret.push(what);
             }
             return ret;
@@ -82,21 +95,20 @@ export function find_cuts(puzzle, ps) {
                 inside -= 1;
             else if (type == PLANE &&
                      inside == 0 && // only keep planes not inside pieces
-                     i > 0 && i < a.length-1) // only keep planes between pieces
-                ret.push({
-                    plane: what,
-                    front: function () { return get_pieces(i+1, a.length) },
-                    back: function () { return get_pieces(0, i) }
-                });
+                     i > 0 && i < a.length-1 && // only keep planes between pieces
+                     what instanceof THREE.Plane)
+                ret.push(new Cut(what, 
+                                 function () { return get_pieces(i+1, a.length) },
+                                 function () { return get_pieces(0, i) }));
         }
     }
     return ret;
 }
 
-function partition_cuts(cuts, axis) {
+function partition_cuts(cuts: Cut[], axis: THREE.Vector3) {
     // Partition cuts according to their distance from origin and angle relative to axis
     let q = (new THREE.Quaternion()).setFromUnitVectors(axis, new THREE.Vector3(0, 1, 0)); // y-axis is pole of spherical coordinates
-    var ret = {};
+    var ret: {[key: string]: number[]} = {};
     for (let c of cuts) {
         let p = c.plane;
         let v = p.normal.clone().applyQuaternion(q);
@@ -115,7 +127,7 @@ function partition_cuts(cuts, axis) {
     return ret;
 }
 
-export function find_stops(puzzle, cut) {
+export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
     let move_pieces = cut.front();
     let stay_pieces = cut.back();
 
@@ -127,8 +139,8 @@ export function find_stops(puzzle, cut) {
     let move_partition = partition_cuts(move_cuts, cut.plane.normal);
     let stay_partition = partition_cuts(stay_cuts, cut.plane.normal);
 
-    let stops = {};
-    for (let h of Object.keys(move_partition)) {
+    let stops: {[key: string]: number} = {};
+    for (let h of keys(move_partition)) {
         if (!(h in stay_partition)) continue;
         // to do: sort, then find minimum difference
         for (let a1 of move_partition[h])
@@ -139,12 +151,12 @@ export function find_stops(puzzle, cut) {
                 stops[floathash(d)] = d;
             }
     }
-    stops = Object.values(stops);
-    stops.sort((a,b) => a-b);
-    return stops;
+    let ret = Object.values(stops);
+    ret.sort((a: number, b: number) => a-b);
+    return ret;
 }
 
-export function make_move(puzzle, cut, angle) {
+export function make_move(puzzle: PolyGeometry[], cut: Cut, angle: number) {
     let rot = new THREE.Quaternion();
     rot.setFromAxisAngle(cut.plane.normal, angle);
     for (let p of cut.front())

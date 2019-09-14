@@ -1,9 +1,11 @@
 /* Various utility functions for creating pieces. */
 
 import * as THREE from 'three';
-import { really_big_polygeometry, slice_polygeometry} from './slice.js';
+import { PolyGeometry, really_big_polygeometry} from './piece.js';
+import { slice_polygeometry } from './slice.js';
+import { PHI } from './util.js';
 
-function get_color(i) {
+function get_color(i: number) {
     /* Generate colors. The first six colors are the original Rubik's
     Cube colors, and after that are chosen to contrast with previous
     colors:
@@ -17,21 +19,21 @@ function get_color(i) {
 
 const cut_color = new THREE.Color(0x666666);
 
-export function make_shell(faces) {
+export function make_shell(faces: THREE.Plane[]) {
     /* Find intersection of backs of faces and return as a Geometry. 
        Only works for convex polyhedra. */
     let g = really_big_polygeometry();
     let front;
     for (let i=0; i<faces.length; i++)
-        [front, g] = slice_polygeometry(g, faces[i], {color: get_color(i)});
+        [front, g] = slice_polygeometry(g, faces[i], get_color(i));
     return g;
 }
 
-export function make_cuts(cuts, pieces) {
+export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]) {
     for (let cut of cuts) {
-        let newpieces = [];
+        let newpieces: PolyGeometry[] = [];
         for (let piece of pieces) {
-            let subpieces = slice_polygeometry(piece, cut, {color: cut_color});
+            let subpieces = slice_polygeometry(piece, cut, cut_color);
             subpieces.forEach(function (p) {if (p.faces.length > 0) newpieces.push(p)});
         }
         pieces = newpieces;
@@ -39,13 +41,13 @@ export function make_cuts(cuts, pieces) {
     return pieces;
 }
 
-function new_plane(nx, ny, nz, d) {
+function new_plane(nx: number, ny: number, nz: number, d: number) {
     let n = new THREE.Vector3(nx, ny, nz);
     n.normalize();
     return new THREE.Plane(n, d);
 }
 
-export function tetrahedron(d) {
+export function tetrahedron(d: number) {
     /* Tetrahedron with inradius d and
        - Circumradius: 3d
        - Midradius: √3d */
@@ -57,7 +59,7 @@ export function tetrahedron(d) {
     return cuts;
 }
 
-export function cube(d) {
+export function cube(d: number) {
     /* Cube with inradius d and
        - Circumradius: √3d
        - Midradius: √2d */
@@ -71,7 +73,7 @@ export function cube(d) {
     return cuts;
 }
 
-export function octahedron(d) {
+export function octahedron(d: number) {
     /* Octahedron with inradius d and
        - Circumradius: √3
        - Midradius: √6/2 */
@@ -85,7 +87,7 @@ export function octahedron(d) {
     return cuts;
 }
 
-export function rhombic_dodecahedron(d) {
+export function rhombic_dodecahedron(d: number) {
     /* Rhombic dodecahedron with inradius d */
     let cuts = [];
     for (let x of [-1, 1])
@@ -97,7 +99,7 @@ export function rhombic_dodecahedron(d) {
     return cuts;
 }
 
-export function dodecahedron(d) {
+export function dodecahedron(d: number) {
     /* Dodecahedron with inradius d */
     let cuts = [];
     for (let x of [-PHI, PHI])
@@ -109,7 +111,7 @@ export function dodecahedron(d) {
     return cuts;
 }
 
-export function icosahedron(d) {
+export function icosahedron(d: number) {
     /* Icosahedron with inradius d */
     let cuts = [];
     for (let x of [-1, 1])
@@ -125,7 +127,7 @@ export function icosahedron(d) {
     return cuts;
 }
 
-export function rhombic_triacontahedron(d) {
+export function rhombic_triacontahedron(d: number) {
     /* Rhombic triacontahedron with inradius d */
     let cuts = []
     for (let x of [-1, 1]) {

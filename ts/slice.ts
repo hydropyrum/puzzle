@@ -1,36 +1,8 @@
 import * as THREE from 'three';
-import { floathash, setdefault } from './util.js';
+import { floathash, setdefault, keys } from './util.js';
+import { PolyGeometry, PolyFace } from './piece.js';
 
-export function really_big_polygeometry() {
-    let g = {vertices: [], faces: []};
-    let d = 1000;
-    for (let z of [-d, d])
-        for (let y of [-d, d])
-            for (let x of [-d, d])
-                g.vertices.push(new THREE.Vector3(x, y, z));
-    for (let i of [1, 2, 4]) {
-        let j = i < 4 ? i * 2 : 1;
-        let k = j < 4 ? j * 2 : 1;
-        g.faces.push({vertices: [0, k, j+k, j]});
-        g.faces.push({vertices: [i, i+j, i+j+k, i+k]});
-    }
-    return g;
-}
-
-export function triangulate_polygeometry(pg) {
-    let g = new THREE.Geometry();
-    g.vertices.push(...pg.vertices);
-    for (let pf of pg.faces) {
-        let vs = pf.vertices;
-        for (let i=1; i<vs.length-1; i++)
-            g.faces.push(new THREE.Face3(vs[0], vs[i], vs[i+1],
-                                         pf.plane.normal, pf.color));
-    }
-    g.elementsNeedUpdate = true;
-    return g;
-}
-
-export function slice_polygeometry(geometry, plane, attrs) {
+export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color) {
     /* cf. https://github.com/tdhooper/threejs-slice-geometry, but
        - preserves colors of faces
        - creates new faces where the geometry is sliced */
@@ -41,18 +13,16 @@ export function slice_polygeometry(geometry, plane, attrs) {
     let sides = vertices.map(
         v => Math.sign(floathash(plane.distanceToPoint(v))));
 
-    let front = {};
-    front.vertices = [];
-    front.faces = [];
-    let frontmap = {}; // map geometry.vertices to front.vertices
-    let back = {};
+    let front = new PolyGeometry([], []);
+    let frontmap: {[key: number]: number} = {}; // map geometry.vertices to front.vertices
+    let back = new PolyGeometry([], []);
     back.vertices = [];
     back.faces = [];
-    let backmap = {}; // map geometry.vertices to back.vertices
-    let cross_index = {};
+    let backmap: {[key:number]: number} = {}; // map geometry.vertices to back.vertices
+    let cross_index: {[key: string]: number} = {};
     for (let face of geometry.faces) {
         // Slice face into frontpoints and backpoints
-        let frontpoints = [], backpoints = [];
+        let frontpoints: number[] = [], backpoints: number[] = [];
         let prev = face.vertices[face.vertices.length-1];
         for (let cur of face.vertices) {
             if (sides[cur] * sides[prev] < 0) {
@@ -112,22 +82,15 @@ export function slice_polygeometry(geometry, plane, attrs) {
         }
     }
 
-    attrs = Object.assign({}, attrs);
-    attrs.plane = plane;
-    attrs.direction = 1;
-    close_polyhedron(back, attrs);
-    attrs = Object.assign({}, attrs);
-    attrs.plane = plane;
-    attrs.direction = -1;
-    close_polyhedron(front, attrs);
+    close_polyhedron(back, plane, color);
+    close_polyhedron(front, plane, color); // why is it okay not to negate plane?
     
     return [front, back];
-    
 }
 
-function close_polyhedron(geometry, attrs) {
-    let edge_index = {};
-    function count_edge(a, b) {
+function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color) {
+    let edge_index: {[key: number]: [number, number][]} = {};
+    function count_edge(a: number, b: number) {
         let h = a < b ? a+","+b : b+","+a;
         setdefault(edge_index, h, []).push([a, b]);
     }
@@ -138,7 +101,7 @@ function close_polyhedron(geometry, attrs) {
             prev = cur;
         }
     }
-    let cutgraph = {};
+    let cutgraph: {[key: number]: number[]} = {};
     for (let edges of Object.values(edge_index)) {
         console.assert(edges.length <= 2);
         if (edges.length == 1) {
@@ -147,17 +110,18 @@ function close_polyhedron(geometry, attrs) {
         }
     }
 
-    let visited = {};
+    let visited: {[key: number]: boolean} = {};
     let n_visited = 0;
-    let vs = Object.keys(cutgraph); // bug: converts to strings
+    let vs = keys(cutgraph) as number[];
 
     // Traverse cutgraph to put points in ccw order
     while (n_visited < vs.length) {
         let cutpoints = [];
-        let v = vs.find(u => !(u in visited)); // arbitrary point
+        let v: number|undefined;
+        v = vs.find(u => !(u in visited)); // arbitrary point
         while (v !== undefined) {
             cutpoints.push(v);
-            visited[v] = 1;
+            visited[v] = true;
             n_visited += 1;
             v = cutgraph[v].find(u => !(u in visited));
         }
@@ -165,8 +129,7 @@ function close_polyhedron(geometry, attrs) {
             console.error("not all cut points visited");
             break;
         }
-        let cutface = Object.assign({}, attrs);
-        cutface.vertices = cutpoints;
+        let cutface = new PolyFace(cutpoints, plane, color);
         geometry.faces.push(cutface);
     }
 }
