@@ -217,16 +217,21 @@ function onmousemove(event: MouseEvent) {
 canvas.addEventListener('mousemove', onmousemove);
 
 canvas.addEventListener('click', function (event: MouseEvent) {
-    //onmousemove(event);
     if (mouseover_arrow !== null) {
-        let i = arrows.indexOf(mouseover_arrow);
-        let angles = find_stops(puzzle, cuts[i]);
-        if (angles.length == 0 || angles.length == 1 && angles[0] == 0)
-            return;
-        let zi = angles.findIndex(s => floathash(s) == 0);
-        zi = (zi-1+angles.length) % angles.length;
-        let angle = angles[zi];
-        begin_move(cuts[i], angle);
+        let i_before = arrows.indexOf(mouseover_arrow);
+        onmousemove(event);
+        if (mouseover_arrow !== null) {
+            let i = arrows.indexOf(mouseover_arrow);
+            if (i == i_before) {
+                let angles = find_stops(puzzle, cuts[i]);
+                if (angles.length == 0 || angles.length == 1 && angles[0] == 0)
+                    return;
+                let zi = angles.findIndex(s => floathash(s) == 0);
+                zi = (zi-1+angles.length) % angles.length;
+                let angle = angles[zi];
+                begin_move(cuts[i], angle);
+            }
+        }
     }
 });
 
