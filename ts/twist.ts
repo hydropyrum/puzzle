@@ -131,7 +131,7 @@ function move_random(callback: () => void) {
     begin_move(cut, angle, callback);
 }
 
-// Controls
+// Canvas controls
 
 var cuts: Cut[] = [];
 var raycaster = new THREE.Raycaster();
@@ -145,9 +145,6 @@ const arrow_material = new THREE.MeshPhongMaterial({
 const mouseover_arrow_material = new THREE.MeshPhongMaterial({
     color: new THREE.Color(0xFFFFCC),
     transparent: true, opacity: 0.9, side: THREE.DoubleSide});
-
-window.addEventListener('click', onclick);
-window.addEventListener('mousemove', onmousemove);
 
 draw_puzzle(puzzle, scene);
 
@@ -211,16 +208,16 @@ function highlight_arrow(puzzle: PolyGeometry[], mouse: {x: number, y: number} |
 }
 
 function onmousemove(event: MouseEvent) {
-    if (event.target !== renderer.domElement) return;
+    if (event.buttons != 0) return; // prevent highlighting/clicking while dragging
     if (mouse === null) mouse = {x: 0, y: 0};
     mouse.x = (event.clientX - rect.left) / rect.width * 2 - 1;
     mouse.y = -(event.clientY - rect.top) / rect.height * 2 + 1;
     highlight_arrow(puzzle, mouse);
 }
+canvas.addEventListener('mousemove', onmousemove);
 
-function onclick(event: MouseEvent) {
-    if (event.target !== renderer.domElement) return;
-    onmousemove(event);
+canvas.addEventListener('click', function (event: MouseEvent) {
+    //onmousemove(event);
     if (mouseover_arrow !== null) {
         let i = arrows.indexOf(mouseover_arrow);
         let angles = find_stops(puzzle, cuts[i]);
@@ -231,9 +228,9 @@ function onclick(event: MouseEvent) {
         let angle = angles[zi];
         begin_move(cuts[i], angle);
     }
-}
+});
 
-// Register callbacks for controls
+// HTML controls
 
 document.getElementById('new_cut')!.addEventListener('click', function (e) {
     let cut_menu = document.getElementById("cuts")!;
