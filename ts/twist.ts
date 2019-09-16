@@ -41,17 +41,17 @@ scene.add(alight);
 var arrow_geometry = function () {
     var arrow_shape = new THREE.Shape();
     const arrow_width = 0.75, arrow_head_width = 1.5, arrow_head_length = 0.75;
+    const arrow_tail_angle = 90*Math.PI/180;
     const arrow_head_angle = -45*Math.PI/180 + arrow_head_length/2;
     const arrow_tip_angle = -45*Math.PI/180 - arrow_head_length/2;
     function lineto_polar(shape: THREE.Shape, r: number, theta: number) {
         shape.lineTo(r * Math.cos(theta), r * Math.sin(theta));
     }
-    arrow_shape.absarc(0, 0, 1+arrow_width/2, 225*Math.PI/180, arrow_head_angle, true);
+    arrow_shape.absarc(0, 0, 1+arrow_width/2, arrow_tail_angle, arrow_head_angle, true);
     lineto_polar(arrow_shape, 1+arrow_head_width/2, arrow_head_angle);
     lineto_polar(arrow_shape, 1, arrow_tip_angle);
     lineto_polar(arrow_shape, 1-arrow_head_width/2, arrow_head_angle);
-    arrow_shape.absarc(0, 0, 1-arrow_width/2, arrow_head_angle, 225*Math.PI/180, false);
-    //return new THREE.ShapeGeometry(arrow_shape);
+    arrow_shape.absarc(0, 0, 1-arrow_width/2, arrow_head_angle, arrow_tail_angle, false);
     return new THREE.ExtrudeGeometry(arrow_shape, {depth: 0.2, bevelEnabled: false});
 } ();
 
@@ -145,9 +145,12 @@ function draw_arrow(cut: Cut) {
     arrow.quaternion.copy(rot);
     scene.add(arrow);
     arrows.push(arrow);
+    arrow = arrow.clone();
+    arrow.scale.x *= -1;
+    scene.add(arrow);
+    arrows.push(arrow);
 }
 
-// to do: double side arrow?
 function draw_arrows(puzzle: PolyGeometry[]) {
     for (let arrow of arrows)
         scene.remove(arrow);
@@ -202,13 +205,21 @@ canvas.addEventListener('click', function (event: MouseEvent) {
         if (mouseover_arrow !== null) {
             let i = arrows.indexOf(mouseover_arrow);
             if (i == i_before) {
-                let angles = find_stops(puzzle, cuts[i]);
+                let ci = Math.floor(i/2);
+                let dir = i%2;
+                let angles = find_stops(puzzle, cuts[ci]);
                 if (angles.length == 0 || angles.length == 1 && angles[0] == 0)
                     return;
                 let zi = angles.findIndex(s => floathash(s) == 0);
-                zi = (zi-1+angles.length) % angles.length;
+                if (dir == 0)
+                    zi = (zi-1+angles.length) % angles.length;
+                else
+                    zi = (zi+1) % angles.length;
                 let angle = angles[zi];
-                begin_move(cuts[i], angle);
+                // Ensure that 180-degree turns are in the right direction
+                while (dir == 0 && angle > 0) angle -= 2*Math.PI;
+                while (dir == 1 && angle < 0) angle += 2*Math.PI;
+                begin_move(cuts[ci], angle);
             }
         }
     }
