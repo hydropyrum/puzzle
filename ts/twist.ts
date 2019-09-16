@@ -307,10 +307,15 @@ var presets_grouped = [
             { label: "Pyraminx",
               shell: "T",
               cuts: [{shape: "T", distance: -1/9},
-                     {shape: "T", distance: -5/9}] },
+                     /*{shape: "T", distance: -5/9}*/] },
             { label: "Halpern-Meier pyramid",
               shell: "T",
               cuts: [{shape: "T", distance: 0}] },
+            { label: "Master Pyraminx",
+              shell: "T",
+              cuts: [{shape: "T", distance: 0},
+                     {shape: "T", distance: -1/3},
+                     /*{shape: "T", distance: -2/3}*/] },
         ],
     },
     {
@@ -351,7 +356,10 @@ var presets_grouped = [
         options: [
             { label: "Skewb",
               shell: "C",
-              cuts: [{shape: "T", distance: 0}] },
+              cuts: [{shape: "O", distance: 0}] },
+            { label: "Master Skewb",
+              shell: "C",
+              cuts: [{shape: "O", distance: 1/6}] },
             { label: "Dino Cube",
               shell: "C",
               cuts: [{shape: "O", distance: 1/3}] },
@@ -360,7 +368,7 @@ var presets_grouped = [
     {
         label: "Edge-turning cubes",
         options: [
-            { label: "Little Chop",
+            { label: "24-Cube / Little Chop",
               shell: "C",
               cuts: [{shape: "jC", distance: 0}] },
             { label: "Helicopter Cube",
@@ -380,12 +388,28 @@ var presets_grouped = [
         ],
     },
     {
+        label: "Corner-turning octahedra",
+        options: [
+            { label: "PyraDiamond (wrong colors)",
+              shell: "O",
+              cuts: [{shape: "C", distance: 0}] },
+        ],
+    },
+    {
+        label: "Edge-turning octahedra",
+        options: [
+            { label: "24-Octahedron",
+              shell: "O",
+              cuts: [{shape: "jC", distance: 0}] },
+        ],
+    },
+    {
         label: "Face-turning dodecahedra",
         options: [
-            { label: "Penultimate",
+            { label: "Pentultimate",
               shell: "D",
               cuts: [{shape: "D", distance: 0}] },
-            { label: "Face-turning dodecahedron",
+            { label: "Starminx I",
               shell: "D",
               cuts: [{shape: "D", distance: 0.19 }] }, // to do: exact
             { label: "Pyraminx Crystal",
@@ -397,15 +421,47 @@ var presets_grouped = [
         ],
     },
     {
+        label: "Corner-turning dodecahedra",
+        options: [
+            { label: "Chopasaurus",
+              shell: "D",
+              cuts: [{shape: "I", distance: 0}] },
+        ],
+    },
+    {
+        label: "Edge-turning dodecahedra",
+        options: [
+            { label: "Big Chop",
+              shell: "D",
+              cuts: [{shape: "jD", distance: 0}] },
+        ],
+    },
+    {
+        label: "Face-turning icosahedra",
+        options: [
+            { label: "Radio Chop (Radiolarian 15)",
+              shell: "I",
+              cuts: [{shape: "I", distance: 0}] },
+        ],
+    },
+    {
         label: "Corner-turning icosahedra",
         options: [
-            { label: "Deep-cut corner-turning icosahedron",
+            { label: "Icosamate",
               shell: "I",
               cuts: [{shape: "D", distance: 0 }] },
-            { label: "Impossiball (with wrong colors)",
+            { label: "Impossiball (wrong colors)",
               shell: "I",
               cuts: [{shape: "D", distance: 0.447 }] }, // to do: exact
         ]
+    },
+    {
+        label: "Edge-turning icosahedra",
+        options: [
+            { label: "Deep-cut edge-turning icosahedron",
+              shell: "I",
+              cuts: [{shape: "jD", distance: 0}] },
+        ],
     },
 
 ];
