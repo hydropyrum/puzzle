@@ -1,11 +1,13 @@
 // bug: trivial corners don't turn
+// bug: arrow position
 
 import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls.js';
 import { make_shell, make_cuts, tetrahedron, cube, octahedron, dodecahedron, rhombic_dodecahedron, icosahedron, rhombic_triacontahedron } from './make.js';
 import { Cut, find_cuts, find_stops, make_move } from './move.js';
 import { PolyGeometry, triangulate_polygeometry } from './piece.js';
-import { floathash } from './util.js';
+import { floathash, pointhash, setdefault } from './util.js';
+import * as parse from './parse.js';
 
 // Set up
 
@@ -71,7 +73,7 @@ const face_material = new THREE.MeshStandardMaterial({
 const edge_material = new THREE.LineBasicMaterial({color: 0x000000, linewidth: 2});
 //const wire_material = new THREE.LineBasicMaterial({color: 0xffffff, linewidth: 1});
 
-function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene) {
+function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: number) {
     for (let piece of puzzle) // or should there be a separate erase_puzzle()?
         if (piece.object)
             scene.remove(piece.object);
@@ -82,6 +84,7 @@ function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene) {
         piece.object.add(new THREE.Mesh(g, face_material));
         piece.object.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), edge_material));
         //piece.object.add(new THREE.LineSegments(new THREE.WireframeGeometry(g), wire_material));
+        piece.object.scale.multiplyScalar(scale);
         scene.add(piece.object);
     }
     draw_arrows(newpuzzle);
@@ -115,7 +118,6 @@ function move_random(callback: () => void) {
 var cuts: Cut[] = [];
 var raycaster = new THREE.Raycaster();
 var mouse: {x: number, y: number} | null = null;
-var rect = renderer.domElement.getBoundingClientRect(); // to do: update if resize
 
 var arrows: THREE.Mesh[] = [];
 var mouseover_arrow: THREE.Mesh | null = null;
@@ -125,22 +127,14 @@ const mouseover_arrow_material = new THREE.MeshPhongMaterial({
     color: new THREE.Color(0xFFFFCC),
     transparent: true, opacity: 0.9, side: THREE.DoubleSide});
 
-draw_puzzle(puzzle, scene);
+draw_puzzle(puzzle, scene, 1);
 
-function reverse_cut(cut: Cut) {
-    return {
-        plane: cut.plane.clone().negate(),
-        back: cut.front,
-        front: cut.back
-    };
-}
-
-function draw_arrow(cut: Cut) {
+function draw_arrow(cut: Cut, d: number) {
     let arrow = new THREE.Mesh(arrow_geometry, arrow_material);
     arrow.scale.multiplyScalar(0.2);
     var rot = new THREE.Quaternion();
     rot.setFromUnitVectors(new THREE.Vector3(0, 0, 1), cut.plane.normal);
-    arrow.position.z = 1.1 - cut.plane.constant; // to do: better positioning
+    arrow.position.z = 1.25 + 0.25*d;
     arrow.position.applyQuaternion(rot);
     arrow.quaternion.copy(rot);
     scene.add(arrow);
@@ -151,6 +145,14 @@ function draw_arrow(cut: Cut) {
     arrows.push(arrow);
 }
 
+function reverse_cut(cut: Cut) {
+    return {
+        plane: cut.plane.clone().negate(),
+        back: cut.front,
+        front: cut.back
+    };
+}
+
 function draw_arrows(puzzle: PolyGeometry[]) {
     for (let arrow of arrows)
         scene.remove(arrow);
@@ -158,17 +160,20 @@ function draw_arrows(puzzle: PolyGeometry[]) {
     arrows = [];
     cuts = find_cuts(puzzle);
     let n = cuts.length;
-    // to do: not very elegant; maybe find_cuts should just return them like this
+    // make normals point away from origin; deep cuts go both ways
     for (let i=0; i<n; i++) {
         if (floathash(cuts[i].plane.constant) > 0)
             cuts[i] = reverse_cut(cuts[i]);
-        draw_arrow(cuts[i]);
-    }
-    for (let i=0; i<n; i++) {
-        if (floathash(cuts[i].plane.constant) == 0) {
+        else if (floathash(cuts[i].plane.constant) == 0)
             cuts.push(reverse_cut(cuts[i]));
-            draw_arrow(cuts[cuts.length-1]);
-        }
+    }
+    cuts.sort((a, b) => b.plane.constant - a.plane.constant);
+    let count: {[key: string]: number} = {};
+    for (let cut of cuts) {
+        let h = pointhash(cut.plane.normal);
+        setdefault(count, h, 0);
+        draw_arrow(cut, count[h]);
+        count[h] += 1;
     }
     render(); // needed to figure out which one to highlight (not sure why)
     highlight_arrow(puzzle, mouse);
@@ -190,6 +195,7 @@ function highlight_arrow(puzzle: PolyGeometry[], mouse: {x: number, y: number} |
 }
 
 function onmousemove(event: MouseEvent) {
+    let rect = renderer.domElement.getBoundingClientRect();
     if (event.buttons != 0) return; // prevent highlighting/clicking while dragging
     if (mouse === null) mouse = {x: 0, y: 0};
     mouse.x = (event.clientX - rect.left) / rect.width * 2 - 1;
@@ -225,13 +231,13 @@ canvas.addEventListener('click', function (event: MouseEvent) {
     }
 });
 
-// HTML controls
+/* Process URL and initialize HTML controls */
 
 function new_cut() {
     let cut_menu = document.getElementById("cuts")!;
     let cut_item = cut_menu.firstChild!.cloneNode(true) as HTMLElement;
-    cut_item.style.display="list-item";
-    let button = cut_item.getElementsByTagName("button")[0];
+    cut_item.style.display="block";
+    let button = cut_item.getElementsByClassName("delete_cut")[0];
     button.addEventListener('click', function () {
         cut_menu.removeChild(cut_item);
     });
@@ -244,39 +250,35 @@ document.getElementById('new_cut')!.addEventListener('click', e => new_cut());
 function apply_cuts() {
     let shell_menu = document.getElementById("shell_menu")! as HTMLSelectElement;
     let shell_shape = shell_menu.options[shell_menu.selectedIndex].value;
+    let d = parseFloat((document.getElementById("shell_distance")! as HTMLInputElement).value);
 
-    let shell: THREE.Plane[] = [];
+    let planes: THREE.Plane[] = [];
     let inradius, circumradius;
     switch(shell_shape) {
-    case "T": shell = tetrahedron(1/3); break;
-    case "C": shell = cube(1/Math.sqrt(3)); break;
-    case "O": shell = octahedron(1/Math.sqrt(3)); break;
-    case "D":
-        inradius = 1/20*Math.sqrt(250+110*Math.sqrt(5));
-        circumradius = 1/4*(Math.sqrt(15)+Math.sqrt(3));
-        shell = dodecahedron(inradius/circumradius);
-        break;
-    case "I":
-        inradius = 1/12*(3*Math.sqrt(3) + Math.sqrt(15));
-        circumradius = 1/4*Math.sqrt(10+2*Math.sqrt(5));
-        shell = icosahedron(inradius/circumradius);
-        break;
+    case "T": planes = tetrahedron(d); break;
+    case "C": planes = cube(d); break;
+    case "O": planes = octahedron(d); break;
+    case "D": planes = dodecahedron(d); break;
+    case "I": planes = icosahedron(d); break;
     }
-    let newpuzzle = [make_shell(shell)];
+    let shell = make_shell(planes);
 
+    // Find circumradius, which we will scale to 1
+    let r = 0;
+    for (let v of shell.vertices)
+        if (v.length() > r) r = v.length();
+
+    let newpuzzle = [shell];
     let cut_menu = document.getElementById("cuts")!;
-    cut_menu.childNodes.forEach(function (li) {
+    for (let ce of Array.from(cut_menu.children)) {
         // skip first item, which is a dummy item
-        if (li === cut_menu.firstChild) return;
+        if (ce === cut_menu.firstChild) continue;
         let shape = "", distance = 0;
-        li.childNodes.forEach(function (e) {
-            let he = e as HTMLSelectElement;
-            if (he.className == "cut_shape")
-                shape = he.options[he.selectedIndex].value;
-            else if (he.className == "cut_distance")
-                distance = parseFloat(he.value);
-        });
-        if (isNaN(distance)) return;
+        let se = ce.getElementsByClassName('cut_shape')[0] as HTMLSelectElement;
+        shape = se.options[se.selectedIndex].value;
+        let de = ce.getElementsByClassName('cut_distance')[0] as HTMLInputElement;
+        distance = parseFloat(de.value);
+        if (isNaN(distance)) continue;
         switch(shape) {
         case "T": newpuzzle = make_cuts(tetrahedron(distance), newpuzzle); break;
         case "C": newpuzzle = make_cuts(cube(distance), newpuzzle); break;
@@ -286,8 +288,8 @@ function apply_cuts() {
         case "I": newpuzzle = make_cuts(icosahedron(distance), newpuzzle); break;
         case "jD": newpuzzle = make_cuts(rhombic_triacontahedron(distance), newpuzzle); break;
         }
-    });
-    draw_puzzle(newpuzzle, scene);
+    }
+    draw_puzzle(newpuzzle, scene, 1/r);
 }
 document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts());
 
@@ -312,81 +314,6 @@ function select_option(select: HTMLSelectElement, value: string) {
  */
 
 var presets_grouped = [
-    {
-        label: "Face/corner-turning tetrahedra",
-        options: [
-            { label: "Pyraminx",
-              shell: "T",
-              cuts: [{shape: "T", distance: -1/9},
-                     /*{shape: "T", distance: -5/9}*/] },
-            { label: "Halpern-Meier pyramid",
-              shell: "T",
-              cuts: [{shape: "T", distance: 0}] },
-            { label: "Master Pyraminx",
-              shell: "T",
-              cuts: [{shape: "T", distance: 0},
-                     {shape: "T", distance: -1/3},
-                     /*{shape: "T", distance: -2/3}*/] },
-        ],
-    },
-    {
-        label: "Edge-turning tetrahedra",
-        options: [
-            { label: "Pyramorphix",
-              shell: "T",
-              cuts: [{shape: "C", distance: 0}] },
-            { label: "Mastermorphix",
-              shell: "T",
-              cuts: [{shape: "C", distance: 1/Math.sqrt(3)/5}] },
-            { label: "Mastermorphynx", 
-              shell: "T",
-              cuts: [{shape: "C", distance: 1/Math.sqrt(3)/3}] },
-        ],
-    },
-    {
-        label: "Face-turning cubes",
-        options: [
-            { label: "Pocket Cube (2x2x2)",
-              shell: "C",
-              cuts: [{shape: "C", distance: 0}] },
-            { label: "Rubik's Cube (3x3x3)",
-              shell: "C",
-              cuts: [{shape: "C", distance: Math.sqrt(3)/9}] },
-            { label: "Rubik's Revenge (4x4x4)",
-              shell: "C",
-              cuts: [{shape: "C", distance: 0},
-                     {shape: "C", distance: Math.sqrt(3)/6}] },
-            { label: "Professor's Cube (5x5x5)",
-              shell: "C",
-              cuts: [{shape: "C", distance: Math.sqrt(3)/15},
-                     {shape: "C", distance: Math.sqrt(3)/5}] },
-        ],
-    },
-    {
-        label: "Corner-turning cubes",
-        options: [
-            { label: "Skewb",
-              shell: "C",
-              cuts: [{shape: "O", distance: 0}] },
-            { label: "Master Skewb",
-              shell: "C",
-              cuts: [{shape: "O", distance: 1/6}] },
-            { label: "Dino Cube",
-              shell: "C",
-              cuts: [{shape: "O", distance: 1/3}] },
-        ],
-    },
-    {
-        label: "Edge-turning cubes",
-        options: [
-            { label: "24-Cube / Little Chop",
-              shell: "C",
-              cuts: [{shape: "jC", distance: 0}] },
-            { label: "Helicopter Cube",
-              shell: "C",
-              cuts: [{shape: "jC", distance: Math.sqrt(6)/6}] }, 
-        ],
-    },
     {
         label: "Face-turning octahedra",
         options: [
@@ -477,47 +404,23 @@ var presets_grouped = [
 
 ];
 
-var presets: { shell: string, cuts: {shape: string, distance: number}[] }[] = [];
-const preset_menu = document.getElementById("preset_menu")! as HTMLSelectElement;
-
-function apply_preset(i: number) {
-    preset_menu.selectedIndex = i;
-    let shell_menu = document.getElementById("shell_menu")! as HTMLSelectElement;
-    select_option(shell_menu, presets[i].shell);
-    let cuts_menu = document.getElementById("cuts")!;
-    while (cuts_menu.childNodes.length > 1)
-        cuts_menu.removeChild(cuts_menu.lastChild!);
-    for (let cut of presets[i].cuts) {
-        let li = new_cut();
-        li.childNodes.forEach(function (e) {
-            let he = e as HTMLSelectElement;
-            if (he.className == "cut_shape")
-                select_option(he, cut.shape);
-            else if (he.className == "cut_distance")
-                he.value = cut.distance.toString();
-        });
-    }
-    apply_cuts();
+const query = parse.parseQuery(window.location.search);
+// to do: multiple shell
+// to do: shell planes
+select_option(document.getElementById("shell_menu")! as HTMLSelectElement,
+              (query.shell[0] as parse.Polyhedron).name);
+(document.getElementById("shell_distance")! as HTMLInputElement).value = query.shell[0].d.toString();
+const cuts_menu = document.getElementById("cuts")!;
+while (cuts_menu.childNodes.length > 1)
+    cuts_menu.removeChild(cuts_menu.lastChild!);
+for (let cut of query.cuts) {
+    let ce = new_cut();
+    let se = ce.getElementsByClassName('cut_shape')[0] as HTMLSelectElement;
+    select_option(se, (cut as parse.Polyhedron).name);
+    let de = ce.getElementsByClassName('cut_distance')[0] as HTMLInputElement;
+    de.value = cut.d.toString();
 }
-
-for (let g of presets_grouped) {
-    let optgroup = document.createElement('optgroup');
-    optgroup.setAttribute('label', g.label);
-    preset_menu.appendChild(optgroup);
-    for (let o of g.options) {
-        let option = document.createElement('option');
-        option.appendChild(document.createTextNode(o.label));
-        option.value = o.label;
-        optgroup.appendChild(option);
-        presets.push({shell: o.shell, cuts: o.cuts});
-    }
-}
-
-apply_preset(6);
-
-document.getElementById('apply_preset')!.addEventListener('click', function (e) {
-    apply_preset(preset_menu.selectedIndex);
-});
+apply_cuts();
 
 // Animation
 

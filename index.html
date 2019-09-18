@@ -2,49 +2,56 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Twisty puzzle simulator</title>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
+    <link rel="stylesheet" type="text/css" href="twist.css">
   </head>
   <body>
-    <canvas id="c"></canvas>
-
-    <div id="controls">
-
-      <p>Shell:
-        <select id="shell_menu">
-          <option value="T">Tetrahedron</option>
-          <option value="C" selected>Cube</option>
-          <option value="O">Octahedron</option>
-          <option value="D">Dodecahedron</option>
-          <option value="I">Icosahedron</option>
-      </select></p>
-
-      <p>Cuts: <button type="button" id="new_cut">New cut</button>
-        <ol id="cuts"><li class="cut" style="display: none">
-            <select class="cut_shape">
-              <option value="T">Tetrahedron</option>
-              <option value="C" selected>Cube</option>
-              <option value="O">Octahedron</option>
-              <option value="D">Dodecahedron</option>
-              <option value="jC">Rhombic Dodecahedron</option>
-              <option value="I">Icosahedron</option>
-              <option value="jD">Rhombic Triacontahedron</option>
-            </select>
-            Distance <input class="cut_distance" type="text"></input>
-            <button type="button" id="delete_cut">Delete cut</button>
-          </li>
-        </ol>
-      </p>
-      <p><button type="button" id="apply_cuts">Apply</button></p>
-      
-      <p>Presets:
-        <select id="preset_menu">
-          <!-- filled in by twist.js -->
-        </select>
-      <button type="button" id="apply_preset">Apply</button></p>
-      
-      <p><button type="button" id="scramble">Scramble</button></p>
-    </div>
-    
-    <script src="./twist.js?r=1" type="module"></script>
+    <section class="section">
+      <div class="container">
+        <div class="content">
+          <h1>Twisty puzzles</h1>
+          <ul>
+            <li>Face/corner-turning tetrahedra
+              <ul>
+                <li><a href="twist.html?shell=T$1&cut=T$-0.333333&cut=T$-1.666667">Pyraminx</a></li>
+                <li><a href="twist.html?shell=T$1&cut=T$0">Halpern-Meier Pyramid</a></li>
+                <li><a href="twist.html?shell=T$1&cut=T$-2&cut=T$-1&cut=T$0">Master Pyraminx</a></li>
+              </ul>
+              
+            <li>Edge-turning tetrahedra
+              <ul>
+                <!-- set inradius to 4/sqrt(2) to make midradius 1 -->
+                <li><a href="twist.html?shell=T$2.828427&cut=T$0">Pyramorphix</a></li>
+                <li><a href="twist.html?shell=T$2.828427&cut=T$-1">Mastermorphix</a></li>
+                <li><a href="twist.html?shell=T$2.828427&cut=T$-1.666667">Mastermorphynx</a></li>
+              </ul>
+              
+            <li>Face-turning cubes
+              <ul>
+                <li><a href="twist.html?shell=C$1&cut=C$0">Pocket Cube (2x2x2)</a></li>
+                <li><a href="twist.html?shell=C$1&cut=C$0.333333">Rubik's Cube (3x3x3)</a></li>
+                <li><a href="twist.html?shell=C$1&cut=C$0&cut=C$0.5">Rubik's Revenge (4x4x4)</a></li>
+              </ul>
+              
+            <li>Corner-turning cubes
+              <ul>
+                <!-- set inradius to 1/sqrt(3) to make circumradius 1 -->
+                <li><a href="twist.html?shell=C$0.577350&cut=O$0">Skewb</a></li>
+                <li><a href="twist.html?shell=C$0.577350&cut=O$0.166667">Master Skewb</a></li>
+                <li><a href="twist.html?shell=C$0.577350&cut=O$0.333333">Dino Cube</a></li>
+              </ul>
+              
+            <li>Edge-turning cubes
+              <ul>
+                <!-- set inradius to 1/sqrt(2) to make midradius 1 -->
+                <li><a href="twist.html?shell=C$0.707107&cut=jC$0">24-Cube / Little Chop</a></li>
+                <li><a href="twist.html?shell=C$0.707107&cut=jC$0.5">Helicopter Cube</a></li>
+              </ul>
+          </ul>
+        </div>
+      </div>
+    </section>
   </body>
 </html>

@@ -3,15 +3,10 @@ import { setdefault, canonicalize_plane, floathash, pointhash, planehash } from 
 import { PolyGeometry } from './piece.js';
 import { keys } from './util.js';
 
-export class Cut {
+export interface Cut {
     plane: THREE.Plane;
     front: () => number[];
-back: () => number[];
-    constructor (plane: THREE.Plane, front: () => number[], back: () => number[]) {
-        this.plane = plane;
-        this.front = front;
-        this.back = back;
-    }
+    back: () => number[];
 }
 
 export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
@@ -97,9 +92,9 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
                      inside == 0 && // only keep planes not inside pieces
                      i > 0 && i < a.length-1 && // only keep planes between pieces
                      what instanceof THREE.Plane)
-                ret.push(new Cut(what, 
-                                 function () { return get_pieces(i+1, a.length) },
-                                 function () { return get_pieces(0, i) }));
+                ret.push({plane: what, 
+                          front: function () { return get_pieces(i+1, a.length) },
+                          back: function () { return get_pieces(0, i) }});
         }
     }
     return ret;
