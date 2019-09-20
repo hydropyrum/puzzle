@@ -29,6 +29,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
     }
 
     // Make list of candidate planes, grouping together parallel planes
+    // to do: only use interior faces
     let planes: {[key: string]: THREE.Plane} = {};
     for (let p of ps)
         for (let face of puzzle[p].faces) {
@@ -40,7 +41,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
 
     let ret: Cut[] = [];
 
-    for (let nh of Object.keys(planes)) {
+    for (let nh in planes) {
         
         // Make a list of pieces and planes, sorted by their
         // projection onto the current axis (represented by nh). Each
@@ -52,18 +53,24 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
         const BEGIN_PIECE = 1, END_PIECE = -1, PLANE = 0;
         
         let a: [number, number, number|THREE.Plane][] = [];
-        let plane: THREE.Plane;
-        for (plane of Object.values(planes[nh]))
+        let planes_n = Object.values(planes[nh]);
+        let n = planes_n[0].normal;
+        for (let plane of planes_n)
             a.push([floathash(-plane.constant), PLANE, plane]);
         for (let p of ps) {
-            let xs = puzzle[p].vertices.map(function(x) {
-                x = x.clone();
-                x.applyQuaternion(puzzle[p].rot);
-                return plane.normal.dot(x);
-            });
-            xs.sort((a, b) => a - b);
-            a.push([floathash(xs[0]), BEGIN_PIECE, p]);
-            a.push([floathash(xs[xs.length-1]), END_PIECE, p]);
+            let xmin = Infinity;
+            let xmax = -Infinity;
+            // instead of rotating all of p's vertices,
+            // rotate n in the opposite direction
+            let nq = n.clone();
+            nq.applyQuaternion(puzzle[p].rot.clone().conjugate());
+            for (let v of puzzle[p].vertices) {
+                let x = nq.dot(v);
+                if (x < xmin) xmin = x;
+                if (x > xmax) xmax = x;
+            }
+            a.push([floathash(xmin), BEGIN_PIECE, p]);
+            a.push([floathash(xmax), END_PIECE, p]);
         }
         a.sort(function (x, y) {
             let d = x[0] - y[0];
@@ -137,7 +144,6 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
     let stops: {[key: string]: number} = {};
     for (let h of keys(move_partition)) {
         if (!(h in stay_partition)) continue;
-        // to do: sort, then find minimum difference
         for (let a1 of move_partition[h])
             for (let a2 of stay_partition[h]) {
                 let d = a2 - a1;

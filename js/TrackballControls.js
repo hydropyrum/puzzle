@@ -443,7 +443,7 @@ var TrackballControls = function ( object, domElement ) {
 		if ( _this.enabled === false ) return;
 
 		event.preventDefault();
-		event.stopPropagation();
+	        event.stopPropagation();
 
 		var state = ( _keyState !== STATE.NONE ) ? _keyState : _state;
 

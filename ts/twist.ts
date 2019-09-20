@@ -1,5 +1,4 @@
-// bug: trivial corners don't turn
-// bug: arrow position
+// bug: trivial corners don't turn; cut with no moves still has arrow
 
 import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls.js';
@@ -15,6 +14,7 @@ const canvas = document.querySelector('#c') as HTMLCanvasElement;
 
 const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true});
 renderer.setSize(400, 400);
+var renderRequested = true;
 
 var scene = new THREE.Scene();
 
@@ -31,11 +31,11 @@ var controls = new TrackballControls(camera, renderer.domElement);
 controls.rotateSpeed = 5.0;
 controls.noPan = true;
 controls.noZoom = true;
-controls.addEventListener('change', render);
+controls.addEventListener('change', () => { renderRequested = true;});
 
-const dlight = new THREE.DirectionalLight(0xFFFFFF, 0.5);
+/*const dlight = new THREE.DirectionalLight(0xFFFFFF, 0.5);
 dlight.position.set(0, 2, -camera.position.z);
-camera.add(dlight);
+camera.add(dlight);*/
 
 const alight = new THREE.AmbientLight(0xFFFFFF, 1.5);
 scene.add(alight);
@@ -54,14 +54,15 @@ var arrow_geometry = function () {
     lineto_polar(arrow_shape, 1, arrow_tip_angle);
     lineto_polar(arrow_shape, 1-arrow_head_width/2, arrow_head_angle);
     arrow_shape.absarc(0, 0, 1-arrow_width/2, arrow_head_angle, arrow_tail_angle, false);
-    return new THREE.ExtrudeGeometry(arrow_shape, {depth: 0.2, bevelEnabled: false});
+    return new THREE.ExtrudeBufferGeometry(arrow_shape, {depth: 0.2, bevelEnabled: false});
 } ();
 
 /* Build puzzle */
 
 var puzzle: PolyGeometry[] = [];
 
-const face_material = new THREE.MeshStandardMaterial({
+//const face_material = new THREE.MeshStandardMaterial({
+const face_material = new THREE.MeshLambertMaterial({
     vertexColors: THREE.FaceColors,
     flatShading: true,
     // https://stackoverflow.com/questions/31539130/display-wireframe-and-solid-color/31541369#31541369
@@ -74,13 +75,13 @@ const edge_material = new THREE.LineBasicMaterial({color: 0x000000, linewidth: 2
 //const wire_material = new THREE.LineBasicMaterial({color: 0xffffff, linewidth: 1});
 
 function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: number) {
-    for (let piece of puzzle) // or should there be a separate erase_puzzle()?
+    for (let piece of puzzle)
         if (piece.object)
             scene.remove(piece.object);
     for (let piece of newpuzzle) {
         piece.rot = new THREE.Quaternion();
         piece.object = new THREE.Object3D();
-        let g = triangulate_polygeometry(piece);
+        let g = new THREE.BufferGeometry().fromGeometry(triangulate_polygeometry(piece));
         piece.object.add(new THREE.Mesh(g, face_material));
         piece.object.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), edge_material));
         //piece.object.add(new THREE.LineSegments(new THREE.WireframeGeometry(g), wire_material));
@@ -121,13 +122,12 @@ var mouse: {x: number, y: number} | null = null;
 
 var arrows: THREE.Mesh[] = [];
 var mouseover_arrow: THREE.Mesh | null = null;
-const arrow_material = new THREE.MeshPhongMaterial({
+var click_arrow: THREE.Mesh | null = null;
+const arrow_material = new THREE.MeshLambertMaterial({
     transparent: true, opacity: 0.3, side: THREE.DoubleSide});
-const mouseover_arrow_material = new THREE.MeshPhongMaterial({
+const mouseover_arrow_material = new THREE.MeshLambertMaterial({
     color: new THREE.Color(0xFFFFCC),
     transparent: true, opacity: 0.9, side: THREE.DoubleSide});
-
-draw_puzzle(puzzle, scene, 1);
 
 function draw_arrow(cut: Cut, d: number) {
     let arrow = new THREE.Mesh(arrow_geometry, arrow_material);
@@ -155,7 +155,7 @@ function reverse_cut(cut: Cut) {
 
 function draw_arrows(puzzle: PolyGeometry[]) {
     for (let arrow of arrows)
-        scene.remove(arrow);
+        scene.remove(arrow); // to do: recycle
     mouseover_arrow = null;
     arrows = [];
     cuts = find_cuts(puzzle);
@@ -175,61 +175,69 @@ function draw_arrows(puzzle: PolyGeometry[]) {
         draw_arrow(cut, count[h]);
         count[h] += 1;
     }
-    render(); // needed to figure out which one to highlight (not sure why)
-    highlight_arrow(puzzle, mouse);
 }
 
 function highlight_arrow(puzzle: PolyGeometry[], mouse: {x: number, y: number} | null) {
     if (mouse === null)
         return;
-    if (mouseover_arrow !== null)
-        mouseover_arrow.material = arrow_material;
+    let new_arrow: THREE.Mesh|null = null;
     raycaster.setFromCamera(mouse!, camera);
     let intersects = raycaster.intersectObjects(arrows);
-    if (intersects.length > 0) {
-        mouseover_arrow = intersects[0].object as THREE.Mesh;
-        mouseover_arrow.material = mouseover_arrow_material;
-    } else {
-        mouseover_arrow = null;
+    if (intersects.length > 0)
+        new_arrow = intersects[0].object as THREE.Mesh;
+    if (new_arrow !== mouseover_arrow) {
+        if (mouseover_arrow !== null)
+            mouseover_arrow.material = arrow_material;
+        if (new_arrow !== null)
+            new_arrow.material = mouseover_arrow_material;
+        mouseover_arrow = new_arrow;
+        renderRequested = true;
     }
 }
 
 function onmousemove(event: MouseEvent) {
+    event.preventDefault();
+    // do propagate because TrackballControl's mousemove is on document
     let rect = renderer.domElement.getBoundingClientRect();
-    if (event.buttons != 0) return; // prevent highlighting/clicking while dragging
     if (mouse === null) mouse = {x: 0, y: 0};
     mouse.x = (event.clientX - rect.left) / rect.width * 2 - 1;
     mouse.y = -(event.clientY - rect.top) / rect.height * 2 + 1;
-    highlight_arrow(puzzle, mouse);
 }
-canvas.addEventListener('mousemove', onmousemove);
+canvas.addEventListener('mousemove', onmousemove, false);
 
-canvas.addEventListener('click', function (event: MouseEvent) {
-    if (mouseover_arrow !== null) {
-        let i_before = arrows.indexOf(mouseover_arrow);
-        onmousemove(event);
-        if (mouseover_arrow !== null) {
-            let i = arrows.indexOf(mouseover_arrow);
-            if (i == i_before) {
-                let ci = Math.floor(i/2);
-                let dir = i%2;
-                let angles = find_stops(puzzle, cuts[ci]);
-                if (angles.length == 0 || angles.length == 1 && angles[0] == 0)
-                    return;
-                let zi = angles.findIndex(s => floathash(s) == 0);
-                if (dir == 0)
-                    zi = (zi-1+angles.length) % angles.length;
-                else
-                    zi = (zi+1) % angles.length;
-                let angle = angles[zi];
-                // Ensure that 180-degree turns are in the right direction
-                while (dir == 0 && angle > 0) angle -= 2*Math.PI;
-                while (dir == 1 && angle < 0) angle += 2*Math.PI;
-                begin_move(cuts[ci], angle);
-            }
-        }
+function onmousedown(event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    // bug: doesn't work for touch
+    click_arrow = mouseover_arrow;
+}
+canvas.addEventListener('mousedown', onmousedown, false);
+canvas.addEventListener('touchstart', onmousedown, false);
+
+function onmouseup(event: Event) {
+    event.preventDefault();
+    // do propagate because TrackballControl's mouseup is on document
+    if (mouseover_arrow !== null && mouseover_arrow === click_arrow) {
+        let i = arrows.indexOf(mouseover_arrow);
+        let ci = Math.floor(i/2);
+        let dir = i%2;
+        let angles = find_stops(puzzle, cuts[ci]);
+        if (angles.length == 0 || angles.length == 1 && angles[0] == 0)
+            return;
+        let zi = angles.findIndex(s => floathash(s) == 0);
+        if (dir == 0)
+            zi = (zi-1+angles.length) % angles.length;
+        else
+            zi = (zi+1) % angles.length;
+        let angle = angles[zi];
+        // Ensure that 180-degree turns are in the right direction
+        while (dir == 0 && angle > 0) angle -= 2*Math.PI;
+        while (dir == 1 && angle < 0) angle += 2*Math.PI;
+        begin_move(cuts[ci], angle);
     }
-});
+}
+canvas.addEventListener('mouseup', onmouseup, false);
+canvas.addEventListener('touchend', onmousedown, false);
 
 /* Process URL and initialize HTML controls */
 
@@ -240,12 +248,12 @@ function new_cut() {
     let button = cut_item.getElementsByClassName("delete_cut")[0];
     button.addEventListener('click', function () {
         cut_menu.removeChild(cut_item);
-    });
+    }, false);
     cut_menu.appendChild(cut_item);
     return cut_item;
 }
 
-document.getElementById('new_cut')!.addEventListener('click', e => new_cut());
+document.getElementById('new_cut')!.addEventListener('click', e => new_cut(), false);
 
 function apply_cuts() {
     let shell_menu = document.getElementById("shell_menu")! as HTMLSelectElement;
@@ -290,8 +298,10 @@ function apply_cuts() {
         }
     }
     draw_puzzle(newpuzzle, scene, 1/r);
+    renderRequested = true;
+    console.log("number of pieces:", newpuzzle.length);
 }
-document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts());
+document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
 
 function scramble(n: number) {
     if (n > 0)
@@ -299,7 +309,7 @@ function scramble(n: number) {
 }
 document.getElementById('scramble')!.addEventListener('click', function (e) {
     scramble(20);
-});
+}, false);
 
 function select_option(select: HTMLSelectElement, value: string) {
     for (let i=0; i<select.options.length; i++)
@@ -344,7 +354,7 @@ function begin_move(cut: Cut, angle: number, callback?: () => void) {
     rot.setFromAxisAngle(cut.plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
 
     if (cur_move !== null)
-        end_move();
+        end_move(); // bug: if current move has a callback, what happens?
     cur_move = {
         cut: cut,
         start_time: null,
@@ -374,6 +384,7 @@ function end_move() {
 
 function render() {
     renderer.render(scene, camera);
+    renderRequested = false;
 }
 
 function animate(t: number) {
@@ -390,10 +401,12 @@ function animate(t: number) {
                                        cur_move.step_quat[i],
                                        puzzle[cur_move.pieces[i]].object!.quaternion,
                                        ti*cur_move.angle);
-                                   
+        renderRequested = true;
     }
-    renderer.render(scene, camera);
     controls.update();
+    if (renderRequested) render();
+    highlight_arrow(puzzle, mouse);
     requestAnimationFrame(animate);
 }
+
 requestAnimationFrame(animate);

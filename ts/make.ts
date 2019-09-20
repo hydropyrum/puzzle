@@ -33,8 +33,15 @@ export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]) {
     for (let cut of cuts) {
         let newpieces: PolyGeometry[] = [];
         for (let piece of pieces) {
-            let subpieces = slice_polygeometry(piece, cut, cut_color);
-            subpieces.forEach(function (p) {if (p.faces.length > 0) newpieces.push(p)});
+            for (let p of slice_polygeometry(piece, cut, cut_color)) {
+                // Delete empty pieces
+                if (p.faces.length == 0)
+                    continue;
+                // Delete interior pieces
+                if (p.faces.every(f => f.color === cut_color))
+                    continue;
+                newpieces.push(p);
+            }
         }
         pieces = newpieces;
     }
