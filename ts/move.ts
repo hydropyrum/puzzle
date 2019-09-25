@@ -109,27 +109,24 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
 
 function partition_cuts(cuts: Cut[], axis: THREE.Vector3) {
     // Partition cuts according to their distance from origin and angle relative to axis
-    let q = (new THREE.Quaternion()).setFromUnitVectors(axis, new THREE.Vector3(0, 1, 0)); // y-axis is pole of spherical coordinates
-    var ret: {[key: string]: number[]} = {};
+    var ret: {[key: string]: THREE.Plane[]} = {};
     for (let c of cuts) {
         let p = c.plane;
-        let v = p.normal.clone().applyQuaternion(q);
-        let s = (new THREE.Spherical()).setFromVector3(v);
         let dh = floathash(p.constant);
-        let phi = floathash(s.phi);
-        let phic = floathash(Math.PI-s.phi);
-        if (phi == 0 || phic == 0) continue; // perpendicular to axis
+        let vy = floathash(axis.dot(p.normal));
+        if (floathash(Math.abs(vy)) == floathash(1))
+            continue;
         if (dh >= 0)
-            setdefault(ret, dh + "," + phi, []).push(s.theta);
+            setdefault(ret, dh + "," + vy, []).push(p);
         if (dh <= 0)
-            setdefault(ret, -dh + "," + phic, []).push(
-                s.theta>0 ? s.theta-Math.PI : s.theta+Math.PI
-            );
+            setdefault(ret, -dh + "," + -vy, []).push(p.clone().negate());
     }
     return ret;
 }
 
 export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
+    // bug: should not return both 0 and 360
+
     let move_pieces = cut.front();
     let stay_pieces = cut.back();
 
@@ -141,25 +138,38 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
     let move_partition = partition_cuts(move_cuts, cut.plane.normal);
     let stay_partition = partition_cuts(stay_cuts, cut.plane.normal);
 
-    let stops: {[key: string]: number} = {};
+    let stops: {[key: string]: THREE.Quaternion} = {};
     for (let h of keys(move_partition)) {
         if (!(h in stay_partition)) continue;
-        for (let a1 of move_partition[h])
-            for (let a2 of stay_partition[h]) {
-                let d = a2 - a1;
-                while (floathash(d) < floathash(-Math.PI)) d += 2*Math.PI;
-                while (floathash(d) >= floathash(Math.PI)) d -= 2*Math.PI;
-                stops[floathash(d)] = d;
+        for (let p1 of move_partition[h])
+            for (let p2 of stay_partition[h]) {
+                // Find quaternion to rotate p1 around cut.normal to p2
+                let h = cut.plane.normal.dot(p1.normal); // same for p1 and p2
+                let cos = (p1.normal.dot(p2.normal)-h*h)/(1-h*h);
+                cos = Math.max(-1, Math.min(1, cos));
+                let cos_half = Math.sqrt((1+cos)/2);
+                let sin_half = Math.sqrt((1-cos)/2);
+                // This makes q.w lie in [+1, -1), which corresponds to [0, 360) degrees
+                let triple = p1.normal.clone().cross(p2.normal).dot(cut.plane.normal);
+                if (triple < 0 && floathash(cos_half) != floathash(1))
+                    cos_half = -cos_half;
+                let q = new THREE.Quaternion(
+                    sin_half * cut.plane.normal.x,
+                    sin_half * cut.plane.normal.y,
+                    sin_half * cut.plane.normal.z,
+                    cos_half
+                );
+                stops[floathash(q.w)] = q;
             }
     }
     let ret = Object.values(stops);
-    ret.sort((a: number, b: number) => a-b);
+    ret.sort((a: THREE.Quaternion, b: THREE.Quaternion) => b.w-a.w);
     return ret;
 }
 
-export function make_move(puzzle: PolyGeometry[], cut: Cut, angle: number) {
-    let rot = new THREE.Quaternion();
-    rot.setFromAxisAngle(cut.plane.normal, angle);
-    for (let p of cut.front())
+export function make_move(puzzle: PolyGeometry[], cut: Cut, rot: THREE.Quaternion) {
+    for (let p of cut.front()) {
         puzzle[p].rot.premultiply(rot);
+        puzzle[p].rot.normalize();
+    }
 }

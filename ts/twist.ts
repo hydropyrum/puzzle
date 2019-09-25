@@ -1,7 +1,3 @@
-// bug: trivial corners don't turn; cut with no moves still has arrow
-// bug: pyraminx cuts disappear after many moves
-// bug: skewb arrows have z-fighting after many moves
-
 import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls.js';
 import { make_shell, make_cuts, tetrahedron, cube, octahedron, dodecahedron, rhombic_dodecahedron, icosahedron, rhombic_triacontahedron } from './make.js';
@@ -96,24 +92,10 @@ function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: numbe
 
 function move_random(callback: () => void) {
     let cuts = find_cuts(puzzle);
-    if (cuts.length == 0) {
-        console.log("This shouldn't happen!");
-        return;
-    }
-    let cut = cuts[Math.floor(Math.random()*cuts.length)];
-    let move_pieces;
-    if (Math.floor(Math.random()*2))
-        move_pieces = cut.front();
-    else
-        move_pieces = cut.back();
-    let angles = find_stops(puzzle, cut);
-    if (angles.length == 0 || angles.length == 1 && angles[0] == 0)
-        return callback();
-    let zi = angles.findIndex(s => floathash(s) == 0);
-    zi += Math.floor(Math.random()*2)*2-1;
-    zi = (zi+angles.length) % angles.length;
-    let angle = angles[zi];
-    begin_move(cut, angle, callback);
+    console.assert(cuts.length > 0, "no available cuts");
+    let ci = Math.floor(Math.random()*cuts.length);
+    let dir = Math.floor(Math.random()*2)*2-1;
+    begin_move(ci, dir, callback);
 }
 
 // Canvas controls
@@ -171,6 +153,7 @@ function draw_arrows() {
     cuts.sort((a, b) => b.plane.constant - a.plane.constant);
     let count: {[key: string]: number} = {};
     for (let cut of cuts) {
+        // bug: if cuts are close, arrows can collide
         let h = pointhash(cut.plane.normal);
         setdefault(count, h, 0);
         draw_arrow(cut, count[h]);
@@ -236,20 +219,8 @@ function activate_arrow() {
         return;
     let i = arrows.indexOf(mouseover_arrow);
     let ci = Math.floor(i/2);
-    let dir = i%2;
-    let angles = find_stops(puzzle, cuts[ci]);
-    if (angles.length == 0 || angles.length == 1 && angles[0] == 0)
-        return;
-    let zi = angles.findIndex(s => floathash(s) == 0);
-    if (dir == 0)
-        zi = (zi-1+angles.length) % angles.length;
-    else
-        zi = (zi+1) % angles.length;
-    let angle = angles[zi];
-    // Ensure that 180-degree turns are in the right direction
-    while (dir == 0 && angle > 0) angle -= 2*Math.PI;
-    while (dir == 1 && angle < 0) angle += 2*Math.PI;
-    begin_move(cuts[ci], angle);
+    let dir = (i%2)*2-1;
+    begin_move(ci, dir);
 }
 
 function onmouseup(event: Event) {
@@ -377,18 +348,26 @@ type Move = {
 const rad_per_sec = 2*Math.PI;
 
 var cur_move: Move = null;
-function begin_move(cut: Cut, angle: number, callback?: () => void) {
+function begin_move(ci: number, dir: number, callback?: () => void) {
+    let angles = find_stops(puzzle, cuts[ci]);
+    if (angles.length == 0) angles = [new THREE.Quaternion(0, 0, 0, 1)];
+    let zi = angles.findIndex(s => floathash(Math.abs(s.w)) == floathash(1));
+    console.assert(zi >= 0, "zero move not found", angles);
+    zi = (zi+dir+angles.length) % angles.length;
+    let angle = Math.acos(angles[zi].w)*2;
+    while (dir < 0 && angle >= 0) angle -= 2*Math.PI;
+    while (dir > 0 && angle <= 0) angle += 2*Math.PI;
     let rot = new THREE.Quaternion();
-    rot.setFromAxisAngle(cut.plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
+    rot.setFromAxisAngle(cuts[ci].plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
 
     if (cur_move !== null)
         end_move(); // bug: if current move has a callback, what happens?
     cur_move = {
-        cut: cut,
+        cut: cuts[ci],
         start_time: null,
         time: Math.abs(angle)/rad_per_sec*1000,
         callback: callback,
-        pieces: cut.front(),
+        pieces: cuts[ci].front(),
         from_quat: [],
         step_quat: [],
         angle: angle
@@ -397,7 +376,7 @@ function begin_move(cut: Cut, angle: number, callback?: () => void) {
         cur_move.from_quat.push(puzzle[i].object!.quaternion.clone());
         cur_move.step_quat.push(rot.clone().multiply(puzzle[i].object!.quaternion));
     }
-    make_move(puzzle, cut, angle);
+    make_move(puzzle, cuts[ci], angles[zi]);
 }
 
 function end_move() {
