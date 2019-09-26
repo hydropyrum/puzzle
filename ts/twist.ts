@@ -12,7 +12,7 @@ const canvas = document.querySelector('#c') as HTMLCanvasElement;
 
 const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true});
 renderer.setSize(400, 400);
-var renderRequested = true;
+var render_requested = true;
 
 var scene = new THREE.Scene();
 
@@ -29,7 +29,7 @@ var controls = new TrackballControls(camera, renderer.domElement);
 controls.rotateSpeed = 5.0;
 controls.noPan = true;
 controls.noZoom = true;
-controls.addEventListener('change', () => { renderRequested = true;});
+controls.addEventListener('change', () => { render_requested = true; });
 
 /*const dlight = new THREE.DirectionalLight(0xFFFFFF, 0.5);
 dlight.position.set(0, 2, -camera.position.z);
@@ -37,23 +37,6 @@ camera.add(dlight);*/
 
 const alight = new THREE.AmbientLight(0xFFFFFF, 1.5);
 scene.add(alight);
-
-var arrow_geometry = function () {
-    var arrow_shape = new THREE.Shape();
-    const arrow_width = 0.75, arrow_head_width = 1.5, arrow_head_length = 0.75;
-    const arrow_tail_angle = 90*Math.PI/180;
-    const arrow_head_angle = -45*Math.PI/180 + arrow_head_length/2;
-    const arrow_tip_angle = -45*Math.PI/180 - arrow_head_length/2;
-    function lineto_polar(shape: THREE.Shape, r: number, theta: number) {
-        shape.lineTo(r * Math.cos(theta), r * Math.sin(theta));
-    }
-    arrow_shape.absarc(0, 0, 1+arrow_width/2, arrow_tail_angle, arrow_head_angle, true);
-    lineto_polar(arrow_shape, 1+arrow_head_width/2, arrow_head_angle);
-    lineto_polar(arrow_shape, 1, arrow_tip_angle);
-    lineto_polar(arrow_shape, 1-arrow_head_width/2, arrow_head_angle);
-    arrow_shape.absarc(0, 0, 1-arrow_width/2, arrow_head_angle, arrow_tail_angle, false);
-    return new THREE.ExtrudeBufferGeometry(arrow_shape, {depth: 0.2, bevelEnabled: false});
-} ();
 
 /* Build puzzle */
 
@@ -88,6 +71,7 @@ function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: numbe
     }
     puzzle = newpuzzle;
     draw_arrows();
+    render_requested = true;
 }
 
 function move_random(callback: () => void) {
@@ -107,6 +91,24 @@ var mouse: {x: number, y: number} | null = null;
 var arrows: THREE.Mesh[] = [];
 var mouseover_arrow: THREE.Mesh | null = null;
 var click_arrow: THREE.Mesh | null = null;
+
+var arrow_geometry = function () {
+    var arrow_shape = new THREE.Shape();
+    const arrow_width = 0.75, arrow_head_width = 1.5, arrow_head_length = 0.75;
+    const arrow_tail_angle = 90*Math.PI/180;
+    const arrow_head_angle = -45*Math.PI/180 + arrow_head_length/2;
+    const arrow_tip_angle = -45*Math.PI/180 - arrow_head_length/2;
+    function lineto_polar(shape: THREE.Shape, r: number, theta: number) {
+        shape.lineTo(r * Math.cos(theta), r * Math.sin(theta));
+    }
+    arrow_shape.absarc(0, 0, 1+arrow_width/2, arrow_tail_angle, arrow_head_angle, true);
+    lineto_polar(arrow_shape, 1+arrow_head_width/2, arrow_head_angle);
+    lineto_polar(arrow_shape, 1, arrow_tip_angle);
+    lineto_polar(arrow_shape, 1-arrow_head_width/2, arrow_head_angle);
+    arrow_shape.absarc(0, 0, 1-arrow_width/2, arrow_head_angle, arrow_tail_angle, false);
+    return new THREE.ExtrudeBufferGeometry(arrow_shape, {depth: 0.2, bevelEnabled: false});
+}();
+
 const arrow_material = new THREE.MeshLambertMaterial({
     transparent: true, opacity: 0.3, side: THREE.DoubleSide});
 const mouseover_arrow_material = new THREE.MeshLambertMaterial({
@@ -140,6 +142,7 @@ function reverse_cut(cut: Cut) {
 function draw_arrows() {
     for (let arrow of arrows)
         scene.remove(arrow);
+    mouseover_arrow = null;
     arrows = [];
     cuts = find_cuts(puzzle);
     let n = cuts.length;
@@ -159,9 +162,11 @@ function draw_arrows() {
         draw_arrow(cut, count[h]);
         count[h] += 1;
     }
-    // bug: slight flicker
-    mouseover_arrow = null;
+    // update matrices for raycaster
+    for (let arrow of arrows)
+        arrow.updateMatrixWorld(true);
     highlight_arrow();
+    render_requested = true;
 }
 
 function highlight_arrow() {
@@ -179,7 +184,7 @@ function highlight_arrow() {
         if (new_arrow !== null)
             new_arrow.material = mouseover_arrow_material;
         mouseover_arrow = new_arrow;
-        renderRequested = true;
+        render_requested = true;
     }
 }
 
@@ -194,6 +199,7 @@ canvas.addEventListener('mousemove', function (event: MouseEvent) {
     event.preventDefault();
     // do propagate because TrackballControl's mousemove is on document
     set_mouse(event.clientX, event.clientY);
+    highlight_arrow();
 }, false);
 function ontouchmove(event: TouchEvent) {
     if (event.touches.length != 1) return;
@@ -202,6 +208,12 @@ function ontouchmove(event: TouchEvent) {
     set_mouse(event.touches[0].clientX, event.touches[0].clientY);
 }
 canvas.addEventListener('touchmove', ontouchmove, false);
+
+window.addEventListener('blur', function (event: Event) {
+    console.log('blur');
+    mouse = null;
+    highlight_arrow();
+}, false);
 
 canvas.addEventListener('mousedown', function (event: Event) {
     event.preventDefault();
@@ -215,6 +227,7 @@ canvas.addEventListener('touchstart', function (event: TouchEvent) {
 }, false);
 
 function activate_arrow() {
+    highlight_arrow();
     if (mouseover_arrow === null || mouseover_arrow !== click_arrow)
         return;
     let i = arrows.indexOf(mouseover_arrow);
@@ -232,13 +245,11 @@ canvas.addEventListener('mouseup', onmouseup, false);
 canvas.addEventListener('touchend', function (event: TouchEvent) {
     event.preventDefault();
     event.stopPropagation();
-    highlight_arrow();
     activate_arrow();
     mouse = null;
-    highlight_arrow();
 }, false);
 
-/* Process URL and initialize HTML controls */
+/* URL and form controls */
 
 function new_cut() {
     let cut_menu = document.getElementById("cuts")!;
@@ -297,7 +308,7 @@ function apply_cuts() {
         }
     }
     draw_puzzle(newpuzzle, scene, 1/r);
-    renderRequested = true;
+    render_requested = true;
     console.log("number of pieces:", newpuzzle.length);
 }
 document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
@@ -386,12 +397,14 @@ function end_move() {
         puzzle[p].object!.quaternion.copy(puzzle[p].rot);
     cur_move = null;
     draw_arrows();
+    render_requested = true;
     if (callback !== undefined) callback();
 }
 
 function render() {
     renderer.render(scene, camera);
-    renderRequested = false;
+    render_requested = false;
+    highlight_arrow();
 }
 
 function animate(t: number) {
@@ -408,11 +421,10 @@ function animate(t: number) {
                                        cur_move.step_quat[i],
                                        puzzle[cur_move.pieces[i]].object!.quaternion,
                                        ti*cur_move.angle);
-        renderRequested = true;
+        render_requested = true;
     }
     controls.update();
-    if (renderRequested) render();
-    highlight_arrow();
+    if (render_requested) render();
     requestAnimationFrame(animate);
 }
 
