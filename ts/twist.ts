@@ -74,14 +74,6 @@ function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: numbe
     render_requested = true;
 }
 
-function move_random(callback: () => void) {
-    let cuts = find_cuts(puzzle);
-    console.assert(cuts.length > 0, "no available cuts");
-    let ci = Math.floor(Math.random()*cuts.length);
-    let dir = Math.floor(Math.random()*2)*2-1;
-    begin_move(ci, dir, callback);
-}
-
 // Canvas controls
 
 var cuts: Cut[] = [];
@@ -209,12 +201,6 @@ function ontouchmove(event: TouchEvent) {
 }
 canvas.addEventListener('touchmove', ontouchmove, false);
 
-window.addEventListener('blur', function (event: Event) {
-    console.log('blur');
-    mouse = null;
-    highlight_arrow();
-}, false);
-
 canvas.addEventListener('mousedown', function (event: Event) {
     event.preventDefault();
     event.stopPropagation();
@@ -313,12 +299,16 @@ function apply_cuts() {
 }
 document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
 
-function scramble(n: number) {
-    if (n > 0)
-        move_random(() => scramble(n-1));
+var random_moves = 0;
+function move_random() {
+    console.assert(cuts.length > 0, "no available cuts");
+    let ci = Math.floor(Math.random()*cuts.length);
+    let dir = Math.floor(Math.random()*2)*2-1;
+    begin_move(ci, dir);
+    random_moves -= 1;
 }
 document.getElementById('scramble')!.addEventListener('click', function (e) {
-    scramble(20);
+    random_moves += 10;
 }, false);
 
 function select_option(select: HTMLSelectElement, value: string) {
@@ -352,15 +342,18 @@ apply_cuts();
 type Move = {
     cut: Cut,
     start_time: number | null, time: number,
-    callback?: () => void,
     pieces: number[],
     from_quat: THREE.Quaternion[], step_quat: THREE.Quaternion[], angle: number } | null;
 
 const rad_per_sec = 2*Math.PI;
 
 var cur_move: Move = null;
-function begin_move(ci: number, dir: number, callback?: () => void) {
-    let angles = find_stops(puzzle, cuts[ci]);
+function begin_move(ci: number, dir: number) {
+    let cut = cuts[ci];
+    if (cur_move !== null)
+        end_move();
+    
+    let angles = find_stops(puzzle, cut);
     if (angles.length == 0) angles = [new THREE.Quaternion(0, 0, 0, 1)];
     let zi = angles.findIndex(s => floathash(Math.abs(s.w)) == floathash(1));
     console.assert(zi >= 0, "zero move not found", angles);
@@ -369,16 +362,13 @@ function begin_move(ci: number, dir: number, callback?: () => void) {
     while (dir < 0 && angle >= 0) angle -= 2*Math.PI;
     while (dir > 0 && angle <= 0) angle += 2*Math.PI;
     let rot = new THREE.Quaternion();
-    rot.setFromAxisAngle(cuts[ci].plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
+    rot.setFromAxisAngle(cut.plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
 
-    if (cur_move !== null)
-        end_move(); // bug: if current move has a callback, what happens?
     cur_move = {
-        cut: cuts[ci],
+        cut: cut,
         start_time: null,
         time: Math.abs(angle)/rad_per_sec*1000,
-        callback: callback,
-        pieces: cuts[ci].front(),
+        pieces: cut.front(),
         from_quat: [],
         step_quat: [],
         angle: angle
@@ -387,18 +377,16 @@ function begin_move(ci: number, dir: number, callback?: () => void) {
         cur_move.from_quat.push(puzzle[i].object!.quaternion.clone());
         cur_move.step_quat.push(rot.clone().multiply(puzzle[i].object!.quaternion));
     }
-    make_move(puzzle, cuts[ci], angles[zi]);
+    make_move(puzzle, cut, angles[zi]);
+    draw_arrows();
 }
 
 function end_move() {
-    let callback = cur_move!.callback;
     // Snap to final angle
     for (let p of cur_move!.pieces)
         puzzle[p].object!.quaternion.copy(puzzle[p].rot);
     cur_move = null;
-    draw_arrows();
     render_requested = true;
-    if (callback !== undefined) callback();
 }
 
 function render() {
@@ -422,6 +410,8 @@ function animate(t: number) {
                                        puzzle[cur_move.pieces[i]].object!.quaternion,
                                        ti*cur_move.angle);
         render_requested = true;
+    } else if (random_moves > 0) {
+        move_random();
     }
     controls.update();
     if (render_requested) render();
