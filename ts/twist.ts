@@ -354,9 +354,11 @@ function begin_move(ci: number, dir: number) {
         end_move();
     
     let angles = find_stops(puzzle, cut);
-    if (angles.length == 0) angles = [new THREE.Quaternion(0, 0, 0, 1)];
     let zi = angles.findIndex(s => floathash(Math.abs(s.w)) == floathash(1));
-    console.assert(zi >= 0, "zero move not found", angles);
+    if (zi < 0) {
+        console.error("zero move not found");
+        return;
+    }
     zi = (zi+dir+angles.length) % angles.length;
     let angle = Math.acos(angles[zi].w)*2;
     while (dir < 0 && angle >= 0) angle -= 2*Math.PI;

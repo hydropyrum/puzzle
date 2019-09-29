@@ -9,7 +9,7 @@ export interface Cut {
     back: () => number[];
 }
 
-export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
+export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boolean) {
     /* Given a list of (indexes of) pieces, find all planes that touch
        but don't cut them. The return value is a list of objects; each
        has three fields:
@@ -97,7 +97,8 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
                 inside -= 1;
             else if (type == PLANE &&
                      inside == 0 && // only keep planes not inside pieces
-                     i > 0 && i < a.length-1 && // only keep planes between pieces
+                     (trivial || i > 0 && i < a.length-1) && // only keep planes between pieces
+                     //i > 0 && i < a.length-1 && // only keep planes between pieces
                      what instanceof THREE.Plane)
                 ret.push({plane: what, 
                           front: function () { return get_pieces(i+1, a.length) },
@@ -114,7 +115,7 @@ function partition_cuts(cuts: Cut[], axis: THREE.Vector3) {
         let p = c.plane;
         let dh = floathash(p.constant);
         let vy = floathash(axis.dot(p.normal));
-        if (floathash(Math.abs(vy)) == floathash(1))
+        if (Math.abs(vy) == floathash(1))
             continue;
         if (dh >= 0)
             setdefault(ret, dh + "," + vy, []).push(p);
@@ -131,8 +132,8 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
     let stay_pieces = cut.back();
 
     // Find cuts of moved pieces and not-moved pieces
-    let move_cuts = find_cuts(puzzle, move_pieces);
-    let stay_cuts = find_cuts(puzzle, stay_pieces);
+    let move_cuts = find_cuts(puzzle, move_pieces, true);
+    let stay_cuts = find_cuts(puzzle, stay_pieces, true);
 
     // Find all rotation angles that form a total cut
     let move_partition = partition_cuts(move_cuts, cut.plane.normal);
