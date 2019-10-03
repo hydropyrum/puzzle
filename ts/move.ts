@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { setdefault, canonicalize_plane, floathash, pointhash, planehash } from './util.js';
 import { PolyGeometry } from './piece.js';
-import { keys } from './util.js';
+import { keys, EPSILON } from './util.js';
 
 export interface Cut {
     plane: THREE.Plane;
@@ -36,6 +36,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
             let plane = face.plane.clone();
             plane.normal.applyQuaternion(puzzle[p].rot);
             canonicalize_plane(plane);
+            // bug: a rounding error here could cause spurious cuts
             setdefault(planes, pointhash(plane.normal), {})[planehash(plane)] = plane;
         }
 
@@ -56,12 +57,12 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
         let planes_n = Object.values(planes[nh]);
         let n = planes_n[0].normal;
         for (let plane of planes_n)
-            a.push([floathash(-plane.constant), PLANE, plane]);
+            a.push([-plane.constant, PLANE, plane]);
         for (let p of ps) {
             let xmin = Infinity;
             let xmax = -Infinity;
-            // instead of rotating all of p's vertices,
-            // rotate n in the opposite direction
+            // Instead of rotating all of p's vertices,
+            // rotate n in the opposite direction.
             let nq = n.clone();
             nq.applyQuaternion(puzzle[p].rot.clone().conjugate());
             for (let v of puzzle[p].vertices) {
@@ -69,8 +70,9 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
                 if (x < xmin) xmin = x;
                 if (x > xmax) xmax = x;
             }
-            a.push([floathash(xmin), BEGIN_PIECE, p]);
-            a.push([floathash(xmax), END_PIECE, p]);
+            // Shrink piece by EPSILON in case of rounding errors
+            a.push([xmin+EPSILON, BEGIN_PIECE, p]);
+            a.push([xmax-EPSILON, END_PIECE, p]);
         }
         a.sort(function (x, y) {
             let d = x[0] - y[0];
@@ -113,6 +115,7 @@ function partition_cuts(cuts: Cut[], axis: THREE.Vector3) {
     var ret: {[key: string]: THREE.Plane[]} = {};
     for (let c of cuts) {
         let p = c.plane;
+        // bug: a rounding error here could cause stops to be lost
         let dh = floathash(p.constant);
         let vy = floathash(axis.dot(p.normal));
         if (Math.abs(vy) == floathash(1))
@@ -160,6 +163,7 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
                     sin_half * cut.plane.normal.z,
                     cos_half
                 );
+                // bug: a rounding error here could cause a micro-move
                 stops[floathash(q.w)] = q;
             }
     }

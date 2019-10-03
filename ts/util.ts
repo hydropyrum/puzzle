@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 
+export const EPSILON = 1e-4;
 export const PHI = (1+Math.sqrt(5))/2;
 
 export function setdefault(d: any, k: any, v: any) {
@@ -13,10 +14,10 @@ export function keys<T extends {}>(o: T): Array<keyof T> {
 }
 
 /* Representations of floats, Vector3s, and Planes that allow testing
-   for equality at some level of tolerance (1e-4). */
+   for equality within EPSILON. */
 
 export function floathash(x: number) {
-    return Math.round(x*1e4);
+    return Math.round(x/EPSILON);
 }
 export function pointhash(v: THREE.Vector3) {
     return floathash(v.x) + "," + floathash(v.y) + "," + floathash(v.z);
