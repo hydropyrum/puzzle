@@ -49314,7 +49314,8 @@ function parseQuery(s) {
 // Set up
 const canvas = document.querySelector('#c');
 const renderer = new WebGLRenderer({ canvas: canvas, antialias: true });
-renderer.setSize(400, 400);
+var size = Math.min(canvas.offsetWidth, window.innerHeight);
+renderer.setSize(size, size);
 var render_requested = true;
 var scene = new Scene();
 const camera = new PerspectiveCamera(15, // field of view in vertical dimension, in degrees
@@ -49325,7 +49326,7 @@ const camera = new PerspectiveCamera(15, // field of view in vertical dimension,
 camera.position.z = 12;
 scene.add(camera);
 var controls = new TrackballControls(camera, renderer.domElement);
-controls.rotateSpeed = 5.0;
+controls.rotateSpeed = 3.0;
 controls.noPan = true;
 controls.noZoom = true;
 controls.addEventListener('change', () => { render_requested = true; });
