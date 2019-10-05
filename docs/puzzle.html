@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Twisty puzzle simulator</title>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
+    <link rel="stylesheet" type="text/css" href="main.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.0.7/js/all.js"></script>
+  </head>
+  <body>
+    <section class="section">
+      <div class="container">
+        <div class="columns">
+
+          <div class="column">
+            <canvas id="c"></canvas>
+          </div>
+
+          <div class="column" id="controls">
+
+            <div class="content">
+              <a href="index.html"><i class="fas fa-caret-square-left"></i> Menu</a>
+              
+              <h3>Shell</h3>
+              <div class="field has-addons">
+                <p class="control">
+                  <span class="select"><select id="shell_menu">
+                      <option value="T">Tetrahedron</option>
+                      <option value="C" selected>Cube</option>
+                      <option value="O">Octahedron</option>
+                      <option value="D">Dodecahedron</option>
+                      <option value="I">Icosahedron</option>
+                  </select></span>
+                </p>
+                <p class="control">
+                  <input id="shell_distance" class="input distance" type="text" placeholder="Inradius"></input>
+                </p>
+              </div>
+
+              <h3>Cuts</h3>
+              <p>
+                <div id="cuts"><div class="cut" style="display: none">
+                    <div class="field has-addons">
+                      <p class="control">
+                        <span class="select"><select class="cut_shape">
+                            <option value="T">Tetrahedron</option>
+                            <option value="C" selected>Cube</option>
+                            <option value="O">Octahedron</option>
+                            <option value="D">Dodecahedron</option>
+                            <option value="jC">Rhombic 12-hedron</option>
+                            <option value="I">Icosahedron</option>
+                            <option value="jD">Rhombic 30-hedron</option>
+                        </select></span>
+                      </p>
+                      <p class="control">
+                        <input class="input cut_distance distance" type="text" placeholder="Inradius"></input>
+                      </p>
+                      
+                      <p class="control">
+                        <a class="button delete_cut"><i class="fa fa-trash" aria-hidden="true"></i></a>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </p>
+              <div class="field is-grouped">
+                <p class="control"><button class="button" type="button" id="new_cut">Add Cut</button></p>
+                <p class="control"><button class="button" type="button" id="apply_cuts">Apply</button></p>
+                <p class="control"><button type="button" class="button" id="scramble">Scramble</button></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <script src="./main.js" type="module"></script>
+  </body>
+</html>
