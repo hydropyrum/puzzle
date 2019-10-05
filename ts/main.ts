@@ -9,9 +9,9 @@ import * as parse from './parse.js';
 // Set up
 
 const canvas = document.querySelector('#c') as HTMLCanvasElement;
-
 const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true});
-renderer.setSize(400, 400);
+var size = Math.min(canvas.offsetWidth, window.innerHeight);
+renderer.setSize(size, size);
 var render_requested = true;
 
 var scene = new THREE.Scene();
@@ -26,7 +26,7 @@ camera.position.z = 12;
 scene.add(camera);
 
 var controls = new TrackballControls(camera, renderer.domElement);
-controls.rotateSpeed = 5.0;
+controls.rotateSpeed = 3.0;
 controls.noPan = true;
 controls.noZoom = true;
 controls.addEventListener('change', () => { render_requested = true; });
