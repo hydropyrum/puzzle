@@ -20,9 +20,9 @@
           <div class="column" id="controls">
 
             <div class="content">
-              <a href="index.html"><i class="fas fa-caret-square-left"></i> Menu</a>
+              <p><a href="index.html"><i class="fas fa-caret-square-left"></i> Menu</a></p>
               
-              <h3>Shell</h3>
+              <label class="label">Shell</label>
               <div class="field has-addons">
                 <p class="control">
                   <span class="select"><select id="shell_menu">
@@ -34,11 +34,11 @@
                   </select></span>
                 </p>
                 <p class="control">
-                  <input id="shell_distance" class="input distance" type="text" placeholder="Inradius"></input>
+                  <input id="shell_distance" class="input distance" type="text" placeholder="Inradius">
                 </p>
               </div>
 
-              <h3>Cuts</h3>
+              <label class="label">Cuts</label>
               <p>
                 <div id="cuts"><div class="cut" style="display: none">
                     <div class="field has-addons">
@@ -54,7 +54,7 @@
                         </select></span>
                       </p>
                       <p class="control">
-                        <input class="input cut_distance distance" type="text" placeholder="Inradius"></input>
+                        <input class="input cut_distance distance" type="text" placeholder="Inradius">
                       </p>
                       
                       <p class="control">
@@ -64,10 +64,17 @@
                   </div>
                 </div>
               </p>
+              <label class="label">Actions</label>
               <div class="field is-grouped">
                 <p class="control"><button class="button" type="button" id="new_cut">Add Cut</button></p>
                 <p class="control"><button class="button" type="button" id="apply_cuts">Apply</button></p>
                 <p class="control"><button type="button" class="button" id="scramble">Scramble</button></p>
+              </div>
+              <label class="label">URL</label>
+              <div class="field">
+                <div class="control">
+                  <input class="input" type="text" id="url" readonly onclick="this.select()">
+                </div>
               </div>
             </div>
           </div>

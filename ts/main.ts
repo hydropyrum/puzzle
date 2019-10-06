@@ -299,6 +299,7 @@ function apply_cuts() {
     render_requested = true;
     console.log("number of pieces:", newpuzzle.length);
     window.history.replaceState({}, 'title', parse.generateQuery(query));
+    (document.getElementById('url')! as HTMLInputElement).value = window.location.href;
 }
 document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
 
