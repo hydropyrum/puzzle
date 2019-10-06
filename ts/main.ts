@@ -8,10 +8,9 @@ import * as parse from './parse.js';
 
 // Set up
 
-const canvas = document.querySelector('#c') as HTMLCanvasElement;
+const canvas = document.querySelector('#canvas') as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({canvas: canvas, antialias: true});
-var size = Math.min(canvas.offsetWidth, window.innerHeight);
-renderer.setSize(size, size);
+
 var render_requested = true;
 
 var scene = new THREE.Scene();
@@ -398,6 +397,12 @@ function render() {
 }
 
 function animate(t: number) {
+    let size = canvas.clientWidth;
+    if (size != canvas.width || size != canvas.height) {
+        renderer.setSize(size, size, false);
+        render_requested = true;
+    }
+    
     if (cur_move !== null) {
         if (cur_move.start_time === null)
             cur_move.start_time = t;
