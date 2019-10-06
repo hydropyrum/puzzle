@@ -49310,6 +49310,22 @@ function parseQuery(s) {
     }
     return ret;
 }
+function generateShape(s) {
+    if (s.tag == 'polyhedron') {
+        return s.name + '$' + s.d;
+    }
+    else if (s.tag == 'plane') {
+        return s.a + ',' + s.b + ',' + s.c + '$' + s.d;
+    }
+}
+function generateQuery(p) {
+    let ret = [];
+    for (let s of p.shell)
+        ret.push('shell=' + generateShape(s));
+    for (let s of p.cuts)
+        ret.push('cut=' + generateShape(s));
+    return '?' + ret.join('&');
+}
 
 // Set up
 const canvas = document.querySelector('#canvas');
@@ -49529,9 +49545,11 @@ function new_cut() {
 }
 document.getElementById('new_cut').addEventListener('click', e => new_cut(), false);
 function apply_cuts() {
+    let query = { shell: [], cuts: [] };
     let shell_menu = document.getElementById("shell_menu");
     let shell_shape = shell_menu.options[shell_menu.selectedIndex].value;
     let d = parseFloat(document.getElementById("shell_distance").value);
+    query.shell.push({ tag: "polyhedron", name: shell_shape, d: d });
     let planes = [];
     switch (shell_shape) {
         case "T":
@@ -49569,6 +49587,7 @@ function apply_cuts() {
         distance = parseFloat(de.value);
         if (isNaN(distance))
             continue;
+        query.cuts.push({ tag: "polyhedron", name: shape, d: distance });
         switch (shape) {
             case "T":
                 newpuzzle = make_cuts(tetrahedron(distance), newpuzzle);
@@ -49596,6 +49615,7 @@ function apply_cuts() {
     draw_puzzle(newpuzzle, scene, 1 / r);
     render_requested = true;
     console.log("number of pieces:", newpuzzle.length);
+    window.history.replaceState({}, 'title', generateQuery(query));
 }
 document.getElementById('apply_cuts').addEventListener('click', e => apply_cuts(), false);
 var random_moves = 0;

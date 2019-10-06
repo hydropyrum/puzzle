@@ -68,3 +68,20 @@ export function parseQuery(s: string) {
     }
     return ret;
 }
+
+function generateShape(s: Shape) {
+    if (s.tag == 'polyhedron') {
+        return s.name + '$' + s.d;
+    } else if (s.tag == 'plane') {
+        return s.a + ',' + s.b + ',' + s.c + '$' + s.d;
+    }
+}
+
+export function generateQuery(p: Puzzle) {
+    let ret: string[] = [];
+    for (let s of p.shell)
+        ret.push('shell=' + generateShape(s));
+    for (let s of p.cuts)
+        ret.push('cut=' + generateShape(s));
+    return '?' + ret.join('&');
+}

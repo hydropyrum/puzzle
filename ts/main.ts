@@ -251,9 +251,11 @@ function new_cut() {
 document.getElementById('new_cut')!.addEventListener('click', e => new_cut(), false);
 
 function apply_cuts() {
+    let query: parse.Puzzle = {shell: [], cuts: []};
     let shell_menu = document.getElementById("shell_menu")! as HTMLSelectElement;
     let shell_shape = shell_menu.options[shell_menu.selectedIndex].value;
     let d = parseFloat((document.getElementById("shell_distance")! as HTMLInputElement).value);
+    query.shell.push({tag: "polyhedron", name: shell_shape, d: d});
 
     let planes: THREE.Plane[] = [];
     let inradius, circumradius;
@@ -282,6 +284,7 @@ function apply_cuts() {
         let de = ce.getElementsByClassName('cut_distance')[0] as HTMLInputElement;
         distance = parseFloat(de.value);
         if (isNaN(distance)) continue;
+        query.cuts.push({tag: "polyhedron", name: shape, d: distance});
         switch(shape) {
         case "T": newpuzzle = make_cuts(tetrahedron(distance), newpuzzle); break;
         case "C": newpuzzle = make_cuts(cube(distance), newpuzzle); break;
@@ -295,6 +298,7 @@ function apply_cuts() {
     draw_puzzle(newpuzzle, scene, 1/r);
     render_requested = true;
     console.log("number of pieces:", newpuzzle.length);
+    window.history.replaceState({}, 'title', parse.generateQuery(query));
 }
 document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
 
