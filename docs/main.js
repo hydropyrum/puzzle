@@ -49312,10 +49312,8 @@ function parseQuery(s) {
 }
 
 // Set up
-const canvas = document.querySelector('#c');
+const canvas = document.querySelector('#canvas');
 const renderer = new WebGLRenderer({ canvas: canvas, antialias: true });
-var size = Math.min(canvas.offsetWidth, window.innerHeight);
-renderer.setSize(size, size);
 var render_requested = true;
 var scene = new Scene();
 const camera = new PerspectiveCamera(15, // field of view in vertical dimension, in degrees
@@ -49683,6 +49681,11 @@ function render() {
     highlight_arrow();
 }
 function animate(t) {
+    let size = canvas.clientWidth;
+    if (size != canvas.width || size != canvas.height) {
+        renderer.setSize(size, size, false);
+        render_requested = true;
+    }
     if (cur_move !== null) {
         if (cur_move.start_time === null)
             cur_move.start_time = t;
