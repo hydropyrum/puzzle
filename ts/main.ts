@@ -236,40 +236,96 @@ canvas.addEventListener('touchend', function (event: TouchEvent) {
 
 /* URL and form controls */
 
-function new_cut() {
-    let cut_menu = document.getElementById("cuts")!;
-    let cut_item = cut_menu.firstElementChild!.cloneNode(true) as HTMLElement;
-    cut_item.style.display="block";
-    let select = cut_item.getElementsByClassName("cut_shape")[0] as HTMLSelectElement;
-    select.addEventListener('change', function () {
-        let normal = cut_item.getElementsByClassName("cut_normal")[0]!.parentElement!;
-        normal.style.display = select.value == "plane" ? "block" : "none";
-    }, false);
-    let button = cut_item.getElementsByClassName("delete_cut")[0];
-    button.addEventListener('click', function () {
-        cut_menu.removeChild(cut_item);
-    }, false);
-    cut_menu.appendChild(cut_item);
-    return cut_item;
+// Shell and cuts
+
+const shells_list = document.getElementById("shells")!;
+const cuts_list = document.getElementById("cuts")!;
+
+function select_option(select: HTMLSelectElement, value: string) {
+    for (let i=0; i<select.options.length; i++)
+        if (select.options[i].value == value) {
+            select.selectedIndex = i;
+            select.dispatchEvent(new Event('change'));
+            return;
+        }
 }
 
-document.getElementById('new_cut')!.addEventListener('click', e => new_cut(), false);
+function add_item(list: HTMLElement, shape?: parse.Shape) {
+    // Add new item to HTML
+    let item = list.firstElementChild!.cloneNode(true) as HTMLElement;
+    item.style.display = "block";
+    let select = item.getElementsByClassName("shape")[0] as HTMLSelectElement;
+    select.addEventListener('change', function () {
+        let normal = item.getElementsByClassName("normal")[0]!.parentElement!;
+        normal.style.display = select.value == "plane" ? "block" : "none";
+    }, false);
+    let button = item.getElementsByClassName("delete_cut")[0];
+    button.addEventListener('click', function () {
+        list.removeChild(item);
+    }, false);
+    list.appendChild(item);
+
+    if (shape) {
+        let se = item.getElementsByClassName('shape')[0] as HTMLSelectElement;
+        if (shape.tag == "polyhedron") {
+            select_option(se, shape.name);
+        } else if (shape.tag == "plane") {
+            select_option(se, "plane");
+            let ne = item.getElementsByClassName('normal')[0] as HTMLInputElement;
+            ne.value = shape.a.toString() + ',' + shape.b.toString() + ',' + shape.c.toString();
+        }
+        let de = item.getElementsByClassName('distance')[0] as HTMLInputElement;
+        de.value = shape.d.toString();
+    }
+}
+document.getElementById('add_shell')!.addEventListener('click', e => add_item(shells_list), false);
+document.getElementById('add_cut')!.addEventListener('click', e => add_item(cuts_list), false);
+
+function list_to_shapes(list: HTMLElement) {
+    let ret: parse.Shape[] = [];
+    for (let item of Array.from(list.children)) {
+        // skip first item, which is a dummy item
+        if (item === list.firstElementChild) continue;
+        let shape = "", distance = 0;
+        let se = item.getElementsByClassName('shape')[0] as HTMLSelectElement;
+        shape = se.options[se.selectedIndex].value;
+        let de = item.getElementsByClassName('distance')[0] as HTMLInputElement;
+        distance = parseFloat(de.value);
+        if (isNaN(distance)) continue;
+        if (shape == "plane") {
+            let normal = item.getElementsByClassName('normal')[0] as HTMLInputElement;
+            let coeffs = normal.value.split(',').map(parseFloat);
+            ret.push({tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: distance});
+        } else {
+            ret.push({tag: "polyhedron", name: shape, d: distance});
+        }
+    }
+    return ret;
+}
+
+// Apply
 
 function apply_cuts() {
-    let query: parse.Puzzle = {shell: [], cuts: []};
-    let shell_menu = document.getElementById("shell_menu")! as HTMLSelectElement;
-    let shell_shape = shell_menu.options[shell_menu.selectedIndex].value;
-    let d = parseFloat((document.getElementById("shell_distance")! as HTMLInputElement).value);
-    query.shell.push({tag: "polyhedron", name: shell_shape, d: d});
+    let p: parse.Puzzle = {
+        shell: list_to_shapes(shells_list),
+        cuts: list_to_shapes(cuts_list)
+    };
+    window.history.replaceState({}, 'title', parse.generateQuery(p));
+    (document.getElementById('url')! as HTMLInputElement).value = window.location.href;
 
     let planes: THREE.Plane[] = [];
-    let inradius, circumradius;
-    switch(shell_shape) {
-    case "T": planes = tetrahedron(d); break;
-    case "C": planes = cube(d); break;
-    case "O": planes = octahedron(d); break;
-    case "D": planes = dodecahedron(d); break;
-    case "I": planes = icosahedron(d); break;
+    for (let s of p.shell) {
+        if (s.tag == "plane") {
+            planes.push(new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), s.d));
+        } else if (s.tag == "polyhedron") {
+            switch (s.name) {
+            case "T": planes = planes.concat(tetrahedron(s.d)); break;
+            case "C": planes = planes.concat(cube(s.d)); break;
+            case "O": planes = planes.concat(octahedron(s.d)); break;
+            case "D": planes = planes.concat(dodecahedron(s.d)); break;
+            case "I": planes = planes.concat(icosahedron(s.d)); break;
+            }
+        }
     }
     let shell = make_shell(planes);
 
@@ -279,41 +335,35 @@ function apply_cuts() {
         if (v.length() > r) r = v.length();
 
     let newpuzzle = [shell];
-    let cut_menu = document.getElementById("cuts")!;
-    for (let ce of Array.from(cut_menu.children)) {
-        // skip first item, which is a dummy item
-        if (ce === cut_menu.firstChild) continue;
-        let shape = "", distance = 0;
-        let se = ce.getElementsByClassName('cut_shape')[0] as HTMLSelectElement;
-        shape = se.options[se.selectedIndex].value;
-        let de = ce.getElementsByClassName('cut_distance')[0] as HTMLInputElement;
-        distance = parseFloat(de.value);
-        if (isNaN(distance)) continue;
-        if (shape == "plane") {
-            let normal = ce.getElementsByClassName('cut_normal')[0] as HTMLInputElement;
-            let coeffs = normal.value.split(',').map(parseFloat);
-            query.cuts.push({tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: distance});
-            newpuzzle = make_cuts([new THREE.Plane(new THREE.Vector3(coeffs[0], coeffs[1], coeffs[2]), distance)], newpuzzle);
-        } else {
-            query.cuts.push({tag: "polyhedron", name: shape, d: distance});
-            switch(shape) {
-            case "T": newpuzzle = make_cuts(tetrahedron(distance), newpuzzle); break;
-            case "C": newpuzzle = make_cuts(cube(distance), newpuzzle); break;
-            case "O": newpuzzle = make_cuts(octahedron(distance), newpuzzle); break;
-            case "D": newpuzzle = make_cuts(dodecahedron(distance), newpuzzle); break;
-            case "jC": newpuzzle = make_cuts(rhombic_dodecahedron(distance), newpuzzle); break;
-            case "I": newpuzzle = make_cuts(icosahedron(distance), newpuzzle); break;
-            case "jD": newpuzzle = make_cuts(rhombic_triacontahedron(distance), newpuzzle); break;
+    for (let s of p.cuts) {
+        if (s.tag == "plane") {
+            newpuzzle = make_cuts([new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), s.d)], newpuzzle);
+        } else if (s.tag == "polyhedron") {
+            switch(s.name) {
+            case "T": newpuzzle = make_cuts(tetrahedron(s.d), newpuzzle); break;
+            case "C": newpuzzle = make_cuts(cube(s.d), newpuzzle); break;
+            case "O": newpuzzle = make_cuts(octahedron(s.d), newpuzzle); break;
+            case "D": newpuzzle = make_cuts(dodecahedron(s.d), newpuzzle); break;
+            case "jC": newpuzzle = make_cuts(rhombic_dodecahedron(s.d), newpuzzle); break;
+            case "I": newpuzzle = make_cuts(icosahedron(s.d), newpuzzle); break;
+            case "jD": newpuzzle = make_cuts(rhombic_triacontahedron(s.d), newpuzzle); break;
             }
         }
     }
     draw_puzzle(newpuzzle, scene, 1/r);
     render_requested = true;
     console.log("number of pieces:", newpuzzle.length);
-    window.history.replaceState({}, 'title', parse.generateQuery(query));
-    (document.getElementById('url')! as HTMLInputElement).value = window.location.href;
 }
 document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
+
+let query = parse.parseQuery(window.location.search);
+for (let shape of query.shell)
+    add_item(shells_list, shape);
+for (let shape of query.cuts)
+    add_item(cuts_list, shape);
+apply_cuts();
+
+// Scramble
 
 var random_moves = 0;
 function move_random() {
@@ -326,40 +376,6 @@ function move_random() {
 document.getElementById('scramble')!.addEventListener('click', function (e) {
     random_moves += 10;
 }, false);
-
-function select_option(select: HTMLSelectElement, value: string) {
-    for (let i=0; i<select.options.length; i++)
-        if (select.options[i].value == value) {
-            select.selectedIndex = i;
-            select.dispatchEvent(new Event('change'));
-            return;
-        }
-}
-
-const query = parse.parseQuery(window.location.search);
-// to do: multiple shell
-// to do: shell planes
-select_option(document.getElementById("shell_menu")! as HTMLSelectElement,
-              (query.shell[0] as parse.Polyhedron).name);
-(document.getElementById("shell_distance")! as HTMLInputElement).value = query.shell[0].d.toString();
-const cuts_menu = document.getElementById("cuts")!;
-while (cuts_menu.childNodes.length > 1)
-    cuts_menu.removeChild(cuts_menu.lastChild!);
-for (let cut of query.cuts) {
-    let ce = new_cut();
-    if (cut.tag == "polyhedron") {
-        let se = ce.getElementsByClassName('cut_shape')[0] as HTMLSelectElement;
-        select_option(se, (cut as parse.Polyhedron).name);
-    } else if (cut.tag == "plane") {
-        let se = ce.getElementsByClassName('cut_shape')[0] as HTMLSelectElement;
-        select_option(se, "plane");
-        let ne = ce.getElementsByClassName('cut_normal')[0] as HTMLInputElement;
-        ne.value = cut.a.toString() + ',' + cut.b.toString() + ',' + cut.c.toString();
-    }
-    let de = ce.getElementsByClassName('cut_distance')[0] as HTMLInputElement;
-    de.value = cut.d.toString();
-}
-apply_cuts();
 
 // Animation
 

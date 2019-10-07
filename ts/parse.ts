@@ -14,7 +14,7 @@ export interface Plane {
     d: number;
 };
 
-type Shape = Polyhedron|Plane;
+export type Shape = Polyhedron|Plane;
 
 export interface Puzzle {
     shell: Shape[];

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { floathash, setdefault, keys } from './util.js';
 import { PolyGeometry, PolyFace } from './piece.js';
 
-export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color) {
+export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean) {
     /* cf. https://github.com/tdhooper/threejs-slice-geometry, but
        - preserves colors of faces
        - creates new faces where the geometry is sliced */
@@ -82,13 +82,13 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, c
         }
     }
 
-    close_polyhedron(back, plane, color);
-    close_polyhedron(front, plane, color); // why is it okay not to negate plane?
+    close_polyhedron(back, plane, color, interior);
+    close_polyhedron(front, plane, color, interior); // why is it okay not to negate plane?
     
     return [front, back];
 }
 
-function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color) {
+function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean) {
     let edge_index: {[key: number]: [number, number][]} = {};
     function count_edge(a: number, b: number) {
         let h = a < b ? a+","+b : b+","+a;
@@ -129,7 +129,7 @@ function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THR
             console.error("not all cut points visited");
             break;
         }
-        let cutface = new PolyFace(cutpoints, plane, color);
+        let cutface = {vertices: cutpoints, plane: plane, color: color, interior: interior};
         geometry.faces.push(cutface);
     }
 }

@@ -13,15 +13,11 @@ export class PolyGeometry {
     }
 };
 
-export class PolyFace {
+export interface PolyFace {
     vertices: number[];
     plane: THREE.Plane;
     color: THREE.Color;
-    constructor(vertices: number[], plane: THREE.Plane, color: THREE.Color) {
-        this.vertices = vertices;
-        this.plane = plane;
-        this.color = color;
-    }
+    interior: boolean;
 };
 
 export function really_big_polygeometry() {
@@ -34,12 +30,14 @@ export function really_big_polygeometry() {
     for (let i of [1, 2, 4]) {
         let j = i < 4 ? i * 2 : 1;
         let k = j < 4 ? j * 2 : 1;
-        g.faces.push(new PolyFace([0, k, j+k, j],
-                                  new THREE.Plane(),
-                                  new THREE.Color()));
-        g.faces.push(new PolyFace([i, i+j, i+j+k, i+k],
-                                  new THREE.Plane(),
-                                  new THREE.Color()));
+        g.faces.push({vertices: [0, k, j+k, j],
+                      plane: new THREE.Plane(),
+                      color: new THREE.Color(),
+                      interior: false});
+        g.faces.push({vertices: [i, i+j, i+j+k, i+k],
+                      plane: new THREE.Plane(),
+                      color: new THREE.Color(),
+                      interior: false});
     }
     return g;
 }

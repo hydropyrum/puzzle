@@ -23,52 +23,61 @@
               <p><a href="index.html"><i class="fas fa-caret-square-left"></i> Menu</a></p>
               
               <label class="label">Shell</label>
-              <div class="field has-addons">
-                <p class="control">
-                  <span class="select"><select id="shell_menu">
-                      <option value="T">Tetrahedron</option>
-                      <option value="C" selected>Cube</option>
-                      <option value="O">Octahedron</option>
-                      <option value="D">Dodecahedron</option>
-                      <option value="I">Icosahedron</option>
-                  </select></span>
-                </p>
-                <p class="control">
-                  <input id="shell_distance" class="input distance" type="text" placeholder="Inradius">
-                </p>
-              </div>
-
-              <label class="label">Cuts</label>
-              <p>
-                <div id="cuts"><div class="cut" style="display: none">
-                    <div class="field has-addons">
-                      <p class="control">
-                        <span class="select"><select class="cut_shape">
-                            <option value="T">Tetrahedron</option>
-                            <option value="C" selected>Cube</option>
-                            <option value="O">Octahedron</option>
-                            <option value="D">Dodecahedron</option>
-                            <option value="jC">Rhombic 12-hedron</option>
-                            <option value="I">Icosahedron</option>
-                            <option value="jD">Rhombic 30-hedron</option>
-                            <option value="plane">Plane</option>
-                        </select></span>
-                      </p>
-                      <p class="control" style="display: none"><input class="input cut_normal distance" type="text" placeholder="Normal"></p>
-                      <p class="control">
-                        <input class="input cut_distance distance" type="text" placeholder="Distance">
-                      </p>
-                      
-                      <p class="control">
-                        <a class="button delete_cut"><i class="fa fa-trash" aria-hidden="true"></i></a>
-                      </p>
-                    </div>
+              <div id="shells">
+                <div class="shell" style="display: none">
+                  <div class="field has-addons">
+                    <p class="control">
+                      <span class="select"><select class="shape">
+                          <option value="T">Tetrahedron</option>
+                          <option value="C" selected>Cube</option>
+                          <option value="O">Octahedron</option>
+                          <option value="D">Dodecahedron</option>
+                          <option value="I">Icosahedron</option>
+                          <option value="plane">Plane</option>
+                      </select></span>
+                    </p>
+                    <p class="control" style="display: none"><input class="input num normal" type="text" placeholder="Normal"></p>
+                    <p class="control">
+                      <input id="shell_distance" class="input num distance" type="text" placeholder="Distance">
+                    </p>
+                    <p class="control">
+                      <a class="button delete_cut"><i class="fa fa-trash" aria-hidden="true" title="Delete from shell"></i></a>
+                    </p>
                   </div>
                 </div>
+              </div>
+              <p class="control"><a class="button" id="add_shell"><i class="fa fa-plus" aria-hidden="true" title="Add to shell"></i></a></p>
+
+              <label class="label">Cuts</label> 
+              <div id="cuts">
+                <div class="cut" style="display: none">
+                  <div class="field has-addons">
+                    <p class="control">
+                      <span class="select"><select class="shape">
+                          <option value="T">Tetrahedron</option>
+                          <option value="C" selected>Cube</option>
+                          <option value="O">Octahedron</option>
+                          <option value="D">Dodecahedron</option>
+                          <option value="jC">Rhombic 12-hedron</option>
+                          <option value="I">Icosahedron</option>
+                          <option value="jD">Rhombic 30-hedron</option>
+                          <option value="plane">Plane</option>
+                      </select></span>
+                    </p>
+                    <p class="control" style="display: none"><input class="input num normal" type="text" placeholder="Normal"></p>
+                    <p class="control">
+                      <input class="input num distance" type="text" placeholder="Distance">
+                    </p>
+                    <p class="control">
+                      <a class="button delete_cut"><i class="fa fa-trash" aria-hidden="true" title="Delete cut"></i></a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p class="control"><a class="button" id="add_cut"><i class="fa fa-plus" aria-hidden="true" title="Add cut"></i></a></p>
               </p>
               <label class="label">Actions</label>
               <div class="field is-grouped">
-                <p class="control"><button class="button" type="button" id="new_cut">Add Cut</button></p>
                 <p class="control"><button class="button" type="button" id="apply_cuts">Apply</button></p>
                 <p class="control"><button type="button" class="button" id="scramble">Scramble</button></p>
               </div>

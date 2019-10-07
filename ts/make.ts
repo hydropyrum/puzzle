@@ -25,7 +25,7 @@ export function make_shell(faces: THREE.Plane[]) {
     let g = really_big_polygeometry();
     let front;
     for (let i=0; i<faces.length; i++)
-        [front, g] = slice_polygeometry(g, faces[i], get_color(i));
+        [front, g] = slice_polygeometry(g, faces[i], get_color(i), false);
     return g;
 }
 
@@ -33,12 +33,12 @@ export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]) {
     for (let cut of cuts) {
         let newpieces: PolyGeometry[] = [];
         for (let piece of pieces) {
-            for (let p of slice_polygeometry(piece, cut, cut_color)) {
+            for (let p of slice_polygeometry(piece, cut, cut_color, true)) {
                 // Delete empty pieces
                 if (p.faces.length == 0)
                     continue;
                 // Delete interior pieces
-                if (p.faces.every(f => f.color === cut_color))
+                if (p.faces.every(f => f.interior))
                     continue;
                 newpieces.push(p);
             }

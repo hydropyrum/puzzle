@@ -29,10 +29,10 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
     }
 
     // Make list of candidate planes, grouping together parallel planes
-    // to do: only use interior faces
     let planes: {[key: string]: THREE.Plane} = {};
     for (let p of ps)
         for (let face of puzzle[p].faces) {
+            if (!trivial && !face.interior) continue;
             let plane = face.plane.clone();
             plane.normal.applyQuaternion(puzzle[p].rot);
             canonicalize_plane(plane);
