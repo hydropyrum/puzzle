@@ -79,7 +79,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
             return d == 0 ? x[1] - y[1] : d;
         });
 
-        function get_pieces(start: number, stop: number) {
+        let get_pieces = function (start: number, stop: number) {
             let ret = [];
             for (let i=start; i<stop; i++) {
                 let [hash, type, what] = a[i];
@@ -87,7 +87,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
                     ret.push(what);
             }
             return ret;
-        }
+        };
         
         // Now traverse the list to find the planes that are cuts
         let inside = 0; // running count of how many pieces are open
