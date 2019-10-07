@@ -49306,7 +49306,13 @@
 	                // Find quaternion to rotate p1 around cut.normal to p2
 	                var h_1 = cut.plane.normal.dot(p1.normal); // same for p1 and p2
 	                var cos = (p1.normal.dot(p2.normal) - h_1 * h_1) / (1 - h_1 * h_1);
-	                cos = Math.max(-1, Math.min(1, cos));
+	                // Snap values close to ±1 to be exactly ±1, because
+	                // we compute acos(cos) elsewhere and because the
+	                // half-angle formulas below are unstable near ±1
+	                if (floathash(cos) >= floathash(1))
+	                    cos = 1;
+	                if (floathash(cos) <= floathash(-1))
+	                    cos = -1;
 	                var cos_half = Math.sqrt((1 + cos) / 2);
 	                var sin_half = Math.sqrt((1 - cos) / 2);
 	                // This makes q.w lie in [+1, -1), which corresponds to [0, 360) degrees

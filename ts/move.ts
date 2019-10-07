@@ -148,7 +148,11 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
                 // Find quaternion to rotate p1 around cut.normal to p2
                 let h = cut.plane.normal.dot(p1.normal); // same for p1 and p2
                 let cos = (p1.normal.dot(p2.normal)-h*h)/(1-h*h);
-                cos = Math.max(-1, Math.min(1, cos));
+                // Snap values close to ±1 to be exactly ±1, because
+                // we compute acos(cos) elsewhere and because the
+                // half-angle formulas below are unstable near ±1
+                if (floathash(cos) >= floathash(1)) cos = 1;
+                if (floathash(cos) <= floathash(-1)) cos = -1;
                 let cos_half = Math.sqrt((1+cos)/2);
                 let sin_half = Math.sqrt((1-cos)/2);
                 // This makes q.w lie in [+1, -1), which corresponds to [0, 360) degrees
