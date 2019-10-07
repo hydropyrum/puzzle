@@ -238,8 +238,13 @@ canvas.addEventListener('touchend', function (event: TouchEvent) {
 
 function new_cut() {
     let cut_menu = document.getElementById("cuts")!;
-    let cut_item = cut_menu.firstChild!.cloneNode(true) as HTMLElement;
+    let cut_item = cut_menu.firstElementChild!.cloneNode(true) as HTMLElement;
     cut_item.style.display="block";
+    let select = cut_item.getElementsByClassName("cut_shape")[0] as HTMLSelectElement;
+    select.addEventListener('change', function () {
+        let normal = cut_item.getElementsByClassName("cut_normal")[0]!.parentElement!;
+        normal.style.display = select.value == "plane" ? "block" : "none";
+    }, false);
     let button = cut_item.getElementsByClassName("delete_cut")[0];
     button.addEventListener('click', function () {
         cut_menu.removeChild(cut_item);
@@ -284,15 +289,22 @@ function apply_cuts() {
         let de = ce.getElementsByClassName('cut_distance')[0] as HTMLInputElement;
         distance = parseFloat(de.value);
         if (isNaN(distance)) continue;
-        query.cuts.push({tag: "polyhedron", name: shape, d: distance});
-        switch(shape) {
-        case "T": newpuzzle = make_cuts(tetrahedron(distance), newpuzzle); break;
-        case "C": newpuzzle = make_cuts(cube(distance), newpuzzle); break;
-        case "O": newpuzzle = make_cuts(octahedron(distance), newpuzzle); break;
-        case "D": newpuzzle = make_cuts(dodecahedron(distance), newpuzzle); break;
-        case "jC": newpuzzle = make_cuts(rhombic_dodecahedron(distance), newpuzzle); break;
-        case "I": newpuzzle = make_cuts(icosahedron(distance), newpuzzle); break;
-        case "jD": newpuzzle = make_cuts(rhombic_triacontahedron(distance), newpuzzle); break;
+        if (shape == "plane") {
+            let normal = ce.getElementsByClassName('cut_normal')[0] as HTMLInputElement;
+            let coeffs = normal.value.split(',').map(parseFloat);
+            query.cuts.push({tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: distance});
+            newpuzzle = make_cuts([new THREE.Plane(new THREE.Vector3(coeffs[0], coeffs[1], coeffs[2]), distance)], newpuzzle);
+        } else {
+            query.cuts.push({tag: "polyhedron", name: shape, d: distance});
+            switch(shape) {
+            case "T": newpuzzle = make_cuts(tetrahedron(distance), newpuzzle); break;
+            case "C": newpuzzle = make_cuts(cube(distance), newpuzzle); break;
+            case "O": newpuzzle = make_cuts(octahedron(distance), newpuzzle); break;
+            case "D": newpuzzle = make_cuts(dodecahedron(distance), newpuzzle); break;
+            case "jC": newpuzzle = make_cuts(rhombic_dodecahedron(distance), newpuzzle); break;
+            case "I": newpuzzle = make_cuts(icosahedron(distance), newpuzzle); break;
+            case "jD": newpuzzle = make_cuts(rhombic_triacontahedron(distance), newpuzzle); break;
+            }
         }
     }
     draw_puzzle(newpuzzle, scene, 1/r);
@@ -319,6 +331,7 @@ function select_option(select: HTMLSelectElement, value: string) {
     for (let i=0; i<select.options.length; i++)
         if (select.options[i].value == value) {
             select.selectedIndex = i;
+            select.dispatchEvent(new Event('change'));
             return;
         }
 }
@@ -334,8 +347,15 @@ while (cuts_menu.childNodes.length > 1)
     cuts_menu.removeChild(cuts_menu.lastChild!);
 for (let cut of query.cuts) {
     let ce = new_cut();
-    let se = ce.getElementsByClassName('cut_shape')[0] as HTMLSelectElement;
-    select_option(se, (cut as parse.Polyhedron).name);
+    if (cut.tag == "polyhedron") {
+        let se = ce.getElementsByClassName('cut_shape')[0] as HTMLSelectElement;
+        select_option(se, (cut as parse.Polyhedron).name);
+    } else if (cut.tag == "plane") {
+        let se = ce.getElementsByClassName('cut_shape')[0] as HTMLSelectElement;
+        select_option(se, "plane");
+        let ne = ce.getElementsByClassName('cut_normal')[0] as HTMLInputElement;
+        ne.value = cut.a.toString() + ',' + cut.b.toString() + ',' + cut.c.toString();
+    }
     let de = ce.getElementsByClassName('cut_distance')[0] as HTMLInputElement;
     de.value = cut.d.toString();
 }
@@ -413,13 +433,16 @@ function render() {
     highlight_arrow();
 }
 
-function animate(t: number) {
+function resize() {
     let size = canvas.clientWidth;
     if (size != canvas.width || size != canvas.height) {
         renderer.setSize(size, size, false);
         render_requested = true;
     }
-    
+}
+
+function animate(t: number) {
+    resize();
     if (cur_move !== null) {
         if (cur_move.start_time === null)
             cur_move.start_time = t;
@@ -442,4 +465,5 @@ function animate(t: number) {
     requestAnimationFrame(animate);
 }
 
+resize();
 requestAnimationFrame(animate);

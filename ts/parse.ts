@@ -28,7 +28,7 @@ function parseReal(s: string) {
 
 function parseShape(s: string): Shape {
     let parts = s.split("$");
-    console.assert(parts.length == 2, "parse error: expected !");
+    console.assert(parts.length == 2, "parse error: expected $");
     let d = parseReal(parts[1]);
     s = parts[0];
     
