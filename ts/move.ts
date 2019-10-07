@@ -36,7 +36,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
             let plane = face.plane.clone();
             plane.normal.applyQuaternion(puzzle[p].rot);
             canonicalize_plane(plane);
-            // bug: a rounding error here could cause spurious cuts
+            // bug: a rounding error here could cause two cuts in same place
             setdefault(planes, pointhash(plane.normal), {})[planehash(plane)] = plane;
         }
 
@@ -129,8 +129,6 @@ function partition_cuts(cuts: Cut[], axis: THREE.Vector3) {
 }
 
 export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
-    // bug: should not return both 0 and 360
-
     let move_pieces = cut.front();
     let stay_pieces = cut.back();
 

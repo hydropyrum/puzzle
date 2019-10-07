@@ -49188,7 +49188,7 @@
 	            var plane = face.plane.clone();
 	            plane.normal.applyQuaternion(puzzle[p].rot);
 	            canonicalize_plane(plane);
-	            // bug: a rounding error here could cause spurious cuts
+	            // bug: a rounding error here could cause two cuts in same place
 	            setdefault(planes, pointhash(plane.normal), {})[planehash(plane)] = plane;
 	        }
 	    }
@@ -49286,7 +49286,6 @@
 	    return ret;
 	}
 	function find_stops(puzzle, cut) {
-	    // bug: should not return both 0 and 360
 	    var move_pieces = cut.front();
 	    var stay_pieces = cut.back();
 	    // Find cuts of moved pieces and not-moved pieces
@@ -49744,20 +49743,36 @@
 	    var cut = cuts[ci];
 	    if (cur_move !== null)
 	        end_move();
-	    var angles = find_stops(puzzle, cut);
-	    var zi = angles.findIndex(function (s) { return floathash(Math.abs(s.w)) == floathash(1); });
-	    if (zi < 0) {
-	        console.error("zero move not found");
-	        return;
+	    var rots = find_stops(puzzle, cut);
+	    var rot;
+	    var angle;
+	    if (rots.length == 0) {
+	        // No move possible; just do a 360-degree move
+	        rot = new Quaternion(0, 0, 0, 1);
 	    }
-	    zi = (zi + dir + angles.length) % angles.length;
-	    var angle = Math.acos(angles[zi].w) * 2;
-	    while (dir < 0 && angle >= 0)
-	        angle -= 2 * Math.PI;
-	    while (dir > 0 && angle <= 0)
-	        angle += 2 * Math.PI;
-	    var rot = new Quaternion();
-	    rot.setFromAxisAngle(cut.plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
+	    else {
+	        var zi = void 0;
+	        if (dir < 0) {
+	            zi = rots.length - 1;
+	            while (floathash(rots[zi].w) == floathash(1) && zi > 0)
+	                zi -= 1;
+	        }
+	        else {
+	            zi = 0;
+	            while (floathash(rots[zi].w) == floathash(1) && zi < rots.length - 1)
+	                zi += 1;
+	        }
+	        rot = rots[zi];
+	    }
+	    angle = Math.acos(rot.w) * 2;
+	    if (dir < 0)
+	        while (angle >= 0)
+	            angle -= 2 * Math.PI;
+	    if (dir > 0)
+	        while (angle <= 0)
+	            angle += 2 * Math.PI;
+	    var urot = new Quaternion();
+	    urot.setFromAxisAngle(cut.plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
 	    cur_move = {
 	        cut: cut,
 	        start_time: null,
@@ -49770,9 +49785,9 @@
 	    for (var _i = 0, _a = cur_move.pieces; _i < _a.length; _i++) {
 	        var i = _a[_i];
 	        cur_move.from_quat.push(puzzle[i].object.quaternion.clone());
-	        cur_move.step_quat.push(rot.clone().multiply(puzzle[i].object.quaternion));
+	        cur_move.step_quat.push(urot.clone().multiply(puzzle[i].object.quaternion));
 	    }
-	    make_move(puzzle, cut, angles[zi]);
+	    make_move(puzzle, cut, rot);
 	    draw_arrows();
 	}
 	function end_move() {

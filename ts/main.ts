@@ -357,18 +357,30 @@ function begin_move(ci: number, dir: number) {
     if (cur_move !== null)
         end_move();
     
-    let angles = find_stops(puzzle, cut);
-    let zi = angles.findIndex(s => floathash(Math.abs(s.w)) == floathash(1));
-    if (zi < 0) {
-        console.error("zero move not found");
-        return;
+    let rots = find_stops(puzzle, cut);
+    let rot: THREE.Quaternion;
+    let angle: number;
+    if (rots.length == 0) {
+        // No move possible; just do a 360-degree move
+        rot = new THREE.Quaternion(0, 0, 0, 1);
+    } else {
+        let zi: number;
+        if (dir < 0) {
+            zi = rots.length-1;
+            while (floathash(rots[zi].w) == floathash(1) && zi > 0)
+                zi -= 1;
+        } else {
+            zi = 0;
+            while (floathash(rots[zi].w) == floathash(1) && zi < rots.length-1)
+                zi += 1;
+        }
+        rot = rots[zi];
     }
-    zi = (zi+dir+angles.length) % angles.length;
-    let angle = Math.acos(angles[zi].w)*2;
-    while (dir < 0 && angle >= 0) angle -= 2*Math.PI;
-    while (dir > 0 && angle <= 0) angle += 2*Math.PI;
-    let rot = new THREE.Quaternion();
-    rot.setFromAxisAngle(cut.plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
+    angle = Math.acos(rot.w)*2;
+    if (dir < 0) while (angle >= 0) angle -= 2*Math.PI;
+    if (dir > 0) while (angle <= 0) angle += 2*Math.PI;
+    let urot = new THREE.Quaternion();
+    urot.setFromAxisAngle(cut.plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
 
     cur_move = {
         cut: cut,
@@ -381,9 +393,9 @@ function begin_move(ci: number, dir: number) {
     };
     for (let i of cur_move!.pieces) {
         cur_move.from_quat.push(puzzle[i].object!.quaternion.clone());
-        cur_move.step_quat.push(rot.clone().multiply(puzzle[i].object!.quaternion));
+        cur_move.step_quat.push(urot.clone().multiply(puzzle[i].object!.quaternion));
     }
-    make_move(puzzle, cut, angles[zi]);
+    make_move(puzzle, cut, rot);
     draw_arrows();
 }
 
