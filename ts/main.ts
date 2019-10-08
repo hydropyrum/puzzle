@@ -316,7 +316,7 @@ function apply_cuts() {
     let planes: THREE.Plane[] = [];
     for (let s of p.shell) {
         if (s.tag == "plane") {
-            planes.push(new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), s.d));
+            planes.push(new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), -s.d));
         } else if (s.tag == "polyhedron") {
             switch (s.name) {
             case "T": planes = planes.concat(tetrahedron(s.d)); break;
@@ -337,7 +337,7 @@ function apply_cuts() {
     let newpuzzle = [shell];
     for (let s of p.cuts) {
         if (s.tag == "plane") {
-            newpuzzle = make_cuts([new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), s.d)], newpuzzle);
+            newpuzzle = make_cuts([new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), -s.d)], newpuzzle);
         } else if (s.tag == "polyhedron") {
             switch(s.name) {
             case "T": newpuzzle = make_cuts(tetrahedron(s.d), newpuzzle); break;
