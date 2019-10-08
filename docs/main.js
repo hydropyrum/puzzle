@@ -48791,14 +48791,6 @@
 	    }
 	    return PolyGeometry;
 	}());
-	var PolyFace = /** @class */ (function () {
-	    function PolyFace(vertices, plane, color) {
-	        this.vertices = vertices;
-	        this.plane = plane;
-	        this.color = color;
-	    }
-	    return PolyFace;
-	}());
 	function really_big_polygeometry() {
 	    var g = new PolyGeometry([], []);
 	    var d = 1000;
@@ -48816,8 +48808,14 @@
 	        var i = _g[_f];
 	        var j = i < 4 ? i * 2 : 1;
 	        var k = j < 4 ? j * 2 : 1;
-	        g.faces.push(new PolyFace([0, k, j + k, j], new Plane(), new Color()));
-	        g.faces.push(new PolyFace([i, i + j, i + j + k, i + k], new Plane(), new Color()));
+	        g.faces.push({ vertices: [0, k, j + k, j],
+	            plane: new Plane(),
+	            color: new Color(),
+	            interior: false });
+	        g.faces.push({ vertices: [i, i + j, i + j + k, i + k],
+	            plane: new Plane(),
+	            color: new Color(),
+	            interior: false });
 	    }
 	    return g;
 	}
@@ -48869,7 +48867,7 @@
 	    return p;
 	}
 
-	function slice_polygeometry(geometry, plane, color) {
+	function slice_polygeometry(geometry, plane, color, interior) {
 	    /* cf. https://github.com/tdhooper/threejs-slice-geometry, but
 	       - preserves colors of faces
 	       - creates new faces where the geometry is sliced */
@@ -48946,11 +48944,11 @@
 	            back.faces.push(backface);
 	        }
 	    }
-	    close_polyhedron(back, plane, color);
-	    close_polyhedron(front, plane, color); // why is it okay not to negate plane?
+	    close_polyhedron(back, plane, color, interior);
+	    close_polyhedron(front, plane, color, interior); // why is it okay not to negate plane?
 	    return [front, back];
 	}
-	function close_polyhedron(geometry, plane, color) {
+	function close_polyhedron(geometry, plane, color, interior) {
 	    var edge_index = {};
 	    function count_edge(a, b) {
 	        var h = a < b ? a + "," + b : b + "," + a;
@@ -48992,7 +48990,7 @@
 	            console.error("not all cut points visited");
 	            break;
 	        }
-	        var cutface = new PolyFace(cutpoints, plane, color);
+	        var cutface = { vertices: cutpoints, plane: plane, color: color, interior: interior };
 	        geometry.faces.push(cutface);
 	    }
 	}
@@ -49017,7 +49015,7 @@
 	    var g = really_big_polygeometry();
 	    var front;
 	    for (var i = 0; i < faces.length; i++)
-	        _a = slice_polygeometry(g, faces[i], get_color(i)), front = _a[0], g = _a[1];
+	        _a = slice_polygeometry(g, faces[i], get_color(i), false), front = _a[0], g = _a[1];
 	    return g;
 	}
 	function make_cuts(cuts, pieces) {
@@ -49026,13 +49024,13 @@
 	        var newpieces = [];
 	        for (var _a = 0, pieces_1 = pieces; _a < pieces_1.length; _a++) {
 	            var piece = pieces_1[_a];
-	            for (var _b = 0, _c = slice_polygeometry(piece, cut, cut_color); _b < _c.length; _b++) {
+	            for (var _b = 0, _c = slice_polygeometry(piece, cut, cut_color, true); _b < _c.length; _b++) {
 	                var p = _c[_b];
 	                // Delete empty pieces
 	                if (p.faces.length == 0)
 	                    continue;
 	                // Delete interior pieces
-	                if (p.faces.every(function (f) { return f.color === cut_color; }))
+	                if (p.faces.every(function (f) { return f.interior; }))
 	                    continue;
 	                newpieces.push(p);
 	            }
@@ -49179,12 +49177,13 @@
 	            ps.push(i);
 	    }
 	    // Make list of candidate planes, grouping together parallel planes
-	    // to do: only use interior faces
 	    var planes = {};
 	    for (var _i = 0, ps_1 = ps; _i < ps_1.length; _i++) {
 	        var p = ps_1[_i];
 	        for (var _a = 0, _b = puzzle[p].faces; _a < _b.length; _a++) {
 	            var face = _b[_a];
+	            if (!trivial && !face.interior)
+	                continue;
 	            var plane = face.plane.clone();
 	            plane.normal.applyQuaternion(puzzle[p].rot);
 	            canonicalize_plane(plane);
@@ -49344,7 +49343,7 @@
 	}
 	function parseShape(s) {
 	    var parts = s.split("$");
-	    console.assert(parts.length == 2, "parse error: expected !");
+	    console.assert(parts.length == 2, "parse error: expected $");
 	    var d = parseReal(parts[1]);
 	    s = parts[0];
 	    if (s == "T" || s == "C" || s == "O" || s == "D" || s == "I" ||
@@ -49618,96 +49617,162 @@
 	    mouse = null;
 	}, false);
 	/* URL and form controls */
-	function new_cut() {
-	    var cut_menu = document.getElementById("cuts");
-	    var cut_item = cut_menu.firstChild.cloneNode(true);
-	    cut_item.style.display = "block";
-	    var button = cut_item.getElementsByClassName("delete_cut")[0];
-	    button.addEventListener('click', function () {
-	        cut_menu.removeChild(cut_item);
-	    }, false);
-	    cut_menu.appendChild(cut_item);
-	    return cut_item;
+	// Shell and cuts
+	var shells_list = document.getElementById("shells");
+	var cuts_list = document.getElementById("cuts");
+	function select_option(select, value) {
+	    for (var i = 0; i < select.options.length; i++)
+	        if (select.options[i].value == value) {
+	            select.selectedIndex = i;
+	            select.dispatchEvent(new Event('change'));
+	            return;
+	        }
 	}
-	document.getElementById('new_cut').addEventListener('click', function (e) { return new_cut(); }, false);
+	function add_item(list, shape) {
+	    // Add new item to HTML
+	    var item = list.firstElementChild.cloneNode(true);
+	    item.style.display = "block";
+	    var select = item.getElementsByClassName("shape")[0];
+	    select.addEventListener('change', function () {
+	        var normal = item.getElementsByClassName("normal")[0].parentElement;
+	        normal.style.display = select.value == "plane" ? "block" : "none";
+	    }, false);
+	    var button = item.getElementsByClassName("delete_cut")[0];
+	    button.addEventListener('click', function () {
+	        list.removeChild(item);
+	    }, false);
+	    list.appendChild(item);
+	    if (shape) {
+	        var se = item.getElementsByClassName('shape')[0];
+	        if (shape.tag == "polyhedron") {
+	            select_option(se, shape.name);
+	        }
+	        else if (shape.tag == "plane") {
+	            select_option(se, "plane");
+	            var ne = item.getElementsByClassName('normal')[0];
+	            ne.value = shape.a.toString() + ',' + shape.b.toString() + ',' + shape.c.toString();
+	        }
+	        var de = item.getElementsByClassName('distance')[0];
+	        de.value = shape.d.toString();
+	    }
+	}
+	document.getElementById('add_shell').addEventListener('click', function (e) { return add_item(shells_list); }, false);
+	document.getElementById('add_cut').addEventListener('click', function (e) { return add_item(cuts_list); }, false);
+	function list_to_shapes(list) {
+	    var ret = [];
+	    for (var _i = 0, _a = Array.from(list.children); _i < _a.length; _i++) {
+	        var item = _a[_i];
+	        // skip first item, which is a dummy item
+	        if (item === list.firstElementChild)
+	            continue;
+	        var shape = "", distance = 0;
+	        var se = item.getElementsByClassName('shape')[0];
+	        shape = se.options[se.selectedIndex].value;
+	        var de = item.getElementsByClassName('distance')[0];
+	        distance = parseFloat(de.value);
+	        if (isNaN(distance))
+	            continue;
+	        if (shape == "plane") {
+	            var normal = item.getElementsByClassName('normal')[0];
+	            var coeffs = normal.value.split(',').map(parseFloat);
+	            ret.push({ tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: distance });
+	        }
+	        else {
+	            ret.push({ tag: "polyhedron", name: shape, d: distance });
+	        }
+	    }
+	    return ret;
+	}
+	// Apply
 	function apply_cuts() {
-	    var query = { shell: [], cuts: [] };
-	    var shell_menu = document.getElementById("shell_menu");
-	    var shell_shape = shell_menu.options[shell_menu.selectedIndex].value;
-	    var d = parseFloat(document.getElementById("shell_distance").value);
-	    query.shell.push({ tag: "polyhedron", name: shell_shape, d: d });
+	    var p = {
+	        shell: list_to_shapes(shells_list),
+	        cuts: list_to_shapes(cuts_list)
+	    };
+	    window.history.replaceState({}, 'title', generateQuery(p));
+	    document.getElementById('url').value = window.location.href;
 	    var planes = [];
-	    switch (shell_shape) {
-	        case "T":
-	            planes = tetrahedron(d);
-	            break;
-	        case "C":
-	            planes = cube(d);
-	            break;
-	        case "O":
-	            planes = octahedron(d);
-	            break;
-	        case "D":
-	            planes = dodecahedron(d);
-	            break;
-	        case "I":
-	            planes = icosahedron(d);
-	            break;
+	    for (var _i = 0, _a = p.shell; _i < _a.length; _i++) {
+	        var s = _a[_i];
+	        if (s.tag == "plane") {
+	            planes.push(new Plane(new Vector3(s.a, s.b, s.c).normalize(), -s.d));
+	        }
+	        else if (s.tag == "polyhedron") {
+	            switch (s.name) {
+	                case "T":
+	                    planes = planes.concat(tetrahedron(s.d));
+	                    break;
+	                case "C":
+	                    planes = planes.concat(cube(s.d));
+	                    break;
+	                case "O":
+	                    planes = planes.concat(octahedron(s.d));
+	                    break;
+	                case "D":
+	                    planes = planes.concat(dodecahedron(s.d));
+	                    break;
+	                case "I":
+	                    planes = planes.concat(icosahedron(s.d));
+	                    break;
+	            }
+	        }
 	    }
 	    var shell = make_shell(planes);
 	    // Find circumradius, which we will scale to 1
 	    var r = 0;
-	    for (var _i = 0, _a = shell.vertices; _i < _a.length; _i++) {
-	        var v = _a[_i];
+	    for (var _b = 0, _c = shell.vertices; _b < _c.length; _b++) {
+	        var v = _c[_b];
 	        if (v.length() > r)
 	            r = v.length();
 	    }
 	    var newpuzzle = [shell];
-	    var cut_menu = document.getElementById("cuts");
-	    for (var _b = 0, _c = Array.from(cut_menu.children); _b < _c.length; _b++) {
-	        var ce = _c[_b];
-	        // skip first item, which is a dummy item
-	        if (ce === cut_menu.firstChild)
-	            continue;
-	        var shape = "", distance = 0;
-	        var se = ce.getElementsByClassName('cut_shape')[0];
-	        shape = se.options[se.selectedIndex].value;
-	        var de = ce.getElementsByClassName('cut_distance')[0];
-	        distance = parseFloat(de.value);
-	        if (isNaN(distance))
-	            continue;
-	        query.cuts.push({ tag: "polyhedron", name: shape, d: distance });
-	        switch (shape) {
-	            case "T":
-	                newpuzzle = make_cuts(tetrahedron(distance), newpuzzle);
-	                break;
-	            case "C":
-	                newpuzzle = make_cuts(cube(distance), newpuzzle);
-	                break;
-	            case "O":
-	                newpuzzle = make_cuts(octahedron(distance), newpuzzle);
-	                break;
-	            case "D":
-	                newpuzzle = make_cuts(dodecahedron(distance), newpuzzle);
-	                break;
-	            case "jC":
-	                newpuzzle = make_cuts(rhombic_dodecahedron(distance), newpuzzle);
-	                break;
-	            case "I":
-	                newpuzzle = make_cuts(icosahedron(distance), newpuzzle);
-	                break;
-	            case "jD":
-	                newpuzzle = make_cuts(rhombic_triacontahedron(distance), newpuzzle);
-	                break;
+	    for (var _d = 0, _e = p.cuts; _d < _e.length; _d++) {
+	        var s = _e[_d];
+	        if (s.tag == "plane") {
+	            newpuzzle = make_cuts([new Plane(new Vector3(s.a, s.b, s.c).normalize(), -s.d)], newpuzzle);
+	        }
+	        else if (s.tag == "polyhedron") {
+	            switch (s.name) {
+	                case "T":
+	                    newpuzzle = make_cuts(tetrahedron(s.d), newpuzzle);
+	                    break;
+	                case "C":
+	                    newpuzzle = make_cuts(cube(s.d), newpuzzle);
+	                    break;
+	                case "O":
+	                    newpuzzle = make_cuts(octahedron(s.d), newpuzzle);
+	                    break;
+	                case "D":
+	                    newpuzzle = make_cuts(dodecahedron(s.d), newpuzzle);
+	                    break;
+	                case "jC":
+	                    newpuzzle = make_cuts(rhombic_dodecahedron(s.d), newpuzzle);
+	                    break;
+	                case "I":
+	                    newpuzzle = make_cuts(icosahedron(s.d), newpuzzle);
+	                    break;
+	                case "jD":
+	                    newpuzzle = make_cuts(rhombic_triacontahedron(s.d), newpuzzle);
+	                    break;
+	            }
 	        }
 	    }
 	    draw_puzzle(newpuzzle, scene, 1 / r);
 	    render_requested = true;
 	    console.log("number of pieces:", newpuzzle.length);
-	    window.history.replaceState({}, 'title', generateQuery(query));
-	    document.getElementById('url').value = window.location.href;
 	}
 	document.getElementById('apply_cuts').addEventListener('click', function (e) { return apply_cuts(); }, false);
+	var query = parseQuery(window.location.search);
+	for (var _i = 0, _a = query.shell; _i < _a.length; _i++) {
+	    var shape = _a[_i];
+	    add_item(shells_list, shape);
+	}
+	for (var _b = 0, _c = query.cuts; _b < _c.length; _b++) {
+	    var shape = _c[_b];
+	    add_item(cuts_list, shape);
+	}
+	apply_cuts();
+	// Scramble
 	var random_moves = 0;
 	function move_random() {
 	    console.assert(cuts.length > 0, "no available cuts");
@@ -49719,30 +49784,6 @@
 	document.getElementById('scramble').addEventListener('click', function (e) {
 	    random_moves += 10;
 	}, false);
-	function select_option(select, value) {
-	    for (var i = 0; i < select.options.length; i++)
-	        if (select.options[i].value == value) {
-	            select.selectedIndex = i;
-	            return;
-	        }
-	}
-	var query = parseQuery(window.location.search);
-	// to do: multiple shell
-	// to do: shell planes
-	select_option(document.getElementById("shell_menu"), query.shell[0].name);
-	document.getElementById("shell_distance").value = query.shell[0].d.toString();
-	var cuts_menu = document.getElementById("cuts");
-	while (cuts_menu.childNodes.length > 1)
-	    cuts_menu.removeChild(cuts_menu.lastChild);
-	for (var _i = 0, _a = query.cuts; _i < _a.length; _i++) {
-	    var cut = _a[_i];
-	    var ce = new_cut();
-	    var se = ce.getElementsByClassName('cut_shape')[0];
-	    select_option(se, cut.name);
-	    var de = ce.getElementsByClassName('cut_distance')[0];
-	    de.value = cut.d.toString();
-	}
-	apply_cuts();
 	var rad_per_sec = 2 * Math.PI;
 	var cur_move = null;
 	function begin_move(ci, dir) {
@@ -49810,12 +49851,15 @@
 	    render_requested = false;
 	    highlight_arrow();
 	}
-	function animate(t) {
+	function resize() {
 	    var size = canvas.clientWidth;
 	    if (size != canvas.width || size != canvas.height) {
 	        renderer.setSize(size, size, false);
 	        render_requested = true;
 	    }
+	}
+	function animate(t) {
+	    resize();
 	    if (cur_move !== null) {
 	        if (cur_move.start_time === null)
 	            cur_move.start_time = t;
@@ -49836,6 +49880,7 @@
 	        render();
 	    requestAnimationFrame(animate);
 	}
+	resize();
 	requestAnimationFrame(animate);
 
 }());
