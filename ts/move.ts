@@ -143,30 +143,34 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
     let stops: {[key: string]: THREE.Quaternion} = {};
     for (let h of keys(move_partition)) {
         if (!(h in stay_partition)) continue;
-        for (let p1 of move_partition[h])
-            for (let p2 of stay_partition[h]) {
-                // Find quaternion to rotate p1 around cut.normal to p2
-                let h = cut.plane.normal.dot(p1.normal); // same for p1 and p2
-                let cos = (p1.normal.dot(p2.normal)-h*h)/(1-h*h);
-                // Snap values close to ±1 to be exactly ±1, because
-                // we compute acos(cos) elsewhere and because the
-                // half-angle formulas below are unstable near ±1
-                if (floathash(cos) >= floathash(1)) cos = 1;
-                if (floathash(cos) <= floathash(-1)) cos = -1;
-                let cos_half = Math.sqrt((1+cos)/2);
-                let sin_half = Math.sqrt((1-cos)/2);
+        for (let plane1 of move_partition[h])
+            for (let plane2 of stay_partition[h]) {
+                let c = cut.plane.normal, p1 = plane1.normal, p2 = plane2.normal;
+                // Find quaternion to rotate p1 around c to p2
+                // Assume c, p1, p2 are normalized
+                // Assume c.dot(p1) == c.dot(p2)
+                
+                // Project p1 and p2 onto cut.plane and find half-angle between them
+                let h = c.dot(p2); // should be same for p1 and p2
+                let r = Math.sqrt(1-h*h);
+                // cos ∠(n1,n2)/2 = ‖n1/‖n1‖ + n2/‖n2‖‖/2
+                let cos_half = c.clone().multiplyScalar(-2*h).add(p1).add(p2).length()/(2*r);
+                // sin ∠(n1,n2)/2 = ‖n1/‖n1‖ - n2/‖n2‖‖/2
+                let sin_half = p1.clone().sub(p2).length()/(2*r);
+
                 // This makes q.w lie in [+1, -1), which corresponds to [0, 360) degrees
-                let triple = p1.normal.clone().cross(p2.normal).dot(cut.plane.normal);
+                let triple = p1.clone().cross(p2).dot(c);
                 if (triple < 0 && floathash(cos_half) != floathash(1))
                     cos_half = -cos_half;
                 let q = new THREE.Quaternion(
-                    sin_half * cut.plane.normal.x,
-                    sin_half * cut.plane.normal.y,
-                    sin_half * cut.plane.normal.z,
+                    sin_half * c.x,
+                    sin_half * c.y,
+                    sin_half * c.z,
                     cos_half
                 );
                 // bug: a rounding error here could cause a micro-move
                 stops[floathash(q.w)] = q;
+                //console.log('error', p1.clone().applyQuaternion(q).distanceTo(p2));
             }
     }
     let ret = Object.values(stops);
