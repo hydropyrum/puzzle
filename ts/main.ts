@@ -322,8 +322,10 @@ function apply_cuts() {
             case "T": planes = planes.concat(tetrahedron(s.d)); break;
             case "C": planes = planes.concat(cube(s.d)); break;
             case "O": planes = planes.concat(octahedron(s.d)); break;
+            case "jC": planes = planes.concat(rhombic_dodecahedron(s.d)); break;
             case "D": planes = planes.concat(dodecahedron(s.d)); break;
             case "I": planes = planes.concat(icosahedron(s.d)); break;
+            case "jD": planes = planes.concat(rhombic_triacontahedron(s.d)); break;
             }
         }
     }
