@@ -178,9 +178,15 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
     return ret;
 }
 
-export function make_move(puzzle: PolyGeometry[], cut: Cut, rot: THREE.Quaternion) {
-    for (let p of cut.front()) {
-        puzzle[p].rot.premultiply(rot);
-        puzzle[p].rot.normalize();
+export function make_move(puzzle: PolyGeometry[], cut: Cut, rot: THREE.Quaternion, global_rot: THREE.Quaternion) {
+    // Piece 0 is immovable
+    if (cut.front().includes(0)) {
+        global_rot.multiply(rot).normalize();
+        let inv = rot.clone().conjugate();
+        for (let p of cut.back())
+            puzzle[p].rot.premultiply(inv).normalize();
+    } else {
+        for (let p of cut.front())
+            puzzle[p].rot.premultiply(rot).normalize();
     }
 }

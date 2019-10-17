@@ -40,6 +40,7 @@ scene.add(alight);
 /* Build puzzle */
 
 var puzzle: PolyGeometry[] = [];
+var global_rot = new THREE.Quaternion();
 
 //const face_material = new THREE.MeshStandardMaterial({
 const face_material = new THREE.MeshLambertMaterial({
@@ -110,7 +111,7 @@ function draw_arrow(cut: Cut, d: number) {
     let arrow = new THREE.Mesh(arrow_geometry, arrow_material);
     arrow.scale.multiplyScalar(0.2);
     var rot = new THREE.Quaternion();
-    rot.setFromUnitVectors(new THREE.Vector3(0, 0, 1), cut.plane.normal);
+    rot.setFromUnitVectors(new THREE.Vector3(0, 0, 1), cut.plane.normal.clone().applyQuaternion(global_rot));
     arrow.position.z = 1.25 + 0.25*d;
     arrow.position.applyQuaternion(rot);
     arrow.quaternion.copy(rot);
@@ -430,17 +431,22 @@ function begin_move(ci: number, dir: number) {
         angle: angle
     };
     for (let i of cur_move!.pieces) {
-        cur_move.from_quat.push(puzzle[i].object!.quaternion.clone());
-        cur_move.step_quat.push(urot.clone().multiply(puzzle[i].object!.quaternion));
+        //cur_move.from_quat.push(puzzle[i].rot.clone());
+        //cur_move.step_quat.push(urot.clone().multiply(puzzle[i].rot));
+        cur_move.from_quat.push(global_rot.clone().multiply(puzzle[i].rot));
+        cur_move.step_quat.push(global_rot.clone().multiply(urot).multiply(puzzle[i].rot));
     }
-    make_move(puzzle, cut, rot);
+    make_move(puzzle, cut, rot, global_rot);
     draw_arrows();
 }
 
 function end_move() {
     // Snap to final angle
-    for (let p of cur_move!.pieces)
-        puzzle[p].object!.quaternion.copy(puzzle[p].rot);
+    //for (let p of cur_move!.pieces) {
+    for (let p=0; p<puzzle.length; p++) {
+        let q = puzzle[p].object!.quaternion;
+        q.copy(global_rot.clone().multiply(puzzle[p].rot));
+    }
     cur_move = null;
     render_requested = true;
 }
