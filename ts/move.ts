@@ -36,20 +36,19 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
             let plane = face.plane.clone();
             plane.normal.applyQuaternion(puzzle[p].rot).normalize();
             canonicalize_plane(plane);
-            // bug: a rounding error here could cause two cuts in same place
             setdefault(planes, pointhash(plane.normal), {})[planehash(plane)] = plane;
         }
 
-    let ret: Cut[] = [];
+    let cuts: {[key: string]: Cut} = {};
 
     for (let nh in planes) {
         
         // Make a list of pieces and planes, sorted by their
         // projection onto the current axis (represented by nh). Each
         // element of this list is a triple [proj, type, what], where
-        // proj is the integerized projection, type is +1 for begin
-        // piece, -1 for end piece, and 0 for plane, and what is a
-        // piece index or a plane.
+        // proj is the projection, type is +1 for begin piece, -1 for
+        // end piece, and 0 for plane, and what is a piece index or a
+        // plane.
 
         const BEGIN_PIECE = 1, END_PIECE = -1, PLANE = 0;
         
@@ -101,13 +100,16 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
                      inside == 0 && // only keep planes not inside pieces
                      (trivial || i > 0 && i < a.length-1) && // only keep planes between pieces
                      //i > 0 && i < a.length-1 && // only keep planes between pieces
-                     what instanceof THREE.Plane)
-                ret.push({plane: what, 
-                          front: function () { return get_pieces(i+1, a.length) },
-                          back: function () { return get_pieces(0, i) }});
+                     what instanceof THREE.Plane) {
+                // hash by back-side pieces to avoid duplication
+                let h = get_pieces(0, i).sort().join(',');
+                cuts[h] = {plane: what, 
+                           front: function () { return get_pieces(i+1, a.length) },
+                           back: function () { return get_pieces(0, i) }};
+            }
         }
     }
-    return ret;
+    return Object.values(cuts);
 }
 
 function partition_cuts(cuts: Cut[], axis: THREE.Vector3) {
