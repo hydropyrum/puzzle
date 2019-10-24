@@ -4,11 +4,13 @@ export class PolyGeometry {
     vertices: THREE.Vector3[];
     faces: PolyFace[];
     rot: THREE.Quaternion;
+    cache: {[key: string]: THREE.Quaternion};
     object: THREE.Object3D | null;
     constructor(vertices: THREE.Vector3[], faces: PolyFace[]) {
         this.vertices = vertices;
         this.faces = faces;
         this.rot = new THREE.Quaternion();
+        this.cache = {};
         this.object = null;
     }
 };

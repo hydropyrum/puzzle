@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setdefault, canonicalize_plane, floathash, pointhash, planehash } from './util.js';
+import { setdefault, canonicalize_plane, floathash, pointhash, planehash, rothash } from './util.js';
 import { PolyGeometry } from './piece.js';
 import { keys, EPSILON } from './util.js';
 
@@ -34,7 +34,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
         for (let face of puzzle[p].faces) {
             if (!trivial && !face.interior) continue;
             let plane = face.plane.clone();
-            plane.normal.applyQuaternion(puzzle[p].rot);
+            plane.normal.applyQuaternion(puzzle[p].rot).normalize();
             canonicalize_plane(plane);
             // bug: a rounding error here could cause two cuts in same place
             setdefault(planes, pointhash(plane.normal), {})[planehash(plane)] = plane;
@@ -167,7 +167,7 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
                     sin_half * c.y,
                     sin_half * c.z,
                     cos_half
-                );
+                ).normalize();
                 // bug: a rounding error here could cause a micro-move
                 stops[floathash(q.w)] = q;
                 //console.log('error', p1.clone().applyQuaternion(q).distanceTo(p2));
@@ -188,5 +188,14 @@ export function make_move(puzzle: PolyGeometry[], cut: Cut, rot: THREE.Quaternio
     } else {
         for (let p of cut.front())
             puzzle[p].rot.premultiply(rot).normalize();
+    }
+    // If a piece's rotation is close to a previous one,
+    // use the old rotation. This eliminates buildup of rounding errors.
+    for (let piece of puzzle) {
+        let h = rothash(piece.rot);
+        if (h in piece.cache)
+            piece.rot.copy(piece.cache[h]);
+        else
+            piece.cache[h] = piece.rot.clone();
     }
 }
