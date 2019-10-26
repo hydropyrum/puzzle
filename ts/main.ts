@@ -40,7 +40,7 @@ scene.add(alight);
 /* Build puzzle */
 
 var puzzle: PolyGeometry[] = [];
-var global_rot = new THREE.Quaternion();
+var global_rot: THREE.Quaternion;
 
 //const face_material = new THREE.MeshStandardMaterial({
 const face_material = new THREE.MeshLambertMaterial({
@@ -70,6 +70,7 @@ function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: numbe
         scene.add(piece.object);
     }
     puzzle = newpuzzle;
+    global_rot = new THREE.Quaternion();
     draw_arrows();
     render_requested = true;
 }
