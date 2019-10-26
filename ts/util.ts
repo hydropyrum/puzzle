@@ -22,13 +22,12 @@ export function floathash(x: number) {
 export function pointhash(v: THREE.Vector3) {
     return floathash(v.x) + "," + floathash(v.y) + "," + floathash(v.z);
 }
-export function planehash(p: THREE.Plane) {
-    return pointhash(p.normal) + "," + floathash(p.constant);
-}
 export function rothash(q: THREE.Quaternion) {
     return floathash(q.x) + "," + floathash(q.y) + "," + floathash(q.z) + "," + floathash(q.w);
 }
 
+/* Canonicalize so that if two planes are (almost) parallel, their
+   normals should have the same pointhash. */
 export function canonicalize_plane(p: THREE.Plane) {
     let hx = floathash(p.normal.x);
     let hy = floathash(p.normal.y);
