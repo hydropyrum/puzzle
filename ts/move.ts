@@ -9,7 +9,7 @@ export interface Cut {
     back: () => number[];
 }
 
-export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boolean) {
+export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
     /* Given a list of (indexes of) pieces, find all planes that touch
        but don't cut them. The return value is a list of objects; each
        has three fields:
@@ -32,7 +32,6 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
     let planes: {[key: string]: THREE.Plane} = {};
     for (let p of ps)
         for (let face of puzzle[p].faces) {
-            if (!trivial && !face.interior) continue;
             let plane = face.plane.clone();
             plane.normal.applyQuaternion(puzzle[p].rot).normalize();
             canonicalize_plane(plane);
@@ -98,8 +97,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[], trivial?: boole
                 inside -= 1;
             else if (type == PLANE &&
                      inside == 0 && // only keep planes not inside pieces
-                     (trivial || i > 0 && i < a.length-1) && // only keep planes between pieces
-                     //i > 0 && i < a.length-1 && // only keep planes between pieces
+                     i > 0 && i < a.length-1 && // only keep planes between pieces
                      what instanceof THREE.Plane) {
                 // hash by back-side pieces to avoid duplication
                 let h = get_pieces(0, i).sort().join(',');
@@ -117,8 +115,8 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
     let stay_pieces = cut.back();
 
     // Find cuts of moved pieces and not-moved pieces
-    let move_cuts = find_cuts(puzzle, move_pieces, true);
-    let stay_cuts = find_cuts(puzzle, stay_pieces, true);
+    let move_cuts = find_cuts(puzzle, move_pieces);
+    let stay_cuts = find_cuts(puzzle, stay_pieces);
 
     // Find all rotation angles that form a total cut
 
