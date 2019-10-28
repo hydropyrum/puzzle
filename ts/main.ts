@@ -3,7 +3,7 @@ import { TrackballControls } from './TrackballControls.js';
 import { make_shell, make_cuts, tetrahedron, cube, octahedron, dodecahedron, rhombic_dodecahedron, icosahedron, rhombic_triacontahedron } from './make.js';
 import { Cut, find_cuts, find_stops, make_move } from './move.js';
 import { PolyGeometry, triangulate_polygeometry } from './piece.js';
-import { floathash, pointhash, setdefault } from './util.js';
+import { pointhash, EPSILON, setdefault } from './util.js';
 import * as parse from './parse.js';
 
 // Set up
@@ -140,12 +140,14 @@ function draw_arrows() {
     cuts = find_cuts(puzzle);
     let n = cuts.length;
     // make normals point away from origin; deep cuts go both ways
-    for (let i=0; i<n; i++) {
-        if (floathash(cuts[i].plane.constant) > 0)
-            cuts[i] = reverse_cut(cuts[i]);
-        else if (floathash(cuts[i].plane.constant) == 0)
-            cuts.push(reverse_cut(cuts[i]));
+    let new_cuts: Cut[] = [];
+    for (let cut of cuts) {
+        if (cut.plane.constant <= EPSILON)
+            new_cuts.push(cut);
+        if (cut.plane.constant >= -EPSILON)
+            new_cuts.push(reverse_cut(cut));
     }
+    cuts = new_cuts;
     cuts.sort((a, b) => b.plane.constant - a.plane.constant);
     let count: {[key: string]: number} = {};
     for (let cut of cuts) {
@@ -407,11 +409,11 @@ function begin_move(ci: number, dir: number) {
         let zi: number;
         if (dir < 0) {
             zi = rots.length-1;
-            while (floathash(rots[zi].w) == floathash(1) && zi > 0)
+            while (rots[zi].w >= 1-EPSILON && zi > 0)
                 zi -= 1;
         } else {
             zi = 0;
-            while (floathash(rots[zi].w) == floathash(1) && zi < rots.length-1)
+            while (rots[zi].w >= 1-EPSILON && zi < rots.length-1)
                 zi += 1;
         }
         rot = rots[zi];
