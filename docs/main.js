@@ -48787,6 +48787,7 @@
 	        this.vertices = vertices;
 	        this.faces = faces;
 	        this.rot = new Quaternion();
+	        this.cache = {};
 	        this.object = null;
 	    }
 	    return PolyGeometry;
@@ -48851,9 +48852,11 @@
 	function pointhash(v) {
 	    return floathash(v.x) + "," + floathash(v.y) + "," + floathash(v.z);
 	}
-	function planehash(p) {
-	    return pointhash(p.normal) + ";" + floathash(p.constant);
+	function rothash(q) {
+	    return floathash(q.x) + "," + floathash(q.y) + "," + floathash(q.z) + "," + floathash(q.w);
 	}
+	/* Canonicalize so that if two planes are (almost) parallel, their
+	   normals should have the same pointhash. */
 	function canonicalize_plane(p) {
 	    var hx = floathash(p.normal.x);
 	    var hy = floathash(p.normal.y);
@@ -49159,7 +49162,7 @@
 	    return cuts;
 	}
 
-	function find_cuts(puzzle, ps, trivial) {
+	function find_cuts(puzzle, ps) {
 	    /* Given a list of (indexes of) pieces, find all planes that touch
 	       but don't cut them. The return value is a list of objects; each
 	       has three fields:
@@ -49182,23 +49185,20 @@
 	        var p = ps_1[_i];
 	        for (var _a = 0, _b = puzzle[p].faces; _a < _b.length; _a++) {
 	            var face = _b[_a];
-	            if (!trivial && !face.interior)
-	                continue;
 	            var plane = face.plane.clone();
-	            plane.normal.applyQuaternion(puzzle[p].rot);
+	            plane.normal.applyQuaternion(puzzle[p].rot).normalize();
 	            canonicalize_plane(plane);
-	            // bug: a rounding error here could cause two cuts in same place
-	            setdefault(planes, pointhash(plane.normal), {})[planehash(plane)] = plane;
+	            setdefault(planes, pointhash(plane.normal), {})[floathash(plane.constant)] = plane;
 	        }
 	    }
-	    var ret = [];
+	    var cuts = {};
 	    var _loop_1 = function (nh) {
 	        // Make a list of pieces and planes, sorted by their
 	        // projection onto the current axis (represented by nh). Each
 	        // element of this list is a triple [proj, type, what], where
-	        // proj is the integerized projection, type is +1 for begin
-	        // piece, -1 for end piece, and 0 for plane, and what is a
-	        // piece index or a plane.
+	        // proj is the projection, type is +1 for begin piece, -1 for
+	        // end piece, and 0 for plane, and what is a piece index or a
+	        // plane.
 	        var BEGIN_PIECE = 1, END_PIECE = -1, PLANE = 0;
 	        var a = [];
 	        var planes_n = Object.values(planes[nh]);
@@ -49234,7 +49234,7 @@
 	        var get_pieces = function (start, stop) {
 	            var ret = [];
 	            for (var i = start; i < stop; i++) {
-	                var _a = a[i], hash = _a[0], type = _a[1], what = _a[2];
+	                var _a = a[i], d = _a[0], type = _a[1], what = _a[2];
 	                if (type == BEGIN_PIECE && typeof what === "number")
 	                    ret.push(what);
 	            }
@@ -49243,19 +49243,21 @@
 	        // Now traverse the list to find the planes that are cuts
 	        var inside = 0; // running count of how many pieces are open
 	        var _loop_2 = function (i) {
-	            var _a = a[i], hash = _a[0], type = _a[1], what = _a[2];
+	            var _a = a[i], d = _a[0], type = _a[1], what = _a[2];
 	            if (type == BEGIN_PIECE)
 	                inside += 1;
 	            else if (type == END_PIECE)
 	                inside -= 1;
 	            else if (type == PLANE &&
 	                inside == 0 && // only keep planes not inside pieces
-	                (trivial || i > 0 && i < a.length - 1) && // only keep planes between pieces
-	                //i > 0 && i < a.length-1 && // only keep planes between pieces
-	                what instanceof Plane)
-	                ret.push({ plane: what,
+	                i > 0 && i < a.length - 1 && // only keep planes between pieces
+	                what instanceof Plane) {
+	                // hash by back-side pieces to avoid duplication
+	                var h = get_pieces(0, i).sort().join(',');
+	                cuts[h] = { plane: what,
 	                    front: function () { return get_pieces(i + 1, a.length); },
-	                    back: function () { return get_pieces(0, i); } });
+	                    back: function () { return get_pieces(0, i); } };
+	            }
 	        };
 	        for (var i = 0; i < a.length; i++) {
 	            _loop_2(i);
@@ -49264,75 +49266,86 @@
 	    for (var nh in planes) {
 	        _loop_1(nh);
 	    }
-	    return ret;
-	}
-	function partition_cuts(cuts, axis) {
-	    // Partition cuts according to their distance from origin and angle relative to axis
-	    var ret = {};
-	    for (var _i = 0, cuts_1 = cuts; _i < cuts_1.length; _i++) {
-	        var c = cuts_1[_i];
-	        var p = c.plane;
-	        // bug: a rounding error here could cause stops to be lost
-	        var dh = floathash(p.constant);
-	        var vy = floathash(axis.dot(p.normal));
-	        if (Math.abs(vy) == floathash(1))
-	            continue;
-	        if (dh >= 0)
-	            setdefault(ret, dh + "," + vy, []).push(p);
-	        if (dh <= 0)
-	            setdefault(ret, -dh + "," + -vy, []).push(p.clone().negate());
-	    }
-	    return ret;
+	    return Object.values(cuts);
 	}
 	function find_stops(puzzle, cut) {
 	    var move_pieces = cut.front();
 	    var stay_pieces = cut.back();
 	    // Find cuts of moved pieces and not-moved pieces
-	    var move_cuts = find_cuts(puzzle, move_pieces, true);
-	    var stay_cuts = find_cuts(puzzle, stay_pieces, true);
+	    var move_cuts = find_cuts(puzzle, move_pieces);
+	    var stay_cuts = find_cuts(puzzle, stay_pieces);
 	    // Find all rotation angles that form a total cut
-	    var move_partition = partition_cuts(move_cuts, cut.plane.normal);
-	    var stay_partition = partition_cuts(stay_cuts, cut.plane.normal);
 	    var stops = {};
-	    for (var _i = 0, _a = keys(move_partition); _i < _a.length; _i++) {
-	        var h = _a[_i];
-	        if (!(h in stay_partition))
-	            continue;
-	        for (var _b = 0, _c = move_partition[h]; _b < _c.length; _b++) {
-	            var p1 = _c[_b];
-	            for (var _d = 0, _e = stay_partition[h]; _d < _e.length; _d++) {
-	                var p2 = _e[_d];
-	                // Find quaternion to rotate p1 around cut.normal to p2
-	                var h_1 = cut.plane.normal.dot(p1.normal); // same for p1 and p2
-	                var cos = (p1.normal.dot(p2.normal) - h_1 * h_1) / (1 - h_1 * h_1);
-	                // Snap values close to ±1 to be exactly ±1, because
-	                // we compute acos(cos) elsewhere and because the
-	                // half-angle formulas below are unstable near ±1
-	                if (floathash(cos) >= floathash(1))
-	                    cos = 1;
-	                if (floathash(cos) <= floathash(-1))
-	                    cos = -1;
-	                var cos_half = Math.sqrt((1 + cos) / 2);
-	                var sin_half = Math.sqrt((1 - cos) / 2);
-	                // This makes q.w lie in [+1, -1), which corresponds to [0, 360) degrees
-	                var triple = p1.normal.clone().cross(p2.normal).dot(cut.plane.normal);
-	                if (triple < 0 && floathash(cos_half) != floathash(1))
-	                    cos_half = -cos_half;
-	                var q = new Quaternion(sin_half * cut.plane.normal.x, sin_half * cut.plane.normal.y, sin_half * cut.plane.normal.z, cos_half);
-	                // bug: a rounding error here could cause a micro-move
-	                stops[floathash(q.w)] = q;
+	    for (var _i = 0, move_cuts_1 = move_cuts; _i < move_cuts_1.length; _i++) {
+	        var half1 = move_cuts_1[_i];
+	        for (var _a = 0, stay_cuts_1 = stay_cuts; _a < stay_cuts_1.length; _a++) {
+	            var half2 = stay_cuts_1[_a];
+	            var c = cut.plane.normal;
+	            var p1 = half1.plane.normal, p2 = half2.plane.normal;
+	            var d1 = half1.plane.constant, d2 = half2.plane.constant;
+	            var h1 = c.dot(p1), h2 = c.dot(p2);
+	            var h = void 0;
+	            // Check if half1.plane can be rotated to half2.plane (or its negation)
+	            if (Math.abs(d1 - d2) < EPSILON &&
+	                Math.abs(h1 - h2) < EPSILON)
+	                h = h2;
+	            else if (Math.abs(d1 + d2) < EPSILON &&
+	                Math.abs(h1 + h2) < EPSILON) {
+	                p2 = p2.clone().negate();
+	                h = -h2;
 	            }
+	            else
+	                continue;
+	            // Skip if half1 and half2 are parallel to cut
+	            if (Math.abs(h) >= 1 - EPSILON)
+	                continue;
+	            // Project p1 and p2 onto cut.plane and find half-angle between them
+	            var r = Math.sqrt(1 - h * h);
+	            // cos ∠(n1,n2)/2 = ‖n1/‖n1‖ + n2/‖n2‖‖/2
+	            var cos_half = c.clone().multiplyScalar(-2 * h).add(p1).add(p2).length() / (2 * r);
+	            // sin ∠(n1,n2)/2 = ‖n1/‖n1‖ - n2/‖n2‖‖/2
+	            var sin_half = p1.clone().sub(p2).length() / (2 * r);
+	            // This makes q.w lie in [+1, -1), which corresponds to [0, 360) degrees
+	            var triple = p1.clone().cross(p2).dot(c);
+	            if (triple < 0 && cos_half < 1)
+	                cos_half = -cos_half;
+	            var q = new Quaternion(sin_half * c.x, sin_half * c.y, sin_half * c.z, cos_half).normalize();
+	            // bug: a rounding error here could cause two stops to be
+	            // found differing only by a very small angle, but this
+	            // doesn't matter, because we (currently) are only
+	            // interested in the smallest nonzero stop.
+	            stops[floathash(q.w)] = q;
 	        }
 	    }
 	    var ret = Object.values(stops);
 	    ret.sort(function (a, b) { return b.w - a.w; });
 	    return ret;
 	}
-	function make_move(puzzle, cut, rot) {
-	    for (var _i = 0, _a = cut.front(); _i < _a.length; _i++) {
-	        var p = _a[_i];
-	        puzzle[p].rot.premultiply(rot);
-	        puzzle[p].rot.normalize();
+	function make_move(puzzle, cut, rot, global_rot) {
+	    // Piece 0 is immovable
+	    if (cut.front().includes(0)) {
+	        global_rot.multiply(rot).normalize();
+	        var inv = rot.clone().conjugate();
+	        for (var _i = 0, _a = cut.back(); _i < _a.length; _i++) {
+	            var p = _a[_i];
+	            puzzle[p].rot.premultiply(inv).normalize();
+	        }
+	    }
+	    else {
+	        for (var _b = 0, _c = cut.front(); _b < _c.length; _b++) {
+	            var p = _c[_b];
+	            puzzle[p].rot.premultiply(rot).normalize();
+	        }
+	    }
+	    // If a piece's rotation is close to a previous one,
+	    // use the old rotation. This eliminates buildup of rounding errors.
+	    for (var _d = 0, puzzle_1 = puzzle; _d < puzzle_1.length; _d++) {
+	        var piece = puzzle_1[_d];
+	        var h = rothash(piece.rot);
+	        if (h in piece.cache)
+	            piece.rot.copy(piece.cache[h]);
+	        else
+	            piece.cache[h] = piece.rot.clone();
 	    }
 	}
 
@@ -49428,6 +49441,7 @@
 	scene.add(alight);
 	/* Build puzzle */
 	var puzzle = [];
+	var global_rot;
 	//const face_material = new THREE.MeshStandardMaterial({
 	var face_material = new MeshLambertMaterial({
 	    vertexColors: FaceColors,
@@ -49457,6 +49471,7 @@
 	        scene.add(piece.object);
 	    }
 	    puzzle = newpuzzle;
+	    global_rot = new Quaternion();
 	    draw_arrows();
 	    render_requested = true;
 	}
@@ -49494,7 +49509,7 @@
 	    var arrow = new Mesh(arrow_geometry, arrow_material);
 	    arrow.scale.multiplyScalar(0.2);
 	    var rot = new Quaternion();
-	    rot.setFromUnitVectors(new Vector3(0, 0, 1), cut.plane.normal);
+	    rot.setFromUnitVectors(new Vector3(0, 0, 1), cut.plane.normal.clone().applyQuaternion(global_rot));
 	    arrow.position.z = 1.25 + 0.25 * d;
 	    arrow.position.applyQuaternion(rot);
 	    arrow.quaternion.copy(rot);
@@ -49522,16 +49537,19 @@
 	    cuts = find_cuts(puzzle);
 	    var n = cuts.length;
 	    // make normals point away from origin; deep cuts go both ways
-	    for (var i = 0; i < n; i++) {
-	        if (floathash(cuts[i].plane.constant) > 0)
-	            cuts[i] = reverse_cut(cuts[i]);
-	        else if (floathash(cuts[i].plane.constant) == 0)
-	            cuts.push(reverse_cut(cuts[i]));
-	    }
-	    cuts.sort(function (a, b) { return b.plane.constant - a.plane.constant; });
-	    var count = {};
+	    var new_cuts = [];
 	    for (var _a = 0, cuts_1 = cuts; _a < cuts_1.length; _a++) {
 	        var cut = cuts_1[_a];
+	        if (cut.plane.constant <= EPSILON)
+	            new_cuts.push(cut);
+	        if (cut.plane.constant >= -EPSILON)
+	            new_cuts.push(reverse_cut(cut));
+	    }
+	    cuts = new_cuts;
+	    cuts.sort(function (a, b) { return b.plane.constant - a.plane.constant; });
+	    var count = {};
+	    for (var _b = 0, cuts_2 = cuts; _b < cuts_2.length; _b++) {
+	        var cut = cuts_2[_b];
 	        // bug: if cuts are close, arrows can collide
 	        var h = pointhash(cut.plane.normal);
 	        setdefault(count, h, 0);
@@ -49539,8 +49557,8 @@
 	        count[h] += 1;
 	    }
 	    // update matrices for raycaster
-	    for (var _b = 0, arrows_2 = arrows; _b < arrows_2.length; _b++) {
-	        var arrow = arrows_2[_b];
+	    for (var _c = 0, arrows_2 = arrows; _c < arrows_2.length; _c++) {
+	        var arrow = arrows_2[_c];
 	        arrow.updateMatrixWorld(true);
 	    }
 	    highlight_arrow();
@@ -49708,11 +49726,17 @@
 	                case "O":
 	                    planes = planes.concat(octahedron(s.d));
 	                    break;
+	                case "jC":
+	                    planes = planes.concat(rhombic_dodecahedron(s.d));
+	                    break;
 	                case "D":
 	                    planes = planes.concat(dodecahedron(s.d));
 	                    break;
 	                case "I":
 	                    planes = planes.concat(icosahedron(s.d));
+	                    break;
+	                case "jD":
+	                    planes = planes.concat(rhombic_triacontahedron(s.d));
 	                    break;
 	            }
 	        }
@@ -49801,12 +49825,12 @@
 	        var zi = void 0;
 	        if (dir < 0) {
 	            zi = rots.length - 1;
-	            while (floathash(rots[zi].w) == floathash(1) && zi > 0)
+	            while (rots[zi].w >= 1 - EPSILON && zi > 0)
 	                zi -= 1;
 	        }
 	        else {
 	            zi = 0;
-	            while (floathash(rots[zi].w) == floathash(1) && zi < rots.length - 1)
+	            while (rots[zi].w >= 1 - EPSILON && zi < rots.length - 1)
 	                zi += 1;
 	        }
 	        rot = rots[zi];
@@ -49831,17 +49855,20 @@
 	    };
 	    for (var _i = 0, _a = cur_move.pieces; _i < _a.length; _i++) {
 	        var i = _a[_i];
-	        cur_move.from_quat.push(puzzle[i].object.quaternion.clone());
-	        cur_move.step_quat.push(urot.clone().multiply(puzzle[i].object.quaternion));
+	        //cur_move.from_quat.push(puzzle[i].rot.clone());
+	        //cur_move.step_quat.push(urot.clone().multiply(puzzle[i].rot));
+	        cur_move.from_quat.push(global_rot.clone().multiply(puzzle[i].rot));
+	        cur_move.step_quat.push(global_rot.clone().multiply(urot).multiply(puzzle[i].rot));
 	    }
-	    make_move(puzzle, cut, rot);
+	    make_move(puzzle, cut, rot, global_rot);
 	    draw_arrows();
 	}
 	function end_move() {
 	    // Snap to final angle
-	    for (var _i = 0, _a = cur_move.pieces; _i < _a.length; _i++) {
-	        var p = _a[_i];
-	        puzzle[p].object.quaternion.copy(puzzle[p].rot);
+	    //for (let p of cur_move!.pieces) {
+	    for (var p = 0; p < puzzle.length; p++) {
+	        var q = puzzle[p].object.quaternion;
+	        q.copy(global_rot.clone().multiply(puzzle[p].rot));
 	    }
 	    cur_move = null;
 	    render_requested = true;
