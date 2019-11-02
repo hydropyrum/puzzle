@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls.js';
-import { make_shell, make_cuts, tetrahedron, cube, octahedron, dodecahedron, rhombic_dodecahedron, icosahedron, rhombic_triacontahedron } from './make.js';
+import { make_shell, make_cuts, polyhedron } from './make.js';
 import { Cut, find_cuts, find_stops, make_move } from './move.js';
 import { PolyGeometry, triangulate_polygeometry } from './piece.js';
 import { pointhash, EPSILON, setdefault } from './util.js';
@@ -322,15 +322,7 @@ function apply_cuts() {
         if (s.tag == "plane") {
             planes.push(new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), -s.d));
         } else if (s.tag == "polyhedron") {
-            switch (s.name) {
-            case "T": planes = planes.concat(tetrahedron(s.d)); break;
-            case "C": planes = planes.concat(cube(s.d)); break;
-            case "O": planes = planes.concat(octahedron(s.d)); break;
-            case "jC": planes = planes.concat(rhombic_dodecahedron(s.d)); break;
-            case "D": planes = planes.concat(dodecahedron(s.d)); break;
-            case "I": planes = planes.concat(icosahedron(s.d)); break;
-            case "jD": planes = planes.concat(rhombic_triacontahedron(s.d)); break;
-            }
+          planes = planes.concat(polyhedron(s.name, s.d));
         }
     }
     let shell = make_shell(planes);
@@ -345,15 +337,7 @@ function apply_cuts() {
         if (s.tag == "plane") {
             newpuzzle = make_cuts([new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), -s.d)], newpuzzle);
         } else if (s.tag == "polyhedron") {
-            switch(s.name) {
-            case "T": newpuzzle = make_cuts(tetrahedron(s.d), newpuzzle); break;
-            case "C": newpuzzle = make_cuts(cube(s.d), newpuzzle); break;
-            case "O": newpuzzle = make_cuts(octahedron(s.d), newpuzzle); break;
-            case "D": newpuzzle = make_cuts(dodecahedron(s.d), newpuzzle); break;
-            case "jC": newpuzzle = make_cuts(rhombic_dodecahedron(s.d), newpuzzle); break;
-            case "I": newpuzzle = make_cuts(icosahedron(s.d), newpuzzle); break;
-            case "jD": newpuzzle = make_cuts(rhombic_triacontahedron(s.d), newpuzzle); break;
-            }
+          newpuzzle = make_cuts(polyhedron(s.name, s.d), newpuzzle);
         }
     }
     draw_puzzle(newpuzzle, scene, 1/r);

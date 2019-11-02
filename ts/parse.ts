@@ -31,11 +31,8 @@ function parseShape(s: string): Shape {
     console.assert(parts.length == 2, "parse error: expected $");
     let d = parseReal(parts[1]);
     s = parts[0];
-    
-    if (s == "T" || s == "C" || s == "O" || s == "D" || s == "I" ||
-        s == "jC" || s == "jD")
-        return {tag: 'polyhedron', name: s, d: d};
-    else {
+
+    if (s == 'plane') {
         let coeffs = s.split(",");
         console.assert(coeffs.length == 3, "parse error: expected exactly 3 coefficients");
         return {tag: 'plane',
@@ -43,6 +40,8 @@ function parseShape(s: string): Shape {
                 b: parseReal(coeffs[1]),
                 c: parseReal(coeffs[2]),
                 d: d};
+    } else {
+        return {tag: 'polyhedron', name: s, d: d};
     }
 }
 

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { PolyGeometry, really_big_polygeometry} from './piece.js';
 import { slice_polygeometry } from './slice.js';
 import { PHI } from './util.js';
+import * as polyhedra from './polyhedra.js';
 
 function get_color(i: number) {
     /* Generate colors. The first six colors are the original Rubik's
@@ -54,101 +55,26 @@ function new_plane(nx: number, ny: number, nz: number, d: number) {
     return new THREE.Plane(n, d);
 }
 
-export function tetrahedron(d: number) {
-    /* Tetrahedron with inradius d and
-       - Circumradius: 3d
-       - Midradius: √3d */
-    let cuts = [];
-    cuts.push(new_plane(-1, -1, -1, -d));
-    cuts.push(new_plane(-1,  1,  1, -d));
-    cuts.push(new_plane( 1, -1,  1, -d));
-    cuts.push(new_plane( 1,  1, -1, -d));
-    return cuts;
-}
-
-export function cube(d: number) {
-    /* Cube with inradius d and
-       - Circumradius: √3d
-       - Midradius: √2d */
-    let cuts = [];
-
-    for (let x of [-1, 1]) {
-        cuts.push(new_plane(x, 0, 0, -d));
-        cuts.push(new_plane(0, x, 0, -d));
-        cuts.push(new_plane(0, 0, x, -d));
+export function polyhedron(name: string, d: number) {
+    switch (name) {
+    case "T":  return polyhedra.tetrahedron(d); break;
+    case "C":  return polyhedra.cube(d); break;
+    case "O":  return polyhedra.octahedron(d); break;
+    case "D":  return polyhedra.dodecahedron(d); break;
+    case "I":  return polyhedra.icosahedron(d); break;
+    case "kT": return polyhedra.triakisTetrahedron(d); break;
+    case "jC": return polyhedra.rhombicDodecahedron(d); break;
+    case "kO": return polyhedra.triakisOctahedron(d); break;
+    case "kC": return polyhedra.tetrakisHexahedron(d); break;
+    case "oC": return polyhedra.deltoidalIcositetrahedron(d); break;
+    case "mC": return polyhedra.disdyakisDodecahedron(d); break;
+    case "gC": return polyhedra.lpentagonalIcositetrahedron(d); break;
+    case "jD": return polyhedra.rhombicTriacontahedron(d); break;
+    case "kI": return polyhedra.triakisIcosahedron(d); break;
+    case "kD": return polyhedra.pentakisDodecahedron(d); break;
+    case "oD": return polyhedra.deltoidalHexecontahedron(d); break;
+    case "mD": return polyhedra.disdyakisTriacontahedron(d); break;
+    case "gD": return polyhedra.lpentagonalHexecontahedron(d); break;
     }
-    return cuts;
+    return [];
 }
-
-export function octahedron(d: number) {
-    /* Octahedron with inradius d and
-       - Circumradius: √3
-       - Midradius: √6/2 */
-    
-    let cuts = [];
-    for (let x of [-1, 1])
-        for (let y of [-1, 1]) {
-            cuts.push(new_plane(x, y, 1, -d));
-            cuts.push(new_plane(x, y, -1, -d));
-        }
-    return cuts;
-}
-
-export function rhombic_dodecahedron(d: number) {
-    /* Rhombic dodecahedron with inradius d */
-    let cuts = [];
-    for (let x of [-1, 1])
-        for (let y of [-1, 1]) {
-            cuts.push(new_plane(x, y, 0, -d));
-            cuts.push(new_plane(0, x, y, -d));
-            cuts.push(new_plane(y, 0, x, -d));
-        }
-    return cuts;
-}
-
-export function dodecahedron(d: number) {
-    /* Dodecahedron with inradius d */
-    let cuts = [];
-    for (let x of [-PHI, PHI])
-        for (let y of [-1, 1]) {
-            cuts.push(new_plane(x, y, 0, -d));
-            cuts.push(new_plane(0, x, y, -d));
-            cuts.push(new_plane(y, 0, x, -d));
-        }
-    return cuts;
-}
-
-export function icosahedron(d: number) {
-    /* Icosahedron with inradius d */
-    let cuts = [];
-    for (let x of [-1, 1])
-        for (let y of [-1, 1])
-            for (let z of [-1, 1])
-                cuts.push(new_plane(x, y, z, -d));
-    for (let x of [-1/PHI, 1/PHI])
-        for (let y of [-PHI, PHI]) {
-            cuts.push(new_plane(x, y, 0, -d));
-            cuts.push(new_plane(0, x, y, -d));
-            cuts.push(new_plane(y, 0, x, -d));
-        }
-    return cuts;
-}
-
-export function rhombic_triacontahedron(d: number) {
-    /* Rhombic triacontahedron with inradius d */
-    let cuts = []
-    for (let x of [-1, 1]) {
-        cuts.push(new_plane(x, 0, 0, -d));
-        cuts.push(new_plane(0, x, 0, -d));
-        cuts.push(new_plane(0, 0, x, -d));
-    }
-    for (let x of [-1/2, 1/2])
-        for (let y of [-PHI/2, PHI/2])
-            for (let z of [-(PHI+1)/2, (PHI+1)/2]) {
-                cuts.push(new_plane(x, y, z, -d));
-                cuts.push(new_plane(z, x, y, -d));
-                cuts.push(new_plane(y, z, x, -d));
-            }
-    return cuts;
-}
-
