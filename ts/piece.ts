@@ -45,15 +45,27 @@ export function really_big_polygeometry() {
 }
 
 export function triangulate_polygeometry(pg: PolyGeometry) {
-    let g = new THREE.Geometry();
-    g.vertices.push(...pg.vertices);
+    let positions : number[] = [];
+    let normals : number[] = [];
+    let colors : number[] = [];
+    let g = new THREE.BufferGeometry();
     for (let pf of pg.faces) {
         let vs = pf.vertices;
-        for (let i=1; i<vs.length-1; i++)
-            g.faces.push(new THREE.Face3(vs[0], vs[i], vs[i+1],
-                                         pf.plane.normal, pf.color));
+        for (let i=1; i<vs.length-1; i++) {
+            positions.push(pg.vertices[vs[0]].x, pg.vertices[vs[0]].y, pg.vertices[vs[0]].z);
+            positions.push(pg.vertices[vs[i]].x, pg.vertices[vs[i]].y, pg.vertices[vs[i]].z);
+            positions.push(pg.vertices[vs[i+1]].x, pg.vertices[vs[i+1]].y, pg.vertices[vs[i+1]].z);
+            normals.push(pf.plane.normal.x, pf.plane.normal.y, pf.plane.normal.z);
+            normals.push(pf.plane.normal.x, pf.plane.normal.y, pf.plane.normal.z);
+            normals.push(pf.plane.normal.x, pf.plane.normal.y, pf.plane.normal.z);
+            colors.push(pf.color.r, pf.color.g, pf.color.b, 1);
+            colors.push(pf.color.r, pf.color.g, pf.color.b, 1);
+            colors.push(pf.color.r, pf.color.g, pf.color.b, 1);
+        }
     }
-    g.elementsNeedUpdate = true;
+    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
     return g;
 }
 

@@ -42,10 +42,9 @@ scene.add(alight);
 var puzzle: PolyGeometry[] = [];
 var global_rot: THREE.Quaternion;
 
-//const face_material = new THREE.MeshStandardMaterial({
 const face_material = new THREE.MeshLambertMaterial({
-    vertexColors: THREE.FaceColors,
     flatShading: true,
+    vertexColors: true,
     // https://stackoverflow.com/questions/31539130/display-wireframe-and-solid-color/31541369#31541369
     polygonOffset: true,
     polygonOffsetFactor: 1,
@@ -62,11 +61,12 @@ function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: numbe
     for (let piece of newpuzzle) {
         piece.rot = new THREE.Quaternion();
         piece.object = new THREE.Object3D();
-        let g = new THREE.BufferGeometry().fromGeometry(triangulate_polygeometry(piece));
+        let g = triangulate_polygeometry(piece);
         piece.object.add(new THREE.Mesh(g, face_material));
         piece.object.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), edge_material));
         //piece.object.add(new THREE.LineSegments(new THREE.WireframeGeometry(g), wire_material));
         piece.object.scale.multiplyScalar(scale);
+
         scene.add(piece.object);
     }
     puzzle = newpuzzle;
@@ -79,7 +79,7 @@ function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: numbe
 
 var cuts: Cut[] = [];
 var raycaster = new THREE.Raycaster();
-var mouse: {x: number, y: number} | null = null;
+var mouse = new THREE.Vector2();
 
 var arrows: THREE.Mesh[] = [];
 var mouseover_arrow: THREE.Mesh | null = null;
@@ -99,7 +99,7 @@ var arrow_geometry = function () {
     lineto_polar(arrow_shape, 1, arrow_tip_angle);
     lineto_polar(arrow_shape, 1-arrow_head_width/2, arrow_head_angle);
     arrow_shape.absarc(0, 0, 1-arrow_width/2, arrow_head_angle, arrow_tail_angle, false);
-    return new THREE.ExtrudeBufferGeometry(arrow_shape, {depth: 0.2, bevelEnabled: false});
+    return new THREE.ExtrudeGeometry(arrow_shape, {depth: 0.2, bevelEnabled: false});
 }();
 
 const arrow_material = new THREE.MeshLambertMaterial({
@@ -185,7 +185,6 @@ function highlight_arrow() {
 
 function set_mouse(x: number, y: number) {
     let rect = renderer.domElement.getBoundingClientRect();
-    if (mouse === null) mouse = {x: 0, y: 0};
     mouse.x = (x - rect.left) / rect.width * 2 - 1;
     mouse.y = -(y - rect.top) / rect.height * 2 + 1;
 }
@@ -235,7 +234,6 @@ canvas.addEventListener('touchend', function (event: TouchEvent) {
     event.preventDefault();
     event.stopPropagation();
     activate_arrow();
-    mouse = null;
 }, false);
 
 /* URL and form controls */
@@ -342,7 +340,6 @@ function apply_cuts() {
     }
     draw_puzzle(newpuzzle, scene, 1/r);
     render_requested = true;
-    console.log("number of pieces:", newpuzzle.length);
 }
 document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
 
@@ -463,10 +460,10 @@ function animate(t: number) {
             end_move();
         } else
             for (let i=0; i<cur_move.pieces.length; i++)
-                THREE.Quaternion.slerp(cur_move.from_quat[i],
-                                       cur_move.step_quat[i],
-                                       puzzle[cur_move.pieces[i]].object!.quaternion,
-                                       ti*cur_move.angle);
+                puzzle[cur_move.pieces[i]].object!.quaternion.slerpQuaternions(
+                    cur_move.from_quat[i],
+                    cur_move.step_quat[i],
+                    ti*cur_move.angle);
         render_requested = true;
     } else if (random_moves > 0) {
         move_random();

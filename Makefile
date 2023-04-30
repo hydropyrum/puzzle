@@ -17,3 +17,6 @@ build/dummy:
 
 build:
 	mkdir -p $@
+
+serve:
+	python -m http.server --bind localhost -d build 8000

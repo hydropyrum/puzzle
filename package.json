@@ -3,10 +3,10 @@
     "version": "0.0.0",
     "main": "js/main.js",
     "dependencies": {
+        "@types/three": "^0.151.0",
         "bulma": "^0.7.5",
-        "rollup": "^1.21.2",
+        "rollup": "^1.32.1",
         "rollup-plugin-node-resolve": "^5.2.0",
-        "three": "^0.108.0"
-    },
-    "devDependencies": {}
+        "three": "^0.152.2"
+    }
 }
