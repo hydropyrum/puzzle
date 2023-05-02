@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { floathash, setdefault, keys } from './util.js';
-import { PolyGeometry, PolyFace } from './piece.js';
+import { floathash, setdefault, keys } from './util';
+import { PolyGeometry, PolyFace } from './piece';
 
 export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean) {
     /* cf. https://github.com/tdhooper/threejs-slice-geometry, but

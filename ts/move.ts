@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { setdefault, canonicalize_plane, floathash, pointhash, rothash } from './util.js';
-import { PolyGeometry } from './piece.js';
-import { keys, EPSILON } from './util.js';
+import { setdefault, canonicalize_plane, floathash, pointhash, rothash } from './util';
+import { PolyGeometry } from './piece';
+import { keys, EPSILON } from './util';
 
 export interface Cut {
     plane: THREE.Plane;

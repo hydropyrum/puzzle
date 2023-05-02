@@ -1,10 +1,10 @@
 /* Various utility functions for creating pieces. */
 
 import * as THREE from 'three';
-import { PolyGeometry, really_big_polygeometry} from './piece.js';
-import { slice_polygeometry } from './slice.js';
-import { PHI } from './util.js';
-import * as polyhedra from './polyhedra.js';
+import { PolyGeometry, really_big_polygeometry} from './piece';
+import { slice_polygeometry } from './slice';
+import { PHI } from './util';
+import * as polyhedra from './polyhedra';
 
 function get_color(i: number) {
     /* Generate colors. The first six colors are the original Rubik's

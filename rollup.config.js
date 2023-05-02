@@ -1,4 +1,7 @@
-import resolve from 'rollup-plugin-node-resolve';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+
 export default {
-    plugins: [resolve()],
+    input: 'js/main.js',
+    plugins: [nodeResolve()]
 };
+

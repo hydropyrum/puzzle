@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { TrackballControls } from './TrackballControls.js';
-import { make_shell, make_cuts, polyhedron } from './make.js';
-import { Cut, find_cuts, find_stops, make_move } from './move.js';
-import { PolyGeometry, triangulate_polygeometry } from './piece.js';
-import { pointhash, EPSILON, setdefault } from './util.js';
-import * as parse from './parse.js';
+import { TrackballControls } from './TrackballControls';
+import { make_shell, make_cuts, polyhedron } from './make';
+import { Cut, find_cuts, find_stops, make_move } from './move';
+import { PolyGeometry, triangulate_polygeometry } from './piece';
+import { pointhash, EPSILON, setdefault } from './util';
+import * as parse from './parse';
 
 // Set up
 
