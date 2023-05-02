@@ -6,7 +6,7 @@ import { slice_polygeometry } from './slice';
 import { PHI } from './util';
 import * as polyhedra from './polyhedra';
 
-function get_color(i: number) {
+function get_color(i: number): THREE.Color {
     /* Generate colors. The first six colors are the original Rubik's
     Cube colors, and after that are chosen to contrast with previous
     colors:
@@ -20,7 +20,7 @@ function get_color(i: number) {
 
 const cut_color = new THREE.Color(0x666666);
 
-export function make_shell(faces: THREE.Plane[]) {
+export function make_shell(faces: THREE.Plane[]): PolyGeometry {
     /* Find intersection of backs of faces and return as a Geometry. 
        Only works for convex polyhedra. */
     let g = really_big_polygeometry();
@@ -30,7 +30,7 @@ export function make_shell(faces: THREE.Plane[]) {
     return g;
 }
 
-export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]) {
+export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]): PolyGeometry[] {
     for (let cut of cuts) {
         let newpieces: PolyGeometry[] = [];
         for (let piece of pieces) {
@@ -49,13 +49,13 @@ export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]) {
     return pieces;
 }
 
-function new_plane(nx: number, ny: number, nz: number, d: number) {
+function new_plane(nx: number, ny: number, nz: number, d: number): THREE.Plane {
     let n = new THREE.Vector3(nx, ny, nz);
     n.normalize();
     return new THREE.Plane(n, d);
 }
 
-export function polyhedron(name: string, d: number) {
+export function polyhedron(name: string, d: number): THREE.Plane[] {
     switch (name) {
     case "T":  return polyhedra.tetrahedron(d); break;
     case "C":  return polyhedra.cube(d); break;

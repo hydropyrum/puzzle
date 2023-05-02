@@ -22,7 +22,7 @@ export interface PolyFace {
     interior: boolean;
 };
 
-export function really_big_polygeometry() {
+export function really_big_polygeometry(): PolyGeometry {
     let g = new PolyGeometry([], []);
     let d = 1000;
     for (let z of [-d, d])
@@ -44,10 +44,10 @@ export function really_big_polygeometry() {
     return g;
 }
 
-export function triangulate_polygeometry(pg: PolyGeometry) {
-    let positions : number[] = [];
-    let normals : number[] = [];
-    let colors : number[] = [];
+export function triangulate_polygeometry(pg: PolyGeometry): THREE.BufferGeometry {
+    let positions: number[] = [];
+    let normals: number[] = [];
+    let colors: number[] = [];
     let g = new THREE.BufferGeometry();
     for (let pf of pg.faces) {
         let vs = pf.vertices;

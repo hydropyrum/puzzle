@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { floathash, setdefault, keys } from './util';
 import { PolyGeometry, PolyFace } from './piece';
 
-export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean) {
+export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean): [PolyGeometry, PolyGeometry] {
     /* cf. https://github.com/tdhooper/threejs-slice-geometry, but
        - preserves colors of faces
        - creates new faces where the geometry is sliced */
@@ -88,7 +88,7 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, c
     return [front, back];
 }
 
-function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean) {
+function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean): void {
     let edge_index: {[key: number]: [number, number][]} = {};
     function count_edge(a: number, b: number) {
         let h = a < b ? a+","+b : b+","+a;

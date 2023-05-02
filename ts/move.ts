@@ -110,7 +110,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
     return Object.values(cuts);
 }
 
-export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
+export function find_stops(puzzle: PolyGeometry[], cut: Cut): THREE.Quaternion[] {
     let move_pieces = cut.front();
     let stay_pieces = cut.back();
 
@@ -172,7 +172,7 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut) {
     return ret;
 }
 
-export function make_move(puzzle: PolyGeometry[], cut: Cut, rot: THREE.Quaternion, global_rot: THREE.Quaternion) {
+export function make_move(puzzle: PolyGeometry[], cut: Cut, rot: THREE.Quaternion, global_rot: THREE.Quaternion): void {
     // Piece 0 is immovable
     if (cut.front().includes(0)) {
         global_rot.multiply(rot).normalize();

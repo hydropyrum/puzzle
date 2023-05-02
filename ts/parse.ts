@@ -21,7 +21,7 @@ export interface Puzzle {
     cuts: Shape[];
 };
 
-function parseReal(s: string) {
+function parseReal(s: string): number {
     // to do: algebraic numbers
     return parseFloat(s);
 }
@@ -45,7 +45,7 @@ function parseShape(s: string): Shape {
     }
 }
 
-export function parseQuery(s: string) {
+export function parseQuery(s: string): Puzzle {
     let ret: Puzzle = {shell: [], cuts: []};
     if (s.length == 0)
         return ret;
@@ -68,15 +68,18 @@ export function parseQuery(s: string) {
     return ret;
 }
 
-function generateShape(s: Shape) {
+function generateShape(s: Shape): string {
     if (s.tag == 'polyhedron') {
         return s.name + '$' + s.d;
     } else if (s.tag == 'plane') {
         return s.a + ',' + s.b + ',' + s.c + '$' + s.d;
+    } else {
+        console.assert("error: tag must be 'polyhedron' or 'plane'");
+        return '';
     }
 }
 
-export function generateQuery(p: Puzzle) {
+export function generateQuery(p: Puzzle): string {
     let ret: string[] = [];
     for (let s of p.shell)
         ret.push('shell=' + generateShape(s));
