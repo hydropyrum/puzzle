@@ -94,6 +94,7 @@ test('divmod', () => {
                 expect(Polynomial.equal(Polynomial.add(Polynomial.multiply(divisor, quotient), remainder),
                                         dividend)).toBe(true);
             } else {
+                expect(() => Polynomial.divmod(dividend, divisor)).toThrow("Division by zero");
             }
         }
 });

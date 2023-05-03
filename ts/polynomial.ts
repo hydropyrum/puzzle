@@ -94,7 +94,7 @@ export class Polynomial {
     static divmod(a: Polynomial, b: Polynomial): [Polynomial, Polynomial] {
         let m = a.degree;
         let n = b.degree;
-        if (n == -1) throw new RangeError("division by zero");
+        if (n == -1) throw new RangeError("Division by zero");
         let rem = a.coeffs.map(x => x);
         let quo: Fraction[] = [];
         for (let k=m; k>=n; k--) {

@@ -70,7 +70,7 @@ test('invert', () => {
                 .toBeCloseTo(1/(frac.n/frac.d));
         } else {
             expect(() => Fraction.toNumber(Fraction.invert(fraction(frac.n, frac.d))))
-                .toThrow();
+                .toThrow("Division by zero");
         }
 });
 
@@ -82,7 +82,7 @@ test('divide', () => {
                     .toBeCloseTo((a.n/a.d) / (b.n/b.d));
             } else {
                 expect(() => Fraction.toNumber(Fraction.divide(fraction(a.n, a.d), fraction(b.n, b.d))))
-                    .toThrow();
+                    .toThrow("Division by zero");
                 
             }
 });

@@ -62,7 +62,7 @@ export class AlgebraicNumberField {
             [t0, t1] = [t1, Polynomial.subtract(t0, Polynomial.multiply(q, t1))];
         }
         if (r0.degree > 0)
-            throw new RangeError("inverse does not exist (remainder=" + String(r0) + ")");
+            throw new RangeError("Division by zero");
         return Polynomial.divide(t0, r0);
     }
 
