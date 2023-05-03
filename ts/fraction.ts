@@ -22,22 +22,20 @@ function jsbi_gcd(x: JSBI, y: JSBI) {
 export class Fraction {
     n: JSBI;
     d: JSBI;
-    constructor(n: JSBI, d: JSBI) {
+    constructor(n: JSBI, d: JSBI, reduce: boolean = true) {
         if (JSBI.LT(d, 0)) {
             n = JSBI.unaryMinus(n);
             d = JSBI.unaryMinus(d);
         } else if (JSBI.EQ(d, 0)) {
             throw new RangeError("Division by zero");
         }
+        if (reduce) {
+            let g = jsbi_gcd(n, d);
+            n = JSBI.divide(n, g);
+            d = JSBI.divide(d, g);
+        }
         this.n = n;
         this.d = d;
-    }
-
-    reduce(): Fraction {
-        let g = jsbi_gcd(this.n, this.d);
-        this.n = JSBI.divide(this.n, g);
-        this.d = JSBI.divide(this.d, g);
-        return this;
     }
 
     toString(): string {
@@ -52,13 +50,13 @@ export class Fraction {
     }
     
     static unaryMinus(x: Fraction) {
-        return new Fraction(JSBI.unaryMinus(x.n), x.d);
+        return new Fraction(JSBI.unaryMinus(x.n), x.d, false);
     }
     static add(x: Fraction, y: Fraction) {
         return new Fraction(
             JSBI.add(JSBI.multiply(x.n, y.d), JSBI.multiply(x.d, y.n)),
             JSBI.multiply(x.d, y.d)
-        ).reduce();
+        );
     }
     static subtract(x: Fraction, y: Fraction) {
         return Fraction.add(x, Fraction.unaryMinus(y));
@@ -67,10 +65,10 @@ export class Fraction {
         return new Fraction(
             JSBI.multiply(x.n, y.n),
             JSBI.multiply(x.d, y.d)
-        ).reduce();
+        );
     }
     static invert(x: Fraction) {
-        return new Fraction(x.d, x.n);
+        return new Fraction(x.d, x.n, false);
     }
     static divide(x: Fraction, y: Fraction) {
         return Fraction.multiply(x, Fraction.invert(y));
@@ -78,8 +76,14 @@ export class Fraction {
     static lessThan(x: Fraction, y: Fraction) {
         return JSBI.LT(Fraction.subtract(x, y).n, 0);
     }
+    static lessThanOrEqual(x: Fraction, y: Fraction) {
+        return JSBI.LE(Fraction.subtract(x, y).n, 0);
+    }
     static greaterThan(x: Fraction, y: Fraction) {
         return JSBI.GT(Fraction.subtract(x, y).n, 0);
+    }
+    static greaterThanOrEqual(x: Fraction, y: Fraction) {
+        return JSBI.GE(Fraction.subtract(x, y).n, 0);
     }
     static equal(x: Fraction, y: Fraction) {
         return JSBI.EQ(Fraction.subtract(x, y).n, 0);
@@ -97,5 +101,5 @@ export class Fraction {
 export function fraction(n: JSBI|number, d: JSBI|number = 1) {
     if (typeof n === 'number') n = JSBI.BigInt(n);
     if (typeof d === 'number') d = JSBI.BigInt(d);
-    return new Fraction(n, d).reduce();
+    return new Fraction(n, d);
 }

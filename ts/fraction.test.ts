@@ -6,7 +6,15 @@ let fracs = [
     {n: 0, d: 1, s: "0"},
     {n: 1, d: 1, s: "1"},
     {n: -1, d: 2, s: "-1/2"},
-    {n: 1, d: 2, s: "1/2"}
+    {n: 1, d: 2, s: "1/2"},
+    {n: -2, d: 3, s: "-2/3"},
+    {n: -1, d: 3, s: "-1/3"},
+    {n: 1, d: 3, s: "1/3"},
+    {n: 2, d: 3, s: "2/3"},
+    {n: -3, d: 4, s: "-3/4"},
+    {n: -1, d: 4, s: "-1/4"},
+    {n: 1, d: 4, s: "1/4"},
+    {n: 3, d: 4, s: "3/4"}
 ];
 
 let unreduced_fracs =[
@@ -108,8 +116,8 @@ test('greaterThanOrEqual', () => {
 });
 
 test('equal', () => {
-    for (let a of fracs)
-        for (let b of fracs)
+    for (let a of fracs.concat(unreduced_fracs))
+        for (let b of fracs.concat(unreduced_fracs))
             expect(Fraction.equal(fraction(a.n, a.d), fraction(b.n, b.d)))
                 .toBe(a.n/a.d == b.n/b.d);
 });
