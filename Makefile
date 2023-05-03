@@ -1,5 +1,5 @@
 JSFILES=TrackballControls
-TSFILES=make move slice util main piece parse polyhedra
+TSFILES=make move slice util main piece parse polyhedra fraction polynomial exact
 BIN=./node_modules/.bin
 
 all: build/main.js build/dummy
