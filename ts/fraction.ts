@@ -40,15 +40,15 @@ export class Fraction {
         return this;
     }
 
-    toString(): String {
+    toString(): string {
         if (JSBI.EQ(this.d, 1))
             return String(this.n);
         else
             return String(this.n) + '/' + String(this.d);
     }
 
-    toNumber(): number {
-        return JSBI.toNumber(this.n)/JSBI.toNumber(this.d);
+    static toNumber(x: Fraction): number {
+        return JSBI.toNumber(x.n)/JSBI.toNumber(x.d);
     }
     
     static unaryMinus(x: Fraction) {

@@ -6,15 +6,15 @@ export class AlgebraicNumberField {
     degree: number;
     poly: Polynomial; // minimal polynomial of θ
     lower: Fraction;  // lower bound on θ
+    approx: number;   // floating-point approximation of θ
     upper: Fraction;  // upper bound on θ
     basis: Polynomial[];
     constructor(poly: Polynomial,
-                lower: Fraction,
-                upper: Fraction) {
+                approx: number) {
         this.degree = poly.degree;
         this.poly = poly;
-        this.lower = lower;
-        this.upper = upper;
+        this.approx = approx;
+        [this.lower, this.upper] = poly.isolate_root(approx);
         
         this.basis = [];
         this.basis.push(polynomial([1]));
@@ -38,6 +38,8 @@ export class AlgebraicNumberField {
         else /* if (sm == su) */
             this.upper = mid;
     }
+
+    toNumber(a: Polynomial) { return a.eval_approx(this.approx); }
 
     add(a: Polynomial, b: Polynomial) { return Polynomial.add(a, b); }
     unaryMinus(a: Polynomial) { return Polynomial.unaryMinus(a); }
@@ -70,12 +72,12 @@ export class AlgebraicNumberField {
 
     private compare(a: Polynomial, b: Polynomial): number {
         let d = Polynomial.subtract(a, b);
-        let [dl, du] = d.eval_interval(this.lower, this.upper);
-        while (Fraction.sign(dl) < Fraction.sign(du)) {
+        let c = d.count_roots(this.lower, this.upper);
+        while (c > 0) {
             this.refine();
-            [dl, du] = d.eval_interval(this.lower, this.upper);
+            c = d.count_roots(this.lower, this.upper);
         }
-        return Fraction.sign(dl);
+        return Fraction.sign(d.eval(this.lower));
     }
 
     lessThan(a: Polynomial, b: Polynomial): boolean {
@@ -93,12 +95,9 @@ export class AlgebraicNumberField {
 };
 
 export function algebraicNumberField(poly: Polynomial|number[],
-                                     lower: Fraction|number,
-                                     upper: Fraction|number) : AlgebraicNumberField {
+                                     approx: number) : AlgebraicNumberField {
     if (poly instanceof Array<number>) poly = polynomial(poly);
-    if (typeof lower == 'number') lower = fraction(lower);
-    if (typeof upper == 'number') upper = fraction(upper);
-    return new AlgebraicNumberField(poly, lower, upper);
+    return new AlgebraicNumberField(poly, approx);
 }
 
 export type AlgebraicNumber = Polynomial;

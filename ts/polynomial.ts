@@ -1,3 +1,4 @@
+import JSBI from 'jsbi';
 import { Fraction, fraction } from './fraction';
 
 export class Polynomial {
@@ -13,8 +14,8 @@ export class Polynomial {
         this.degree = coeffs.length-1;
     }
 
-    toString(): String {
-        let s: String = "";
+    toString(): string {
+        let s = "";
         if (this.degree == -1) return "0";
         for (let i=this.degree; i>=0; i--) {
             let sign = Fraction.sign(this.coeffs[i]);
@@ -47,20 +48,13 @@ export class Polynomial {
             sum = Fraction.add(Fraction.multiply(sum, arg), this.coeffs[i]);
         return sum;
     }
-
-    eval_interval(argl: Fraction, argu: Fraction): [Fraction, Fraction] {
-        let suml = fraction(0);
-        let sumu = fraction(0);
-        for (let i=this.degree; i>=0; i--) {
-            let sums = [Fraction.multiply(suml, argl),
-                        Fraction.multiply(suml, argu),
-                        Fraction.multiply(sumu, argl),
-                        Fraction.multiply(sumu, argu)];
-            sums.sort((a, b) => Fraction.sign(Fraction.subtract(a, b)));
-            suml = Fraction.add(sums[0], this.coeffs[i]);
-            sumu = Fraction.add(sums[3], this.coeffs[i]);
-        }
-        return [suml, sumu];
+    
+    eval_approx(arg: number): number {
+        // Horner's rule
+        let sum = 0;
+        for (let i=this.degree; i>=0; i--)
+            sum = sum*arg + Fraction.toNumber(this.coeffs[i]);
+        return sum;
     }
 
     static add(a: Polynomial, b: Polynomial): Polynomial {
@@ -131,6 +125,51 @@ export class Polynomial {
         for (let i=0; i<=a.degree; i++)
             if (!Fraction.equal(a.coeffs[i], b.coeffs[i])) return false;
         return true;
+    }
+
+    derivative(): Polynomial {
+        let coeffs: Fraction[] = [];
+        for (let i=1; i<=this.degree; i++)
+            coeffs.push(Fraction.multiply(fraction(i), this.coeffs[i]));
+        return new Polynomial(coeffs);
+    }
+
+    sturm_sequence(arg: Fraction): number {
+        /* Number of sign changes in Sturm sequence at arg. */
+        let p0: Polynomial = this, p1 = this.derivative();
+        let prev_sign = Fraction.sign(p0.eval(arg));
+        let changes = 0;
+        while (p1.degree >= 0) {
+            let cur_sign = Fraction.sign(p1.eval(arg));
+            if (cur_sign != 0) {
+                if (prev_sign != 0 && cur_sign != prev_sign)
+                    changes++;
+                prev_sign = cur_sign;
+            }
+            [p0, p1] = [p1, Polynomial.unaryMinus(Polynomial.remainder(p0, p1))];
+        }
+        return changes;
+    }
+
+    count_roots(lower: Fraction, upper: Fraction): number {
+        /* Number of roots in interval [lower, upper] */
+        return (Fraction.sign(this.eval(lower)) == 0 ? 1 : 0) + this.sturm_sequence(lower) - this.sturm_sequence(upper);
+    }
+    
+    /* Find an isolating interval for the root of p nearest x. */
+    isolate_root(x: number): [Fraction, Fraction] {
+        let denom = JSBI.BigInt(1);
+        while (true) {
+            let lnumer = JSBI.BigInt(Math.floor(x * JSBI.toNumber(denom)));
+            let unumer = JSBI.add(lnumer, JSBI.BigInt(1));
+            let lower = fraction(lnumer, denom), upper = fraction(unumer, denom);
+            let c = this.count_roots(lower, upper);
+            if (c == 1)
+                return [lower, upper];
+            else if (c == 0)
+                throw new RangeError("no root in interval [" + String(lower) + "," + String(upper) + "]");
+            denom = JSBI.multiply(denom, JSBI.BigInt(2));
+        }
     }
 }
 
