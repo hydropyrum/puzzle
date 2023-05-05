@@ -1,4 +1,25 @@
 import * as THREE from 'three';
+import { AlgebraicNumberField, AlgebraicNumber } from './exact';
+
+export class ExactVector3 {
+    x: AlgebraicNumber;
+    y: AlgebraicNumber;
+    z: AlgebraicNumber;
+    constructor (x: AlgebraicNumber, y: AlgebraicNumber, z: AlgebraicNumber) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+};
+
+export class ExactPlane {
+    normal: ExactVector3;
+    constant: AlgebraicNumber;
+    constructor (normal: ExactVector3, constant: AlgebraicNumber) {
+        this.normal = normal;
+        this.constant = constant;
+    }
+};
 
 export class PolyGeometry {
     vertices: THREE.Vector3[];

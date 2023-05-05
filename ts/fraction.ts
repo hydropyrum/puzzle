@@ -45,6 +45,15 @@ export class Fraction {
             return String(this.n) + '/' + String(this.d);
     }
 
+    /* Temporary function for getting the fraction closest to a float */
+    static fromNumber(x: number, max_denom: number) {
+        let cands: Fraction[] = [];
+        for (let d=1; d<=max_denom; d++)
+            cands.push(fraction(Math.round(x*d), d));
+        cands.sort((a,b) => Math.abs(Fraction.toNumber(a)-x) - Math.abs(Fraction.toNumber(b)-x));
+        return cands[0];
+    }
+
     static toNumber(x: Fraction): number {
         return JSBI.toNumber(x.n)/JSBI.toNumber(x.d);
     }

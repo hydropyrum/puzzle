@@ -1,10 +1,12 @@
 /* Various utility functions for creating pieces. */
 
 import * as THREE from 'three';
-import { PolyGeometry, really_big_polygeometry} from './piece';
+import { PolyGeometry, really_big_polygeometry, ExactVector3, ExactPlane} from './piece';
 import { slice_polygeometry } from './slice';
 import { PHI } from './util';
 import * as polyhedra from './polyhedra';
+import { AlgebraicNumberField } from './exact';
+import { fraction } from './fraction';
 
 function get_color(i: number): THREE.Color {
     /* Generate colors. The first six colors are the original Rubik's
@@ -32,6 +34,7 @@ export function make_shell(faces: THREE.Plane[]): PolyGeometry {
 
 export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]): PolyGeometry[] {
     for (let cut of cuts) {
+        console.log(cut);
         let newpieces: PolyGeometry[] = [];
         for (let piece of pieces) {
             for (let p of slice_polygeometry(piece, cut, cut_color, true)) {
@@ -49,32 +52,28 @@ export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]): PolyGeom
     return pieces;
 }
 
-function new_plane(nx: number, ny: number, nz: number, d: number): THREE.Plane {
-    let n = new THREE.Vector3(nx, ny, nz);
-    n.normalize();
-    return new THREE.Plane(n, d);
+/* Temporary function */
+function convertCuts(K: AlgebraicNumberField, cuts: ExactPlane[]): THREE.Plane[] {
+    return cuts.map(ep => new THREE.Plane(
+        new THREE.Vector3(K.toNumber(ep.normal.x),
+                          K.toNumber(ep.normal.y),
+                          K.toNumber(ep.normal.z)).normalize(), // to do: don't normalize
+        K.toNumber(ep.constant)
+    ));
 }
 
 export function polyhedron(name: string, d: number): THREE.Plane[] {
+    let K: AlgebraicNumberField | null;
+    let p: ExactPlane[] | null;
+    let fd = fraction(Math.round(d*1000000), 1000000);
     switch (name) {
-    case "T":  return polyhedra.tetrahedron(d); break;
-    case "C":  return polyhedra.cube(d); break;
-    case "O":  return polyhedra.octahedron(d); break;
-    case "D":  return polyhedra.dodecahedron(d); break;
-    case "I":  return polyhedra.icosahedron(d); break;
-    case "kT": return polyhedra.triakisTetrahedron(d); break;
-    case "jC": return polyhedra.rhombicDodecahedron(d); break;
-    case "kO": return polyhedra.triakisOctahedron(d); break;
-    case "kC": return polyhedra.tetrakisHexahedron(d); break;
-    case "oC": return polyhedra.deltoidalIcositetrahedron(d); break;
-    case "mC": return polyhedra.disdyakisDodecahedron(d); break;
-    case "gC": return polyhedra.lpentagonalIcositetrahedron(d); break;
-    case "jD": return polyhedra.rhombicTriacontahedron(d); break;
-    case "kI": return polyhedra.triakisIcosahedron(d); break;
-    case "kD": return polyhedra.pentakisDodecahedron(d); break;
-    case "oD": return polyhedra.deltoidalHexecontahedron(d); break;
-    case "mD": return polyhedra.disdyakisTriacontahedron(d); break;
-    case "gD": return polyhedra.lpentagonalHexecontahedron(d); break;
+        case "T":  [K, p] = polyhedra.tetrahedron(fd); return convertCuts(K, p);
+        case "C":  [K, p] = polyhedra.cube(fd); return convertCuts(K, p);
+        case "O":  [K, p] = polyhedra.octahedron(fd); return convertCuts(K, p);
+        case "D":  [K, p] = polyhedra.dodecahedron(fd); return convertCuts(K, p);
+        case "I":  [K, p] = polyhedra.icosahedron(fd); return convertCuts(K, p);
+        case "jC": [K, p] = polyhedra.rhombicDodecahedron(fd); return convertCuts(K, p);
+        case "jD": [K, p] = polyhedra.rhombicTriacontahedron(fd); return convertCuts(K, p);
     }
     return [];
 }

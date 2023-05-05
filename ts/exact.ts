@@ -39,6 +39,8 @@ export class AlgebraicNumberField {
             this.upper = mid;
     }
 
+    fromVector(coeffs: (number|Fraction)[]) { return polynomial(coeffs); }
+
     // alternatively, could initially refine a few times and use
     // midpoint of isolating interval
     toNumber(a: Polynomial) { return a.eval_approx(this.approx); }
