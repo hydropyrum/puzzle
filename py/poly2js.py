@@ -185,19 +185,24 @@ def process(data):
                 sub[name] = val
 
     poly_name = data["name"][0].lower() + data["name"][1:]
-    print(f'export function {poly_name}(inradius: Fraction): [AlgebraicNumberField, ExactPlane[]] {{')
+    print(f'export function {poly_name}(scale: Fraction): [AlgebraicNumberField, ExactPlane[]] {{')
     print(f'    let K = algebraicNumberField({list(reversed(prim_poly.all_coeffs()))}, {float(prim_element)});')
     print( '    let cuts = [')
                 
     for fi, face in enumerate(data['faces']):
         vertices = [sympy.Matrix(list(data['vertices'][i])) for i in face]
         normal = (vertices[1]-vertices[0]).cross(vertices[2]-vertices[1])
-        #normal /= normal.norm()
+        constant = -normal.dot(vertices[0])
+        # bug: need to ensure that all face normals are computed from pairs
+        # of vectors with the same angle
         normal = sympy.simplify(normal.subs(sub))
-        print(f'        // [{normal[0]}, {normal[1]}, {normal[2]}] · x = inradius')
+        constant = sympy.simplify(constant.subs(sub))
+        
+        print(f'        // [{normal[0]}, {normal[1]}, {normal[2]}] · x + {constant} scale = 0')
         
         normal = [translate_number(x) for x in normal]
-        print(f'        new ExactPlane(new ExactVector3({normal[0]}, {normal[1]}, {normal[2]}), K.fromVector([Fraction.unaryMinus(inradius)]))', end='')
+        constant = translate_number(constant)
+        print(f'        new ExactPlane(new ExactVector3({normal[0]}, {normal[1]}, {normal[2]}), K.multiply({constant}, K.fromVector([scale])))', end='')
         if fi < len(data['faces'])-1:
             print(',')
         else:

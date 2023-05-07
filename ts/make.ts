@@ -34,7 +34,6 @@ export function make_shell(faces: THREE.Plane[]): PolyGeometry {
 
 export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]): PolyGeometry[] {
     for (let cut of cuts) {
-        console.log(cut);
         let newpieces: PolyGeometry[] = [];
         for (let piece of pieces) {
             for (let p of slice_polygeometry(piece, cut, cut_color, true)) {
@@ -54,12 +53,13 @@ export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]): PolyGeom
 
 /* Temporary function */
 function convertCuts(K: AlgebraicNumberField, cuts: ExactPlane[]): THREE.Plane[] {
-    return cuts.map(ep => new THREE.Plane(
+    let tcuts = cuts.map(ep => new THREE.Plane(
         new THREE.Vector3(K.toNumber(ep.normal.x),
                           K.toNumber(ep.normal.y),
-                          K.toNumber(ep.normal.z)).normalize(), // to do: don't normalize
+                          K.toNumber(ep.normal.z)),
         K.toNumber(ep.constant)
-    ));
+    ).normalize()); // to do: don't normalize
+    return tcuts;
 }
 
 export function polyhedron(name: string, d: number): THREE.Plane[] {
