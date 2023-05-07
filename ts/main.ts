@@ -276,7 +276,7 @@ function add_item(list: HTMLElement, shape?: parse.Shape) {
             let ne = item.getElementsByClassName('normal')[0] as HTMLInputElement;
             ne.value = shape.a.toString() + ',' + shape.b.toString() + ',' + shape.c.toString();
         }
-        let de = item.getElementsByClassName('distance')[0] as HTMLInputElement;
+        let de = item.getElementsByClassName('scale')[0] as HTMLInputElement;
         de.value = shape.d.toString();
     }
 }
@@ -288,18 +288,18 @@ function list_to_shapes(list: HTMLElement) {
     for (let item of Array.from(list.children)) {
         // skip first item, which is a dummy item
         if (item === list.firstElementChild) continue;
-        let shape = "", distance = 0;
+        let shape = "", scale = 0;
         let se = item.getElementsByClassName('shape')[0] as HTMLSelectElement;
         shape = se.options[se.selectedIndex].value;
-        let de = item.getElementsByClassName('distance')[0] as HTMLInputElement;
-        distance = parseFloat(de.value);
-        if (isNaN(distance)) continue;
+        let de = item.getElementsByClassName('scale')[0] as HTMLInputElement;
+        scale = parseFloat(de.value);
+        if (isNaN(scale)) continue;
         if (shape == "plane") {
             let normal = item.getElementsByClassName('normal')[0] as HTMLInputElement;
             let coeffs = normal.value.split(',').map(parseFloat);
-            ret.push({tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: distance});
+            ret.push({tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: scale});
         } else {
-            ret.push({tag: "polyhedron", name: shape, d: distance});
+            ret.push({tag: "polyhedron", name: shape, d: scale});
         }
     }
     return ret;
@@ -318,7 +318,7 @@ function apply_cuts() {
     let planes: THREE.Plane[] = [];
     for (let s of p.shell) {
         if (s.tag == "plane") {
-            planes.push(new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), -s.d));
+            planes.push(new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c), -s.d).normalize());
         } else if (s.tag == "polyhedron") {
           planes = planes.concat(polyhedron(s.name, s.d));
         }
@@ -333,7 +333,7 @@ function apply_cuts() {
     let newpuzzle = [shell];
     for (let s of p.cuts) {
         if (s.tag == "plane") {
-            newpuzzle = make_cuts([new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c).normalize(), -s.d)], newpuzzle);
+            newpuzzle = make_cuts([new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c), -s.d).normalize()], newpuzzle);
         } else if (s.tag == "polyhedron") {
           newpuzzle = make_cuts(polyhedron(s.name, s.d), newpuzzle);
         }
