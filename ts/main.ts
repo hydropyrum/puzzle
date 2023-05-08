@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls';
-import { make_shell, make_cuts, polyhedron } from './make';
+import { make_shell, make_cuts, polyhedron, plane } from './make';
 import { Cut, find_cuts, find_stops, make_move } from './move';
-import { PolyGeometry, triangulate_polygeometry } from './piece';
+import { ExactPlane, PolyGeometry, triangulate_polygeometry } from './piece';
 import { pointhash, EPSILON, setdefault } from './util';
 import * as parse from './parse';
 
@@ -315,10 +315,10 @@ function apply_cuts() {
     window.history.replaceState({}, 'title', parse.generateQuery(p));
     (document.getElementById('url')! as HTMLInputElement).value = window.location.href;
 
-    let planes: THREE.Plane[] = [];
+    let planes: ExactPlane[] = [];
     for (let s of p.shell) {
         if (s.tag == "plane") {
-            planes.push(new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c), -s.d).normalize());
+            planes.push(plane(s.a, s.b, s.c, s.d));
         } else if (s.tag == "polyhedron") {
           planes = planes.concat(polyhedron(s.name, s.d));
         }
@@ -333,7 +333,7 @@ function apply_cuts() {
     let newpuzzle = [shell];
     for (let s of p.cuts) {
         if (s.tag == "plane") {
-            newpuzzle = make_cuts([new THREE.Plane(new THREE.Vector3(s.a, s.b, s.c), -s.d).normalize()], newpuzzle);
+            newpuzzle = make_cuts([plane(s.a, s.b, s.c, s.d)], newpuzzle);
         } else if (s.tag == "polyhedron") {
           newpuzzle = make_cuts(polyhedron(s.name, s.d), newpuzzle);
         }

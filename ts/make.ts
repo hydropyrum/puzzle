@@ -5,8 +5,8 @@ import { PolyGeometry, really_big_polygeometry, ExactVector3, ExactPlane} from '
 import { slice_polygeometry } from './slice';
 import { PHI } from './util';
 import * as polyhedra from './polyhedra';
-import { AlgebraicNumber } from './exact';
-import { fraction } from './fraction';
+import { algebraicNumberField, AlgebraicNumber } from './exact';
+import { Fraction, fraction } from './fraction';
 
 function get_color(i: number): THREE.Color {
     /* Generate colors. The first six colors are the original Rubik's
@@ -22,21 +22,21 @@ function get_color(i: number): THREE.Color {
 
 const cut_color = new THREE.Color(0x666666);
 
-export function make_shell(faces: THREE.Plane[]): PolyGeometry {
+export function make_shell(faces: ExactPlane[]): PolyGeometry {
     /* Find intersection of backs of faces and return as a Geometry. 
        Only works for convex polyhedra. */
     let g = really_big_polygeometry();
     let front;
     for (let i=0; i<faces.length; i++)
-        [front, g] = slice_polygeometry(g, faces[i], get_color(i), false);
+        [front, g] = slice_polygeometry(g, faces[i].toThree(), get_color(i), false);
     return g;
 }
 
-export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]): PolyGeometry[] {
+export function make_cuts(cuts: ExactPlane[], pieces: PolyGeometry[]): PolyGeometry[] {
     for (let cut of cuts) {
         let newpieces: PolyGeometry[] = [];
         for (let piece of pieces) {
-            for (let p of slice_polygeometry(piece, cut, cut_color, true)) {
+            for (let p of slice_polygeometry(piece, cut.toThree(), cut_color, true)) {
                 // Delete empty pieces
                 if (p.faces.length == 0)
                     continue;
@@ -51,28 +51,26 @@ export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]): PolyGeom
     return pieces;
 }
 
-/* Temporary function */
-function convertCuts(cuts: ExactPlane[]): THREE.Plane[] {
-    let tcuts = cuts.map(ep => new THREE.Plane(
-        new THREE.Vector3(AlgebraicNumber.toNumber(ep.normal.x),
-                          AlgebraicNumber.toNumber(ep.normal.y),
-                          AlgebraicNumber.toNumber(ep.normal.z)),
-        AlgebraicNumber.toNumber(ep.constant)
-    ).normalize()); // to do: don't normalize
-    return tcuts;
-}
-
-export function polyhedron(name: string, d: number): THREE.Plane[] {
-    let p: ExactPlane[] | null;
-    let fd = fraction(Math.round(d*1000000), 1000000);
+export function polyhedron(name: string, d: number): ExactPlane[] {
+    let fd = Fraction.fromNumber(d);
     switch (name) {
-        case "T":  return convertCuts(polyhedra.tetrahedron(fd));
-        case "C":  return convertCuts(polyhedra.cube(fd));
-        case "O":  return convertCuts(polyhedra.octahedron(fd));
-        case "D":  return convertCuts(polyhedra.dodecahedron(fd));
-        case "I":  return convertCuts(polyhedra.icosahedron(fd));
-        case "jC": return convertCuts(polyhedra.rhombicDodecahedron(fd));
-        case "jD": return convertCuts(polyhedra.rhombicTriacontahedron(fd));
+        case "T":  return polyhedra.tetrahedron(fd);
+        case "C":  return polyhedra.cube(fd);
+        case "O":  return polyhedra.octahedron(fd);
+        case "D":  return polyhedra.dodecahedron(fd);
+        case "I":  return polyhedra.icosahedron(fd);
+        case "jC": return polyhedra.rhombicDodecahedron(fd);
+        case "jD": return polyhedra.rhombicTriacontahedron(fd);
     }
     return [];
+}
+
+export function plane(a: number, b: number, c: number, d: number): ExactPlane {
+    let K = algebraicNumberField([-1, 1], 1); // trivial
+    return new ExactPlane(
+        new ExactVector3(K.fromVector([Fraction.fromNumber(a)]),
+                         K.fromVector([Fraction.fromNumber(b)]),
+                         K.fromVector([Fraction.fromNumber(c)])),
+        K.fromVector([Fraction.fromNumber(-d)])
+    );
 }

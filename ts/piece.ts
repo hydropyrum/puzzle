@@ -19,6 +19,16 @@ export class ExactPlane {
         this.normal = normal;
         this.constant = constant;
     }
+    toThree(): THREE.Plane {
+        return new THREE.Plane(
+            new THREE.Vector3(
+                AlgebraicNumber.toNumber(this.normal.x),
+                AlgebraicNumber.toNumber(this.normal.y),
+                AlgebraicNumber.toNumber(this.normal.z)
+            ),
+            AlgebraicNumber.toNumber(this.constant)
+        ).normalize();
+    }
 };
 
 export class PolyGeometry {
