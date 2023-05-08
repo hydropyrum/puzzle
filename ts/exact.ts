@@ -39,62 +39,8 @@ export class AlgebraicNumberField {
             this.upper = mid;
     }
 
-    fromVector(coeffs: (number|Fraction)[]) { return polynomial(coeffs); }
-
-    // alternatively, could initially refine a few times and use
-    // midpoint of isolating interval
-    toNumber(a: Polynomial) { return a.eval_approx(this.approx); }
-
-    add(a: Polynomial, b: Polynomial) { return Polynomial.add(a, b); }
-    unaryMinus(a: Polynomial) { return Polynomial.unaryMinus(a); }
-    subtract(a: Polynomial, b: Polynomial) { return Polynomial.subtract(a, b); }
-    multiply(a: Polynomial, b: Polynomial) {
-        return Polynomial.remainder(Polynomial.multiply(a, b), this.poly);
-    }
-    invert(b: Polynomial) {
-        // Inverse of a modulo b=this.poly
-        // Extended Euclidean algorithm to find ra+sb=1
-        let a = this.poly;
-        let zero = polynomial([0]);
-        let r0 = a, r1 = b;
-        let t0 = zero, t1 = polynomial([1]);
-        while (!Polynomial.equal(r1, zero)) {
-            let [q, r2] = Polynomial.divmod(r0, r1);
-            [r0, r1] = [r1, r2];
-            [t0, t1] = [t1, Polynomial.subtract(t0, Polynomial.multiply(q, t1))];
-        }
-        if (r0.degree > 0)
-            throw new RangeError("Division by zero");
-        return Polynomial.divide(t0, r0);
-    }
-
-    divide(a: Polynomial, b: Polynomial): Polynomial {
-        return Polynomial.multiply(a, this.invert(b));
-    }
-
-    equal(a: Polynomial, b: Polynomial): boolean { return Polynomial.equal(a, b);  }
-
-    private compare(a: Polynomial, b: Polynomial): number {
-        let d = Polynomial.subtract(a, b);
-        let c = d.count_roots(this.lower, this.upper);
-        while (c > 0) {
-            this.refine();
-            c = d.count_roots(this.lower, this.upper);
-        }
-        return Fraction.sign(d.eval(this.lower));
-    }
-
-    lessThan(a: Polynomial, b: Polynomial): boolean {
-        return !Polynomial.equal(a, b) && this.compare(a, b) < 0;
-    }
-    greaterThan(a: Polynomial, b: Polynomial): boolean {
-        return !Polynomial.equal(a, b) && this.compare(a, b) > 0;
-    }
-    lessThanOrEqual(a: Polynomial, b: Polynomial): boolean {
-        return Polynomial.equal(a, b) || this.compare(a, b) < 0;
-    }
-    greaterThanOrEqual(a: Polynomial, b: Polynomial): boolean {
-        return Polynomial.equal(a, b) || this.compare(a, b) > 0;
+    fromVector(coeffs: (number|Fraction)[]): AlgebraicNumber {
+        return new AlgebraicNumber(this, polynomial(coeffs));
     }
 };
 
@@ -104,4 +50,99 @@ export function algebraicNumberField(poly: Polynomial|number[],
     return new AlgebraicNumberField(poly, approx);
 }
 
-export type AlgebraicNumber = Polynomial;
+export class AlgebraicNumber {
+    field: AlgebraicNumberField;
+    poly: Polynomial;
+
+    constructor(field: AlgebraicNumberField, poly: Polynomial) {
+        this.field = field;
+        this.poly = poly;
+    }
+
+    toString(): string {
+        return this.poly.toString() + " ≈ " + AlgebraicNumber.toNumber(this);
+    }
+    
+    // alternatively, could initially refine a few times and use
+    // midpoint of isolating interval
+    static toNumber(a: AlgebraicNumber): number {
+        return a.poly.eval_approx(a.field.approx);
+    }
+
+    static check_same_field(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumberField {
+        if (a.field !== b.field)
+            throw RangeError("AlgebricNumbers must have same field");
+        return a.field;
+    }
+
+    static add(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
+        let K = AlgebraicNumber.check_same_field(a, b);
+        return new AlgebraicNumber(K, Polynomial.add(a.poly, b.poly));
+    }
+    static unaryMinus(a: AlgebraicNumber): AlgebraicNumber {
+        return new AlgebraicNumber(a.field, Polynomial.unaryMinus(a.poly));
+    }
+    static subtract(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
+        let K = AlgebraicNumber.check_same_field(a, b);
+        return new AlgebraicNumber(K, Polynomial.subtract(a.poly, b.poly));
+    }
+    static multiply(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
+        let K = AlgebraicNumber.check_same_field(a, b);
+        return new AlgebraicNumber(K, Polynomial.remainder(Polynomial.multiply(a.poly, b.poly), K.poly));
+    }
+    static invert(n: AlgebraicNumber): AlgebraicNumber {
+        // Inverse of a modulo b=this.poly
+        // Extended Euclidean algorithm to find ra+sb=1
+        let K = n.field;
+        let a = K.poly;
+        let b = n.poly;
+        let zero = polynomial([0]);
+        let r0 = a, r1 = b;
+        let t0 = zero, t1 = polynomial([1]);
+        while (!Polynomial.equal(r1, zero)) {
+            let [q, r2] = Polynomial.divmod(r0, r1);
+            [r0, r1] = [r1, r2];
+            [t0, t1] = [t1, Polynomial.subtract(t0, Polynomial.multiply(q, t1))];
+        }
+        if (r0.degree > 0)
+            throw new RangeError("Division by zero: " + n);
+        return new AlgebraicNumber(K, Polynomial.divide(t0, r0));
+    }
+    
+    static divide(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
+        return AlgebraicNumber.multiply(a, AlgebraicNumber.invert(b));
+    }
+    
+    static equal(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
+        let K = AlgebraicNumber.check_same_field(a, b);
+        return Polynomial.equal(a.poly, b.poly);
+    }
+
+    static isZero(a: AlgebraicNumber): boolean {
+        return a.poly.degree == -1;
+    }
+
+    private static compare(a: AlgebraicNumber, b: AlgebraicNumber): number {
+        let K = AlgebraicNumber.check_same_field(a, b);
+        let d = Polynomial.subtract(a.poly, b.poly);
+        let c = d.count_roots(K.lower, K.upper);
+        while (c > 0) {
+            K.refine();
+            c = d.count_roots(K.lower, K.upper);
+        }
+        return Fraction.sign(d.eval(K.lower));
+    }
+
+    static lessThan(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
+        return !AlgebraicNumber.equal(a, b) && AlgebraicNumber.compare(a, b) < 0;
+    }
+    static greaterThan(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
+        return !AlgebraicNumber.equal(a, b) && AlgebraicNumber.compare(a, b) > 0;
+    }
+    static lessThanOrEqual(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
+        return AlgebraicNumber.equal(a, b) || AlgebraicNumber.compare(a, b) < 0;
+    }
+    static greaterThanOrEqual(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
+        return AlgebraicNumber.equal(a, b) || AlgebraicNumber.compare(a, b) > 0;
+    }
+}

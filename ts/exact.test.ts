@@ -1,4 +1,4 @@
-import { AlgebraicNumberField, algebraicNumberField } from './exact';
+import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber } from './exact';
 import { polynomial } from './polynomial';
 import { fraction } from './fraction';
 
@@ -17,75 +17,75 @@ let vals = [
 
 test('toNumber', () => {
     for (let val of vals)
-        expect(K.toNumber(polynomial(val.c))).toBeCloseTo(val.a);
+        expect(AlgebraicNumber.toNumber(K.fromVector(val.c))).toBeCloseTo(val.a);
 })
 
 test('equal', () => {
-    for (let a of vals.map(v => polynomial(v.c)))
-        for (let b of vals.map(v => polynomial(v.c))) {
-            if (K.equal(a,b))
-                expect(K.toNumber(a)).toBeCloseTo(K.toNumber(b), 15);
+    for (let a of vals.map(v => K.fromVector(v.c)))
+        for (let b of vals.map(v => K.fromVector(v.c))) {
+            if (AlgebraicNumber.equal(a,b))
+                expect(AlgebraicNumber.toNumber(a)).toBeCloseTo(AlgebraicNumber.toNumber(b), 15);
             else
-                expect(K.toNumber(a)).not.toBeCloseTo(K.toNumber(b), 15);
+                expect(AlgebraicNumber.toNumber(a)).not.toBeCloseTo(AlgebraicNumber.toNumber(b), 15);
         }
 });
 
 test('add', () => {
     for (let a of vals)
         for (let b of vals)
-            expect(K.toNumber(K.add(polynomial(a.c), polynomial(b.c)))).toBeCloseTo(a.a + b.a);
+            expect(AlgebraicNumber.toNumber(AlgebraicNumber.add(K.fromVector(a.c), K.fromVector(b.c)))).toBeCloseTo(a.a + b.a);
 });
 test('unaryMinus', () => {
     for (let a of vals)
-        expect(K.toNumber(K.unaryMinus(polynomial(a.c)))).toBeCloseTo(-a.a);
+        expect(AlgebraicNumber.toNumber(AlgebraicNumber.unaryMinus(K.fromVector(a.c)))).toBeCloseTo(-a.a);
 });
 test('subtract', () => {
     for (let a of vals)
         for (let b of vals)
-            expect(K.toNumber(K.subtract(polynomial(a.c), polynomial(b.c)))).toBeCloseTo(a.a - b.a);
+            expect(AlgebraicNumber.toNumber(AlgebraicNumber.subtract(K.fromVector(a.c), K.fromVector(b.c)))).toBeCloseTo(a.a - b.a);
 });
 test('multiply', () => {
     for (let a of vals)
         for (let b of vals)
-            expect(K.toNumber(K.multiply(polynomial(a.c), polynomial(b.c)))).toBeCloseTo(a.a * b.a);
+            expect(AlgebraicNumber.toNumber(AlgebraicNumber.multiply(K.fromVector(a.c), K.fromVector(b.c)))).toBeCloseTo(a.a * b.a);
 });
 test('invert', () => {
     for (let a of vals) {
-        let p = polynomial(a.c);
-        if (p.degree >= 0)
-            expect(K.toNumber(K.invert(p))).toBeCloseTo(1/a.a);
+        let p = K.fromVector(a.c);
+        if (!AlgebraicNumber.isZero(p))
+            expect(AlgebraicNumber.toNumber(AlgebraicNumber.invert(p))).toBeCloseTo(1/a.a);
         else
-            expect(() => K.invert(p)).toThrow("Division by zero");
+            expect(() => AlgebraicNumber.invert(p)).toThrow("Division by zero");
     }
 });
 test('divide', () => {
     for (let a of vals)
         for (let b of vals) {
-            let ap = polynomial(a.c), bp = polynomial(b.c);
-            if (bp.degree >= 0)
-                expect(K.toNumber(K.divide(ap, bp))).toBeCloseTo(a.a / b.a);
+            let ap = K.fromVector(a.c), bp = K.fromVector(b.c);
+            if (!AlgebraicNumber.isZero(bp))
+                expect(AlgebraicNumber.toNumber(AlgebraicNumber.divide(ap, bp))).toBeCloseTo(a.a / b.a);
             else
-                expect(() => K.divide(ap, bp)).toThrow("Division by zero");
+                expect(() => AlgebraicNumber.divide(ap, bp)).toThrow("Division by zero");
         }
 });
 
 test('lessThan', () => {
-    for (let a of vals.map(v => polynomial(v.c)))
-        for (let b of vals.map(v => polynomial(v.c)))
-            expect(K.lessThan(a,b)).toBe(K.toNumber(a) < K.toNumber(b));
+    for (let a of vals.map(v => K.fromVector(v.c)))
+        for (let b of vals.map(v => K.fromVector(v.c)))
+            expect(AlgebraicNumber.lessThan(a,b)).toBe(AlgebraicNumber.toNumber(a) < AlgebraicNumber.toNumber(b));
 });
 test('lessThanOrEqual', () => {
-    for (let a of vals.map(v => polynomial(v.c)))
-        for (let b of vals.map(v => polynomial(v.c)))
-            expect(K.lessThanOrEqual(a,b)).toBe(K.toNumber(a) <= K.toNumber(b));
+    for (let a of vals.map(v => K.fromVector(v.c)))
+        for (let b of vals.map(v => K.fromVector(v.c)))
+            expect(AlgebraicNumber.lessThanOrEqual(a,b)).toBe(AlgebraicNumber.toNumber(a) <= AlgebraicNumber.toNumber(b));
 });
 test('greaterThan', () => {
-    for (let a of vals.map(v => polynomial(v.c)))
-        for (let b of vals.map(v => polynomial(v.c)))
-            expect(K.greaterThan(a,b)).toBe(K.toNumber(a) > K.toNumber(b));
+    for (let a of vals.map(v => K.fromVector(v.c)))
+        for (let b of vals.map(v => K.fromVector(v.c)))
+            expect(AlgebraicNumber.greaterThan(a,b)).toBe(AlgebraicNumber.toNumber(a) > AlgebraicNumber.toNumber(b));
 });
 test('greaterThanOrEqual', () => {
-    for (let a of vals.map(v => polynomial(v.c)))
-        for (let b of vals.map(v => polynomial(v.c)))
-            expect(K.greaterThanOrEqual(a,b)).toBe(K.toNumber(a) >= K.toNumber(b));
+    for (let a of vals.map(v => K.fromVector(v.c)))
+        for (let b of vals.map(v => K.fromVector(v.c)))
+            expect(AlgebraicNumber.greaterThanOrEqual(a,b)).toBe(AlgebraicNumber.toNumber(a) >= AlgebraicNumber.toNumber(b));
 });

@@ -5,7 +5,7 @@ import { PolyGeometry, really_big_polygeometry, ExactVector3, ExactPlane} from '
 import { slice_polygeometry } from './slice';
 import { PHI } from './util';
 import * as polyhedra from './polyhedra';
-import { AlgebraicNumberField } from './exact';
+import { AlgebraicNumber } from './exact';
 import { fraction } from './fraction';
 
 function get_color(i: number): THREE.Color {
@@ -52,28 +52,27 @@ export function make_cuts(cuts: THREE.Plane[], pieces: PolyGeometry[]): PolyGeom
 }
 
 /* Temporary function */
-function convertCuts(K: AlgebraicNumberField, cuts: ExactPlane[]): THREE.Plane[] {
+function convertCuts(cuts: ExactPlane[]): THREE.Plane[] {
     let tcuts = cuts.map(ep => new THREE.Plane(
-        new THREE.Vector3(K.toNumber(ep.normal.x),
-                          K.toNumber(ep.normal.y),
-                          K.toNumber(ep.normal.z)),
-        K.toNumber(ep.constant)
+        new THREE.Vector3(AlgebraicNumber.toNumber(ep.normal.x),
+                          AlgebraicNumber.toNumber(ep.normal.y),
+                          AlgebraicNumber.toNumber(ep.normal.z)),
+        AlgebraicNumber.toNumber(ep.constant)
     ).normalize()); // to do: don't normalize
     return tcuts;
 }
 
 export function polyhedron(name: string, d: number): THREE.Plane[] {
-    let K: AlgebraicNumberField | null;
     let p: ExactPlane[] | null;
     let fd = fraction(Math.round(d*1000000), 1000000);
     switch (name) {
-        case "T":  [K, p] = polyhedra.tetrahedron(fd); return convertCuts(K, p);
-        case "C":  [K, p] = polyhedra.cube(fd); return convertCuts(K, p);
-        case "O":  [K, p] = polyhedra.octahedron(fd); return convertCuts(K, p);
-        case "D":  [K, p] = polyhedra.dodecahedron(fd); return convertCuts(K, p);
-        case "I":  [K, p] = polyhedra.icosahedron(fd); return convertCuts(K, p);
-        case "jC": [K, p] = polyhedra.rhombicDodecahedron(fd); return convertCuts(K, p);
-        case "jD": [K, p] = polyhedra.rhombicTriacontahedron(fd); return convertCuts(K, p);
+        case "T":  return convertCuts(polyhedra.tetrahedron(fd));
+        case "C":  return convertCuts(polyhedra.cube(fd));
+        case "O":  return convertCuts(polyhedra.octahedron(fd));
+        case "D":  return convertCuts(polyhedra.dodecahedron(fd));
+        case "I":  return convertCuts(polyhedra.icosahedron(fd));
+        case "jC": return convertCuts(polyhedra.rhombicDodecahedron(fd));
+        case "jD": return convertCuts(polyhedra.rhombicTriacontahedron(fd));
     }
     return [];
 }

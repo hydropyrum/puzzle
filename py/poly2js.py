@@ -185,7 +185,7 @@ def process(data):
                 sub[name] = val
 
     poly_name = data["name"][0].lower() + data["name"][1:]
-    print(f'export function {poly_name}(scale: Fraction): [AlgebraicNumberField, ExactPlane[]] {{')
+    print(f'export function {poly_name}(scale: Fraction): ExactPlane[] {{')
     print(f'    let K = algebraicNumberField({list(reversed(prim_poly.all_coeffs()))}, {float(prim_element)});')
     print( '    let cuts = [')
                 
@@ -202,20 +202,20 @@ def process(data):
         
         normal = [translate_number(x) for x in normal]
         constant = translate_number(constant)
-        print(f'        new ExactPlane(new ExactVector3({normal[0]}, {normal[1]}, {normal[2]}), K.multiply({constant}, K.fromVector([scale])))', end='')
+        print(f'        new ExactPlane(new ExactVector3({normal[0]}, {normal[1]}, {normal[2]}), AlgebraicNumber.multiply({constant}, K.fromVector([scale])))', end='')
         if fi < len(data['faces'])-1:
             print(',')
         else:
             print('')
     print( '    ];')
-    print( '    return [K, cuts];')
+    print( '    return cuts;')
     print( '}')
     print( '')
 
 if __name__ == "__main__":
     
     print("import { Fraction, fraction } from './fraction';")
-    print("import { AlgebraicNumberField, algebraicNumberField } from './exact';")
+    print("import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber } from './exact';")
     print("import { ExactVector3, ExactPlane } from './piece';")
     print("")
 
