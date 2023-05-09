@@ -2,10 +2,22 @@ import * as THREE from 'three';
 import { floathash, setdefault, keys } from './util';
 import { PolyGeometry, PolyFace } from './piece';
 
+/* slice_polygeometry
+  
+   Slices a PolyGeometry into one or two PolyGeometries.
+   
+   - geometry: the PolyGeometry to slice
+   - plane: the plane along which to slice
+   - color: what color to make any newly created faces
+   - interior: whether any newly created faces are interior faces
+   
+   Returns: [front, back] where either front or back might be empty.
+   
+   cf. https://github.com/tdhooper/threejs-slice-geometry, but
+   - preserves colors of faces
+   - creates new faces where the geometry is sliced */
+
 export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean): [PolyGeometry, PolyGeometry] {
-    /* cf. https://github.com/tdhooper/threejs-slice-geometry, but
-       - preserves colors of faces
-       - creates new faces where the geometry is sliced */
     
     let vertices = [];
     vertices.push(...geometry.vertices); // copy so we can append to it
@@ -19,7 +31,7 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, c
     back.vertices = [];
     back.faces = [];
     let backmap: {[key:number]: number} = {}; // map geometry.vertices to back.vertices
-    let cross_index: {[key: string]: number} = {};
+    let cross_index: {[key: string]: number} = {}; // cache for intersections
     for (let face of geometry.faces) {
         // Slice face into frontpoints and backpoints
         let frontpoints: number[] = [], backpoints: number[] = [];
@@ -83,10 +95,19 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, c
     }
 
     close_polyhedron(back, plane, color, interior);
-    close_polyhedron(front, plane, color, interior); // why is it okay not to negate plane?
+    close_polyhedron(front, plane.clone().negate(), color, interior);
     
     return [front, back];
 }
+
+/* close_polyhedron
+
+   Finds the missing face and adds it.
+
+   - geometry: a PolyGeometry for a polyhedron possibly with a missing face
+   - plane: the plane in which the missing face (if any) lies
+   - color: what color to make any newly created faces
+   - interior: whether any newly created faces are interior faces */
 
 function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean): void {
     let edge_index: {[key: number]: [number, number][]} = {};
@@ -101,6 +122,8 @@ function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THR
             prev = cur;
         }
     }
+    // The edges of the missing face appear only once.
+    // Make an undirected graph out of these.
     let cutgraph: {[key: number]: number[]} = {};
     for (let edges of Object.values(edge_index)) {
         console.assert(edges.length <= 2);
@@ -133,4 +156,3 @@ function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THR
         geometry.faces.push(cutface);
     }
 }
-

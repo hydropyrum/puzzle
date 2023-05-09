@@ -1,7 +1,7 @@
 /* Various utility functions for creating pieces. */
 
 import * as THREE from 'three';
-import { PolyGeometry, really_big_polygeometry, ExactVector3, ExactPlane} from './piece';
+import { PolyGeometry, cube_polygeometry, ExactVector3, ExactPlane} from './piece';
 import { slice_polygeometry } from './slice';
 import { PHI } from './util';
 import * as polyhedra from './polyhedra';
@@ -25,7 +25,7 @@ const cut_color = new THREE.Color(0x666666);
 export function make_shell(faces: ExactPlane[]): PolyGeometry {
     /* Find intersection of backs of faces and return as a Geometry. 
        Only works for convex polyhedra. */
-    let g = really_big_polygeometry();
+    let g = cube_polygeometry();
     let front;
     for (let i=0; i<faces.length; i++)
         [front, g] = slice_polygeometry(g, faces[i].toThree(), get_color(i), false);

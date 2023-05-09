@@ -53,9 +53,8 @@ export interface PolyFace {
     interior: boolean;
 };
 
-export function really_big_polygeometry(): PolyGeometry {
+export function cube_polygeometry(d: number = 1000): PolyGeometry {
     let g = new PolyGeometry([], []);
-    let d = 1000;
     for (let z of [-d, d])
         for (let y of [-d, d])
             for (let x of [-d, d])
