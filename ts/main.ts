@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls';
-import { make_shell, make_cuts, polyhedron, plane } from './make';
+import { make_shell, make_cuts, polyhedron } from './make';
 import { Cut, find_cuts, find_stops, make_move } from './move';
-import { ExactPlane, PolyGeometry, triangulate_polygeometry } from './piece';
+import { ExactPlane, exactPlane, PolyGeometry, triangulate_polygeometry } from './piece';
 import { pointhash, EPSILON, setdefault } from './util';
 import * as parse from './parse';
 
@@ -318,7 +318,7 @@ function apply_cuts() {
     let planes: ExactPlane[] = [];
     for (let s of p.shell) {
         if (s.tag == "plane") {
-            planes.push(plane(s.a, s.b, s.c, s.d));
+            planes.push(exactPlane(s.a, s.b, s.c, s.d));
         } else if (s.tag == "polyhedron") {
           planes = planes.concat(polyhedron(s.name, s.d));
         }
@@ -333,7 +333,7 @@ function apply_cuts() {
     let newpuzzle = [shell];
     for (let s of p.cuts) {
         if (s.tag == "plane") {
-            newpuzzle = make_cuts([plane(s.a, s.b, s.c, s.d)], newpuzzle);
+            newpuzzle = make_cuts([exactPlane(s.a, s.b, s.c, s.d)], newpuzzle);
         } else if (s.tag == "polyhedron") {
           newpuzzle = make_cuts(polyhedron(s.name, s.d), newpuzzle);
         }

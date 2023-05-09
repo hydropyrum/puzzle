@@ -28,7 +28,7 @@ export function make_shell(faces: ExactPlane[]): PolyGeometry {
     let g = cube_polygeometry();
     let front;
     for (let i=0; i<faces.length; i++)
-        [front, g] = slice_polygeometry(g, faces[i].toThree(), get_color(i), false);
+        [front, g] = slice_polygeometry(g, faces[i], get_color(i), false);
     return g;
 }
 
@@ -36,7 +36,7 @@ export function make_cuts(cuts: ExactPlane[], pieces: PolyGeometry[]): PolyGeome
     for (let cut of cuts) {
         let newpieces: PolyGeometry[] = [];
         for (let piece of pieces) {
-            for (let p of slice_polygeometry(piece, cut.toThree(), cut_color, true)) {
+            for (let p of slice_polygeometry(piece, cut, cut_color, true)) {
                 // Delete empty pieces
                 if (p.faces.length == 0)
                     continue;
@@ -63,14 +63,4 @@ export function polyhedron(name: string, d: number): ExactPlane[] {
         case "jD": return polyhedra.rhombicTriacontahedron(fd);
     }
     return [];
-}
-
-export function plane(a: number, b: number, c: number, d: number): ExactPlane {
-    let K = algebraicNumberField([-1, 1], 1); // trivial
-    return new ExactPlane(
-        new ExactVector3(K.fromVector([Fraction.fromNumber(a)]),
-                         K.fromVector([Fraction.fromNumber(b)]),
-                         K.fromVector([Fraction.fromNumber(c)])),
-        K.fromVector([Fraction.fromNumber(-d)])
-    );
 }

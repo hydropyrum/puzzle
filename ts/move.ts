@@ -32,7 +32,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
     let planes: {[key: string]: THREE.Plane} = {};
     for (let p of ps)
         for (let face of puzzle[p].faces) {
-            let plane = face.plane.clone();
+            let plane = face.plane.toThree();
             plane.normal.applyQuaternion(puzzle[p].rot).normalize();
             canonicalize_plane(plane);
             setdefault(planes, pointhash(plane.normal), {})[floathash(plane.constant)] = plane;

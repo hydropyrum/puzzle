@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { floathash, setdefault, keys } from './util';
-import { PolyGeometry, PolyFace } from './piece';
+import { ExactPlane, PolyGeometry, PolyFace } from './piece';
 
 /* slice_polygeometry
   
@@ -17,13 +17,14 @@ import { PolyGeometry, PolyFace } from './piece';
    - preserves colors of faces
    - creates new faces where the geometry is sliced */
 
-export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean): [PolyGeometry, PolyGeometry] {
+export function slice_polygeometry(geometry: PolyGeometry, plane: ExactPlane, color: THREE.Color, interior: boolean): [PolyGeometry, PolyGeometry] {
+    let fplane = plane.toThree();
     
     let vertices = [];
     vertices.push(...geometry.vertices); // copy so we can append to it
     
     let sides = vertices.map(
-        v => Math.sign(floathash(plane.distanceToPoint(v))));
+        v => Math.sign(floathash(fplane.distanceToPoint(v))));
 
     let front = new PolyGeometry([], []);
     let frontmap: {[key: number]: number} = {}; // map geometry.vertices to front.vertices
@@ -46,7 +47,7 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, c
                     c = cross_index[h];
                 else {
                     let point = new THREE.Vector3();
-                    plane.intersectLine(new THREE.Line3(vertices[prev],
+                    fplane.intersectLine(new THREE.Line3(vertices[prev],
                                                         vertices[cur]),
                                         point);
                     vertices.push(point);
@@ -95,7 +96,7 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, c
     }
 
     close_polyhedron(back, plane, color, interior);
-    close_polyhedron(front, plane.clone().negate(), color, interior);
+    close_polyhedron(front, plane.negate(), color, interior);
     
     return [front, back];
 }
@@ -109,7 +110,7 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: THREE.Plane, c
    - color: what color to make any newly created faces
    - interior: whether any newly created faces are interior faces */
 
-function close_polyhedron(geometry: PolyGeometry, plane: THREE.Plane, color: THREE.Color, interior: boolean): void {
+function close_polyhedron(geometry: PolyGeometry, plane: ExactPlane, color: THREE.Color, interior: boolean): void {
     let edge_index: {[key: number]: [number, number][]} = {};
     function count_edge(a: number, b: number) {
         let h = a < b ? a+","+b : b+","+a;
