@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { floathash, setdefault, keys } from './util';
+import { setdefault, keys } from './util';
 import { ExactPlane, PolyGeometry, PolyFace } from './piece';
 
 /* slice_polygeometry
@@ -18,13 +18,10 @@ import { ExactPlane, PolyGeometry, PolyFace } from './piece';
    - creates new faces where the geometry is sliced */
 
 export function slice_polygeometry(geometry: PolyGeometry, plane: ExactPlane, color: THREE.Color, interior: boolean): [PolyGeometry, PolyGeometry] {
-    let fplane = plane.toThree();
-    
     let vertices = [];
     vertices.push(...geometry.vertices); // copy so we can append to it
     
-    let sides = vertices.map(
-        v => Math.sign(floathash(fplane.distanceToPoint(v))));
+    let sides = vertices.map(v => plane.side(v));
 
     let front = new PolyGeometry([], []);
     let frontmap: {[key: number]: number} = {}; // map geometry.vertices to front.vertices
@@ -46,10 +43,7 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: ExactPlane, co
                 if (h in cross_index)
                     c = cross_index[h];
                 else {
-                    let point = new THREE.Vector3();
-                    fplane.intersectLine(new THREE.Line3(vertices[prev],
-                                                        vertices[cur]),
-                                        point);
+                    let point = plane.intersectLine(vertices[prev], vertices[cur]);
                     vertices.push(point);
                     sides.push(0);
                     c = vertices.length-1;

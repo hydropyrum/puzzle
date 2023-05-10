@@ -327,7 +327,7 @@ function apply_cuts() {
 
     // Find circumradius, which we will scale to 1
     let r = 0;
-    for (let v of shell.vertices)
+    for (let v of shell.vertices.map(v => v.toThree()))
         if (v.length() > r) r = v.length();
 
     let newpuzzle = [shell];

@@ -89,3 +89,8 @@ test('greaterThanOrEqual', () => {
         for (let b of vals.map(v => K.fromVector(v.c)))
             expect(AlgebraicNumber.greaterThanOrEqual(a,b)).toBe(AlgebraicNumber.toNumber(a) >= AlgebraicNumber.toNumber(b));
 });
+
+test('sign', () => {
+    for (let a of vals.map(v => K.fromVector(v.c)))
+        expect(AlgebraicNumber.sign(a)).toBe(Math.sign(AlgebraicNumber.toNumber(a)));
+});

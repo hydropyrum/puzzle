@@ -64,7 +64,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
             let nq = n.clone();
             nq.applyQuaternion(puzzle[p].rot.clone().conjugate());
             for (let v of puzzle[p].vertices) {
-                let x = nq.dot(v);
+                let x = nq.dot(v.toThree());
                 if (x < xmin) xmin = x;
                 if (x > xmax) xmax = x;
             }

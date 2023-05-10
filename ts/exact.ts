@@ -22,6 +22,10 @@ export class AlgebraicNumberField {
             this.basis.push(Polynomial.multiply(this.basis[i-1], polynomial([0,1])));
     }
 
+    toString(): string {
+        return this.poly.toString();
+    }
+
     refine() {
         let mid = Fraction.divide(Fraction.add(this.lower, this.upper), fraction(2));
         let sl = Fraction.sign(this.poly.eval(this.lower));
@@ -70,9 +74,15 @@ export class AlgebraicNumber {
     }
 
     static check_same_field(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumberField {
-        if (a.field !== b.field)
-            throw RangeError("AlgebricNumbers must have same field");
-        return a.field;
+        if (a.field === b.field)
+            return a.field;
+        if (Polynomial.equal(a.field.poly, b.field.poly))
+            return a.field;
+        if (a.field.poly.degree == 1)
+            return b.field;
+        if (b.field.poly.degree == 1)
+            return a.field;
+        throw RangeError("AlgebraicNumbers must have same field (" + a.field.toString() + " != " + b.field.toString() + ")");
     }
 
     static add(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
@@ -125,6 +135,7 @@ export class AlgebraicNumber {
     private static compare(a: AlgebraicNumber, b: AlgebraicNumber): number {
         let K = AlgebraicNumber.check_same_field(a, b);
         let d = Polynomial.subtract(a.poly, b.poly);
+        if (d.degree == -1) return 0;
         let c = d.count_roots(K.lower, K.upper);
         while (c > 0) {
             K.refine();
@@ -134,15 +145,19 @@ export class AlgebraicNumber {
     }
 
     static lessThan(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
-        return !AlgebraicNumber.equal(a, b) && AlgebraicNumber.compare(a, b) < 0;
+        return AlgebraicNumber.compare(a, b) < 0;
     }
     static greaterThan(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
-        return !AlgebraicNumber.equal(a, b) && AlgebraicNumber.compare(a, b) > 0;
+        return AlgebraicNumber.compare(a, b) > 0;
     }
     static lessThanOrEqual(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
-        return AlgebraicNumber.equal(a, b) || AlgebraicNumber.compare(a, b) < 0;
+        return AlgebraicNumber.compare(a, b) <= 0;
     }
     static greaterThanOrEqual(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
-        return AlgebraicNumber.equal(a, b) || AlgebraicNumber.compare(a, b) > 0;
+        return AlgebraicNumber.compare(a, b) >= 0;
+    }
+
+    static sign(a: AlgebraicNumber): number {
+        return AlgebraicNumber.compare(a, a.field.fromVector([]));
     }
 }
