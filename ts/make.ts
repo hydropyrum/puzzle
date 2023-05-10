@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { PolyGeometry, cube_polygeometry, ExactVector3, ExactPlane} from './piece';
 import { slice_polygeometry } from './slice';
-import { PHI } from './util';
+import { setdefault, PHI } from './util';
 import * as polyhedra from './polyhedra';
 import { algebraicNumberField, AlgebraicNumber } from './exact';
 import { Fraction, fraction } from './fraction';
@@ -25,29 +25,41 @@ const cut_color = new THREE.Color(0x666666);
 export function make_shell(faces: ExactPlane[]): PolyGeometry {
     /* Find intersection of backs of faces and return as a Geometry. 
        Only works for convex polyhedra. */
+    console.time('shell constructed in');
     let g = cube_polygeometry();
     let front;
     for (let i=0; i<faces.length; i++)
         [front, g] = slice_polygeometry(g, faces[i], get_color(i), false);
+    console.timeEnd('shell constructed in');
     return g;
 }
 
 export function make_cuts(cuts: ExactPlane[], pieces: PolyGeometry[]): PolyGeometry[] {
-    for (let cut of cuts) {
-        let newpieces: PolyGeometry[] = [];
-        for (let piece of pieces) {
-            for (let p of slice_polygeometry(piece, cut, cut_color, true)) {
-                // Delete empty pieces
-                if (p.faces.length == 0)
-                    continue;
-                // Delete interior pieces
-                if (p.faces.every(f => f.interior))
-                    continue;
-                newpieces.push(p);
+    let count = 0;
+
+    let planes: {[key: string]: ExactPlane[]} = {};
+    for (let p of cuts)
+        setdefault(planes, String(p.normal), []).push(p);
+    
+    for (let ps of Object.values(planes)) {
+        let backpieces: PolyGeometry[] = [];
+        ps.sort((a,b) => -AlgebraicNumber.compare(a.constant, b.constant));
+        for (let cut of ps) {
+            let frontpieces: PolyGeometry[] = [];
+            for (let piece of pieces) {
+                count += 1;
+                let [frontpiece, backpiece] = slice_polygeometry(piece, cut, cut_color, true);
+                if (frontpiece.faces.length > 0 && !frontpiece.faces.every(f => f.interior))
+                    frontpieces.push(frontpiece);
+                if (backpiece.faces.length > 0 && !backpiece.faces.every(f => f.interior))
+                    backpieces.push(backpiece);
             }
+            pieces = frontpieces;
         }
-        pieces = newpieces;
+        pieces.push(...backpieces);
     }
+    
+    console.log('slices performed:', count);
     return pieces;
 }
 

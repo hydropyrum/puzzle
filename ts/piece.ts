@@ -19,6 +19,10 @@ export class ExactVector3 {
             AlgebraicNumber.toNumber(this.z));
     }
 
+    toString(): string {
+        return '[' + this.x.toString() + ',' + this.y.toString() + ',' + this.z.toString() + ']';
+    }
+
     add (other: ExactVector3): ExactVector3 {
         return new ExactVector3(
             AlgebraicNumber.add(this.x, other.x),

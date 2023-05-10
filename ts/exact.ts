@@ -64,7 +64,7 @@ export class AlgebraicNumber {
     }
 
     toString(): string {
-        return this.poly.toString() + " ≈ " + AlgebraicNumber.toNumber(this);
+        return this.poly.toString();
     }
     
     // alternatively, could initially refine a few times and use
@@ -132,7 +132,7 @@ export class AlgebraicNumber {
         return a.poly.degree == -1;
     }
 
-    private static compare(a: AlgebraicNumber, b: AlgebraicNumber): number {
+    static compare(a: AlgebraicNumber, b: AlgebraicNumber): number {
         let K = AlgebraicNumber.check_same_field(a, b);
         let d = Polynomial.subtract(a.poly, b.poly);
         if (d.degree == -1) return 0;

@@ -29,7 +29,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
     }
 
     // Make list of candidate planes, grouping together parallel planes
-    let planes: {[key: string]: THREE.Plane} = {};
+    let planes: {[key: string]: {[key: string]: THREE.Plane}} = {};
     for (let p of ps)
         for (let face of puzzle[p].faces) {
             let plane = face.plane.toThree();

@@ -330,14 +330,17 @@ function apply_cuts() {
     for (let v of shell.vertices.map(v => v.toThree()))
         if (v.length() > r) r = v.length();
 
-    let newpuzzle = [shell];
+    console.time('pieces constructed in');
+    let cutplanes = [];
     for (let s of p.cuts) {
-        if (s.tag == "plane") {
-            newpuzzle = make_cuts([exactPlane(s.a, s.b, s.c, s.d)], newpuzzle);
-        } else if (s.tag == "polyhedron") {
-          newpuzzle = make_cuts(polyhedron(s.name, s.d), newpuzzle);
-        }
+        if (s.tag == "plane")
+            cutplanes.push(exactPlane(s.a, s.b, s.c, s.d));
+        else if (s.tag == "polyhedron")
+            cutplanes.push(...polyhedron(s.name, s.d));
     }
+    let newpuzzle = make_cuts(cutplanes, [shell]);
+    console.log('number of exterior pieces:', newpuzzle.length);
+    console.timeEnd('pieces constructed in');
     draw_puzzle(newpuzzle, scene, 1/r);
     render_requested = true;
 }
