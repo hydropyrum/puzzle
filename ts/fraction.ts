@@ -4,6 +4,12 @@ function jsbi_abs(x: JSBI): JSBI {
     return JSBI.LT(x, 0) ? JSBI.unaryMinus(x) : x;
 }
 
+function jsbi_sign(x: JSBI): number {
+    if (JSBI.EQ(x, 0)) return 0;
+    else if (JSBI.LT(x, 0)) return -1;
+    else /* if (JSBI.GT(x, 0)) */ return +1;
+}
+
 /* Find GCD using Euclid's algorithm. 
  * To do: use binary version (https://en.wikipedia.org/wiki/Binary_GCD_algorithm)?
  */
@@ -94,14 +100,9 @@ export class Fraction {
     static equal(x: Fraction, y: Fraction) {
         return JSBI.EQ(Fraction.subtract(x, y).n, 0);
     }
-    static sign(x: Fraction): number {
-        if (JSBI.EQ(x.n, 0)) return 0;
-        else if (JSBI.LT(x.n, 0)) return -1;
-        else /* if (JSBI.GT(x.n, 0)) */ return +1;
-    }
-    static abs(x: Fraction): Fraction {
-        return JSBI.GE(x.n, 0) ? x : Fraction.unaryMinus(x);
-    }
+    static sign(x: Fraction): number { return jsbi_sign(x.n); }
+    static compare(x: Fraction, y: Fraction): number { return jsbi_sign(Fraction.subtract(x, y).n); }
+    static abs(x: Fraction): Fraction { return new Fraction(jsbi_abs(x.n), x.d); }
 }
 
 export function fraction(n: JSBI|number, d: JSBI|number = 1) {

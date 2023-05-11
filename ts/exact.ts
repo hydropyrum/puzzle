@@ -136,12 +136,19 @@ export class AlgebraicNumber {
         let K = AlgebraicNumber.check_same_field(a, b);
         let d = Polynomial.subtract(a.poly, b.poly);
         if (d.degree == -1) return 0;
+        /* // Loos
         let c = d.count_roots(K.lower, K.upper);
         while (c > 0) {
             K.refine();
             c = d.count_roots(K.lower, K.upper);
+            }
+        return Fraction.sign(d.eval(K.lower));*/
+        let [val_l, val_u] = d.eval_interval(K.lower, K.upper);
+        while (Fraction.sign(val_l) != Fraction.sign(val_u)) {
+            K.refine();
+            [val_l, val_u] = d.eval_interval(K.lower, K.upper);
         }
-        return Fraction.sign(d.eval(K.lower));
+        return Fraction.sign(val_l);
     }
 
     static lessThan(a: AlgebraicNumber, b: AlgebraicNumber): boolean {

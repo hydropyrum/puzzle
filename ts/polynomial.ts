@@ -50,11 +50,24 @@ export class Polynomial {
     }
     
     eval_approx(arg: number): number {
-        // Horner's rule
         let sum = 0;
         for (let i=this.degree; i>=0; i--)
             sum = sum*arg + Fraction.toNumber(this.coeffs[i]);
         return sum;
+    }
+
+    eval_interval(arg_l: Fraction, arg_u: Fraction): [Fraction, Fraction] {
+        let sum_l = fraction(0), sum_u = fraction(0);
+        for (let i=this.degree; i>=0; i--) {
+            let sums = [Fraction.multiply(sum_l, arg_l),
+                        Fraction.multiply(sum_l, arg_u),
+                        Fraction.multiply(sum_u, arg_l),
+                        Fraction.multiply(sum_u, arg_u)];
+            sums.sort(Fraction.compare);
+            sum_l = Fraction.add(sums[0], this.coeffs[i]);
+            sum_u = Fraction.add(sums[3], this.coeffs[i]);
+        }
+        return [sum_l, sum_u];
     }
 
     static add(a: Polynomial, b: Polynomial): Polynomial {
