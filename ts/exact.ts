@@ -32,10 +32,10 @@ export class AlgebraicNumberField {
     }
 
     refine() {
-        let mid = Fraction.divide(Fraction.add(this.lower, this.upper), fraction(2));
-        let sl = Fraction.sign(this.poly.eval(this.lower));
-        let sm = Fraction.sign(this.poly.eval(mid));
-        let su = Fraction.sign(this.poly.eval(this.upper));
+        let mid = this.lower.add(this.upper).div(fraction(2));
+        let sl = this.poly.eval(this.lower).sign();
+        let sm = this.poly.eval(mid).sign();
+        let su = this.poly.eval(this.upper).sign();
         if (sl == 0)
             this.upper = this.lower;
         else if (su == 0)
@@ -114,7 +114,7 @@ export class AlgebraicNumber {
         }
         for (let i=K.poly.degree; i<=p.degree; i++)
             for (let j=0; j<=K.powers[i].degree; j++)
-                coeffs[j] = Fraction.add(coeffs[j], Fraction.multiply(K.powers[i].coeffs[j], p.coeffs[i]));
+                coeffs[j] = coeffs[j].add(K.powers[i].coeffs[j].mul(p.coeffs[i]));
         return new AlgebraicNumber(K, new Polynomial(coeffs));
     }
     static invert(n: AlgebraicNumber): AlgebraicNumber {
@@ -159,13 +159,13 @@ export class AlgebraicNumber {
             K.refine();
             c = d.count_roots(K.lower, K.upper);
             }
-        return Fraction.sign(d.eval(K.lower));*/
+        return d.eval(K.lower).sign();*/
         let [val_l, val_u] = d.eval_interval(K.lower, K.upper);
-        while (Fraction.sign(val_l) != Fraction.sign(val_u)) {
+        while (val_l.sign() != val_u.sign()) {
             K.refine();
             [val_l, val_u] = d.eval_interval(K.lower, K.upper);
         }
-        return Fraction.sign(val_l);
+        return val_l.sign();
     }
 
     static lessThan(a: AlgebraicNumber, b: AlgebraicNumber): boolean {

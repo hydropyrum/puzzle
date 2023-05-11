@@ -1,3 +1,5 @@
+/* Similar interface as Fraction.js (https://github.com/infusion/Fraction.js/), but uses JSBI for integers. */
+
 import JSBI from "jsbi";
 
 function jsbi_abs(x: JSBI): JSBI {
@@ -57,52 +59,33 @@ export class Fraction {
         return fraction(Math.round(x*d), d);
     }
 
-    static toNumber(x: Fraction): number {
-        return JSBI.toNumber(x.n)/JSBI.toNumber(x.d);
+    toNumber(): number {
+        return JSBI.toNumber(this.n)/JSBI.toNumber(this.d);
     }
     
-    static unaryMinus(x: Fraction) {
-        return new Fraction(JSBI.unaryMinus(x.n), x.d, false);
+    neg() {
+        return new Fraction(JSBI.unaryMinus(this.n), this.d, false);
     }
-    static add(x: Fraction, y: Fraction) {
+    add(y: Fraction) {
         return new Fraction(
-            JSBI.add(JSBI.multiply(x.n, y.d), JSBI.multiply(x.d, y.n)),
-            JSBI.multiply(x.d, y.d)
+            JSBI.add(JSBI.multiply(this.n, y.d), JSBI.multiply(this.d, y.n)),
+            JSBI.multiply(this.d, y.d)
         );
     }
-    static subtract(x: Fraction, y: Fraction) {
-        return Fraction.add(x, Fraction.unaryMinus(y));
-    }
-    static multiply(x: Fraction, y: Fraction) {
+    sub(y: Fraction) { return this.add(y.neg()); }
+    mul(y: Fraction) {
         return new Fraction(
-            JSBI.multiply(x.n, y.n),
-            JSBI.multiply(x.d, y.d)
+            JSBI.multiply(this.n, y.n),
+            JSBI.multiply(this.d, y.d)
         );
     }
-    static invert(x: Fraction) {
-        return new Fraction(x.d, x.n, false);
-    }
-    static divide(x: Fraction, y: Fraction) {
-        return Fraction.multiply(x, Fraction.invert(y));
-    }
-    static lessThan(x: Fraction, y: Fraction) {
-        return JSBI.LT(Fraction.subtract(x, y).n, 0);
-    }
-    static lessThanOrEqual(x: Fraction, y: Fraction) {
-        return JSBI.LE(Fraction.subtract(x, y).n, 0);
-    }
-    static greaterThan(x: Fraction, y: Fraction) {
-        return JSBI.GT(Fraction.subtract(x, y).n, 0);
-    }
-    static greaterThanOrEqual(x: Fraction, y: Fraction) {
-        return JSBI.GE(Fraction.subtract(x, y).n, 0);
-    }
-    static equal(x: Fraction, y: Fraction) {
-        return JSBI.EQ(Fraction.subtract(x, y).n, 0);
-    }
-    static sign(x: Fraction): number { return jsbi_sign(x.n); }
-    static compare(x: Fraction, y: Fraction): number { return jsbi_sign(Fraction.subtract(x, y).n); }
-    static abs(x: Fraction): Fraction { return new Fraction(jsbi_abs(x.n), x.d); }
+    inverse() { return new Fraction(this.d, this.n, false); }
+    div(y: Fraction) { return this.mul(y.inverse()); }
+    
+    equals(y: Fraction) { return JSBI.EQ(this.sub(y).n, 0); }
+    sign(): number { return jsbi_sign(this.n); }
+    compare(y: Fraction): number { return jsbi_sign(this.sub(y).n); }
+    abs(): Fraction { return new Fraction(jsbi_abs(this.n), this.d); }
 }
 
 export function fraction(n: JSBI|number, d: JSBI|number = 1) {

@@ -7,8 +7,7 @@ export class Polynomial {
 
     constructor(coeffs: Fraction[]) {
         // drop leading zero coefficients
-        let zero = fraction(0);
-        while (coeffs.length > 0 && Fraction.equal(coeffs[coeffs.length-1], zero))
+        while (coeffs.length > 0 && coeffs[coeffs.length-1].sign() == 0)
             coeffs.pop();
         this.coeffs = coeffs;
         this.degree = coeffs.length-1;
@@ -18,8 +17,8 @@ export class Polynomial {
         let s = "";
         if (this.degree == -1) return "0";
         for (let i=this.degree; i>=0; i--) {
-            let sign = Fraction.sign(this.coeffs[i]);
-            let abs = Fraction.abs(this.coeffs[i]);
+            let sign = this.coeffs[i].sign();
+            let abs = this.coeffs[i].abs();
 
             if (sign < 0)
                 s += " - ";
@@ -28,7 +27,7 @@ export class Polynomial {
             else if (sign > 0 && i < this.degree)
                 s += " + "
 
-            if (!Fraction.equal(abs, fraction(1)) || i == 0)
+            if (!abs.equals(fraction(1)) || i == 0)
                 s += String(abs);
 
             if (i == 1)
@@ -45,27 +44,27 @@ export class Polynomial {
         // Horner's rule
         let sum = fraction(0);
         for (let i=this.degree; i>=0; i--)
-            sum = Fraction.add(Fraction.multiply(sum, arg), this.coeffs[i]);
+            sum = sum.mul(arg).add(this.coeffs[i]);
         return sum;
     }
     
     eval_approx(arg: number): number {
         let sum = 0;
         for (let i=this.degree; i>=0; i--)
-            sum = sum*arg + Fraction.toNumber(this.coeffs[i]);
+            sum = sum*arg + this.coeffs[i].toNumber();
         return sum;
     }
 
     eval_interval(arg_l: Fraction, arg_u: Fraction): [Fraction, Fraction] {
         let sum_l = fraction(0), sum_u = fraction(0);
         for (let i=this.degree; i>=0; i--) {
-            let sums = [Fraction.multiply(sum_l, arg_l),
-                        Fraction.multiply(sum_l, arg_u),
-                        Fraction.multiply(sum_u, arg_l),
-                        Fraction.multiply(sum_u, arg_u)];
-            sums.sort(Fraction.compare);
-            sum_l = Fraction.add(sums[0], this.coeffs[i]);
-            sum_u = Fraction.add(sums[3], this.coeffs[i]);
+            let sums = [sum_l.mul(arg_l),
+                        sum_l.mul(arg_u),
+                        sum_u.mul(arg_l),
+                        sum_u.mul(arg_u)];
+            sums.sort((a,b) => a.compare(b));
+            sum_l = sums[0].add(this.coeffs[i]);
+            sum_u = sums[3].add(this.coeffs[i]);
         }
         return [sum_l, sum_u];
     }
@@ -74,7 +73,7 @@ export class Polynomial {
         let coeffs: Fraction[] = [];
         for (let i=0; i<Math.max(a.coeffs.length, b.coeffs.length); i++) {
             if (i < a.coeffs.length && i < b.coeffs.length)
-                coeffs.push(Fraction.add(a.coeffs[i], b.coeffs[i]));
+                coeffs.push(a.coeffs[i].add(b.coeffs[i]));
             else if (i < a.coeffs.length)
                 coeffs.push(a.coeffs[i]);
             else /* if (i < b.coeffs.length) */
@@ -84,7 +83,7 @@ export class Polynomial {
     }
 
     static unaryMinus(a: Polynomial): Polynomial {
-        return new Polynomial(a.coeffs.map(Fraction.unaryMinus));
+        return new Polynomial(a.coeffs.map(c => c.neg()));
     }
 
     static subtract(a: Polynomial, b: Polynomial): Polynomial {
@@ -98,7 +97,7 @@ export class Polynomial {
         for (let k=0; k<=m+n; k++) {
             let ck = fraction(0);
             for (let i=Math.max(0,k-n); i<=Math.min(k,m); i++)
-                ck = Fraction.add(ck, Fraction.multiply(a.coeffs[i], b.coeffs[k-i]));
+                ck = ck.add(a.coeffs[i].mul(b.coeffs[k-i]));
             coeffs.push(ck);
         }
         return new Polynomial(coeffs);
@@ -111,10 +110,10 @@ export class Polynomial {
         let rem = a.coeffs.map(x => x);
         let quo: Fraction[] = [];
         for (let k=m; k>=n; k--) {
-            let q = Fraction.divide(rem[k], b.coeffs[n]);
+            let q = rem[k].div(b.coeffs[n]);
             quo.push(q);
             for (let j=0; j<=n; j++)
-                rem[k-n+j] = Fraction.subtract(rem[k-n+j], Fraction.multiply(q, b.coeffs[j]));
+                rem[k-n+j] = rem[k-n+j].sub(q.mul(b.coeffs[j]));
         }
         quo = quo.reverse();
         return [new Polynomial(quo), new Polynomial(rem)];
@@ -122,7 +121,7 @@ export class Polynomial {
     
     static divide(a: Polynomial, b: Polynomial): Polynomial {
         if (b.degree == 0) // special faster case
-            return new Polynomial(a.coeffs.map(x => Fraction.divide(x, b.coeffs[0])));
+            return new Polynomial(a.coeffs.map(x => x.div(b.coeffs[0])));
         else {
             let [q, r] = Polynomial.divmod(a, b);
             return q;
@@ -136,24 +135,24 @@ export class Polynomial {
     static equal(a: Polynomial, b: Polynomial): boolean {
         if (a.degree != b.degree) return false;
         for (let i=0; i<=a.degree; i++)
-            if (!Fraction.equal(a.coeffs[i], b.coeffs[i])) return false;
+            if (!a.coeffs[i].equals(b.coeffs[i])) return false;
         return true;
     }
 
     derivative(): Polynomial {
         let coeffs: Fraction[] = [];
         for (let i=1; i<=this.degree; i++)
-            coeffs.push(Fraction.multiply(fraction(i), this.coeffs[i]));
+            coeffs.push(fraction(i).mul(this.coeffs[i]));
         return new Polynomial(coeffs);
     }
 
     sturm_sequence(arg: Fraction): number {
         /* Number of sign changes in Sturm sequence at arg. */
         let p0: Polynomial = this, p1 = this.derivative();
-        let prev_sign = Fraction.sign(p0.eval(arg));
+        let prev_sign = p0.eval(arg).sign();
         let changes = 0;
         while (p1.degree >= 0) {
-            let cur_sign = Fraction.sign(p1.eval(arg));
+            let cur_sign = p1.eval(arg).sign();
             if (cur_sign != 0) {
                 if (prev_sign != 0 && cur_sign != prev_sign)
                     changes++;
@@ -166,7 +165,7 @@ export class Polynomial {
 
     count_roots(lower: Fraction, upper: Fraction): number {
         /* Number of roots in interval [lower, upper] */
-        return (Fraction.sign(this.eval(lower)) == 0 ? 1 : 0) + this.sturm_sequence(lower) - this.sturm_sequence(upper);
+        return (this.eval(lower).sign() == 0 ? 1 : 0) + this.sturm_sequence(lower) - this.sturm_sequence(upper);
     }
     
     /* Find an isolating interval for the root of p nearest x. */

@@ -32,105 +32,77 @@ test('toString', () => {
 
 test('toNumber', () => {
     for (let frac of fracs.concat(unreduced_fracs))
-        expect(Fraction.toNumber(fraction(frac.n, frac.d)))
+        expect(fraction(frac.n, frac.d).toNumber())
             .toBeCloseTo(frac.n/frac.d);
 });
 
-test('unaryMinus', () => {
+test('neg', () => {
     for (let frac of fracs)
-        expect(Fraction.toNumber(Fraction.unaryMinus(fraction(frac.n, frac.d))))
+        expect(fraction(frac.n, frac.d).neg().toNumber())
             .toBeCloseTo(-frac.n/frac.d);
 });
 
 test('add', () => {
     for (let a of fracs)
         for (let b of fracs)
-            expect(Fraction.toNumber(Fraction.add(fraction(a.n, a.d), fraction(b.n, b.d))))
+            expect(fraction(a.n, a.d).add(fraction(b.n, b.d)).toNumber())
                 .toBeCloseTo(a.n/a.d + b.n/b.d);
 });
 
-test('subtract', () => {
+test('sub', () => {
     for (let a of fracs)
         for (let b of fracs)
-            expect(Fraction.toNumber(Fraction.subtract(fraction(a.n, a.d), fraction(b.n, b.d))))
+            expect(fraction(a.n, a.d).sub(fraction(b.n, b.d)).toNumber())
                 .toBeCloseTo(a.n/a.d - b.n/b.d);
 });
 
-test('multiply', () => {
+test('mul', () => {
     for (let a of fracs)
         for (let b of fracs)
-            expect(Fraction.toNumber(Fraction.multiply(fraction(a.n, a.d), fraction(b.n, b.d))))
+            expect(fraction(a.n, a.d).mul(fraction(b.n, b.d)).toNumber())
                 .toBeCloseTo((a.n/a.d) * (b.n/b.d));
 });
 
-test('invert', () => {
+test('inverse', () => {
     for (let frac of fracs)
         if (frac.n != 0) {
-            expect(Fraction.toNumber(Fraction.invert(fraction(frac.n, frac.d))))
+            expect(fraction(frac.n, frac.d).inverse().toNumber())
                 .toBeCloseTo(1/(frac.n/frac.d));
         } else {
-            expect(() => Fraction.toNumber(Fraction.invert(fraction(frac.n, frac.d))))
+            expect(() => fraction(frac.n, frac.d).inverse())
                 .toThrow("Division by zero");
         }
 });
 
-test('divide', () => {
+test('div', () => {
     for (let a of fracs)
         for (let b of fracs)
             if (b.n != 0) {
-                expect(Fraction.toNumber(Fraction.divide(fraction(a.n, a.d), fraction(b.n, b.d))))
+                expect(fraction(a.n, a.d).div(fraction(b.n, b.d)).toNumber())
                     .toBeCloseTo((a.n/a.d) / (b.n/b.d));
             } else {
-                expect(() => Fraction.toNumber(Fraction.divide(fraction(a.n, a.d), fraction(b.n, b.d))))
+                expect(() => fraction(a.n, a.d).div(fraction(b.n, b.d)))
                     .toThrow("Division by zero");
                 
             }
 });
 
-test('lessThan', () => {
-    for (let a of fracs)
-        for (let b of fracs)
-            expect(Fraction.lessThan(fraction(a.n, a.d), fraction(b.n, b.d)))
-                .toBe(a.n/a.d < b.n/b.d);
-});
-
-test('lessThanOrEqual', () => {
-    for (let a of fracs)
-        for (let b of fracs)
-            expect(Fraction.lessThanOrEqual(fraction(a.n, a.d), fraction(b.n, b.d)))
-                .toBe(a.n/a.d <= b.n/b.d);
-});
-
-test('greaterThan', () => {
-    for (let a of fracs)
-        for (let b of fracs)
-            expect(Fraction.greaterThan(fraction(a.n, a.d), fraction(b.n, b.d)))
-                .toBe(a.n/a.d > b.n/b.d);
-});
-
-test('greaterThanOrEqual', () => {
-    for (let a of fracs)
-        for (let b of fracs)
-            expect(Fraction.greaterThanOrEqual(fraction(a.n, a.d), fraction(b.n, b.d)))
-                .toBe(a.n/a.d >= b.n/b.d);
-});
-
-test('equal', () => {
+test('equals', () => {
     for (let a of fracs.concat(unreduced_fracs))
         for (let b of fracs.concat(unreduced_fracs))
-            expect(Fraction.equal(fraction(a.n, a.d), fraction(b.n, b.d)))
+            expect(fraction(a.n, a.d).equals(fraction(b.n, b.d)))
                 .toBe(a.n/a.d == b.n/b.d);
 });
 
 test('sign', () => {
     for (let frac of fracs)
-        expect(Fraction.sign(fraction(frac.n, frac.d)))
+        expect(fraction(frac.n, frac.d).sign())
             .toBe(Math.sign(frac.n/frac.d));
 });
 
 test('abs', () => {
     for (let frac of fracs)
-        expect(Fraction.toNumber(Fraction.abs(fraction(frac.n, frac.d))))
+        expect(fraction(frac.n, frac.d).abs().toNumber())
             .toBe(Math.abs(frac.n/frac.d));
 });
 
