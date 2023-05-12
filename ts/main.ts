@@ -292,7 +292,7 @@ function list_to_shapes(list: HTMLElement) {
         let se = item.getElementsByClassName('shape')[0] as HTMLSelectElement;
         shape = se.options[se.selectedIndex].value;
         let de = item.getElementsByClassName('scale')[0] as HTMLInputElement;
-        scale = parseFloat(de.value);
+        scale = parse.parseReal(de.value);
         if (isNaN(scale)) continue;
         if (shape == "plane") {
             let normal = item.getElementsByClassName('normal')[0] as HTMLInputElement;

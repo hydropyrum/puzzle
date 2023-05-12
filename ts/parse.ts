@@ -1,5 +1,7 @@
 /* Parse URL */
 
+import { algebraicNumberField } from './exact';
+
 export interface Polyhedron {
     tag: "polyhedron";
     name: string;
@@ -21,9 +23,97 @@ export interface Puzzle {
     cuts: Shape[];
 };
 
-function parseReal(s: string): number {
-    // to do: algebraic numbers
-    return parseFloat(s);
+/* Grammar:
+
+  E -> E + T
+  E -> E - T
+  E -> T
+  T -> T * F
+  T -> T / F
+  T -> F
+  F -> <integer>
+  F -> ( E )
+  F -> - F
+  F -> <function> ( E )
+*/
+
+/* why does cut +1 on tetrahedron make it disappear
+   sqrt not working yet
+ */
+
+export function parseReal(s: string): number {
+    let tokens: (string|number)[] = [];
+    let tokenRE = /[+\-*/()]|sqrt|(\d+\.\d+)|(\d+)/y;
+    let m = tokenRE.exec(s);
+    while (m !== null) {
+        if (m[2] !== undefined)
+            tokens.push(parseInt(m[2]));
+        else if (m[1] !== undefined) // to do: remove this case
+            tokens.push(parseFloat(m[1]));
+        else
+            tokens.push(m[0]);
+        m = tokenRE.exec(s);
+    }
+
+    let i = 0;
+    let n = tokens.length;
+    
+    function parseExpr(): number {
+        let x = parseTerm();
+        while (i < n && (tokens[i] == '+' || tokens[i] == '-')) {
+            let op = tokens[i];
+            i++;
+            let y = parseTerm();
+            if (op == '+') x += y;
+            else if (op == '-') x -= y;
+        }
+        return x;
+    }
+    function parseTerm(): number {
+        let x = parseFactor();
+        while (i < n && (tokens[i] == '*' || tokens[i] == '/')) {
+            let op = tokens[i];
+            i++;
+            let y = parseFactor();
+            if (op == '*') x *= y;
+            else if (op == '/') x /= y;
+        }
+        return x;
+    }
+    function parseFactor(): number {
+        if (i < n && tokens[i] == '-') {
+            i++;
+            let x = parseFactor();
+            return -x;
+        } else if (i < n && tokens[i] == '(') {
+            i++;
+            let x = parseExpr();
+            parseToken(')');
+            return x;
+        } else if (i < n && typeof tokens[i] === 'number') {
+            let x = tokens[i] as number;
+            i++;
+            return x;
+        } else if (i < n && tokens[i] == 'sqrt') {
+            i++;
+            parseToken('(');
+            let x = parseExpr();
+            parseToken(')');
+            return Math.sqrt(x);
+        } else
+            throw new Error('parse error');
+    }
+    function parseToken(tok: string): string {
+        if (i < n && tokens[i] == tok) {
+            i++;
+            return tok;
+        } else
+            throw new Error(`parse error: expected ${tok}`);
+    }
+    let x = parseExpr();
+    if (i < n) throw new Error("parse error: expected end of string");
+    console.log(`parsed ${s} as ${x}`);
+    return x;
 }
 
 function parseShape(s: string): Shape {
