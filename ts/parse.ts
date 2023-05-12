@@ -1,19 +1,20 @@
 /* Parse URL */
 
-import { algebraicNumberField } from './exact';
+import { algebraicNumberField, AlgebraicNumber } from './exact';
+import { Fraction, fraction } from './fraction';
 
 export interface Polyhedron {
     tag: "polyhedron";
     name: string;
-    d: number;
+    d: AlgebraicNumber;
 };
 
 export interface Plane {
     tag: "plane";
-    a: number;
-    b: number;
-    c: number;
-    d: number;
+    a: AlgebraicNumber;
+    b: AlgebraicNumber;
+    c: AlgebraicNumber;
+    d: AlgebraicNumber;
 };
 
 export type Shape = Polyhedron|Plane;
@@ -37,19 +38,24 @@ export interface Puzzle {
   F -> <function> ( E )
 */
 
-/* why does cut +1 on tetrahedron make it disappear
-   sqrt not working yet
- */
-
-export function parseReal(s: string): number {
-    let tokens: (string|number)[] = [];
-    let tokenRE = /[+\-*/()]|sqrt|(\d+\.\d+)|(\d+)/y;
+export function parseReal(s: string): AlgebraicNumber {
+    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847); // Q(sqrt(2), sqrt(5))
+    let tokens: (string|AlgebraicNumber)[] = [];
+    let tokenRE = /[+\-*/()]|sqrt\((\d+)\)|(\d+\.\d+)|(\d+)/y;
     let m = tokenRE.exec(s);
     while (m !== null) {
-        if (m[2] !== undefined)
-            tokens.push(parseInt(m[2]));
-        else if (m[1] !== undefined) // to do: remove this case
-            tokens.push(parseFloat(m[1]));
+        if (m[1] !== undefined) {
+            let arg = parseInt(m[1]);
+            if (arg == 2)
+                tokens.push(K.fromVector([0, fraction(-11,6), 0, fraction(1,6)]));
+            else if (arg == 5)
+                tokens.push(K.fromVector([0, fraction(17,6), 0, fraction(-1,6)]));
+            else
+                throw new Error(`I don't know how to take the sqrt of ${arg}`);
+        } else if (m[2] !== undefined) // to do: remove this case
+            tokens.push(K.fromVector([Fraction.fromNumber(parseFloat(m[2]))]));
+        else if (m[3] !== undefined)
+            tokens.push(K.fromVector([parseInt(m[3])]));
         else
             tokens.push(m[0]);
         m = tokenRE.exec(s);
@@ -58,48 +64,42 @@ export function parseReal(s: string): number {
     let i = 0;
     let n = tokens.length;
     
-    function parseExpr(): number {
+    function parseExpr(): AlgebraicNumber {
         let x = parseTerm();
         while (i < n && (tokens[i] == '+' || tokens[i] == '-')) {
             let op = tokens[i];
             i++;
             let y = parseTerm();
-            if (op == '+') x += y;
-            else if (op == '-') x -= y;
+            if (op == '+') x = AlgebraicNumber.add(x, y);
+            else if (op == '-') x = AlgebraicNumber.subtract(x, y);
         }
         return x;
     }
-    function parseTerm(): number {
+    function parseTerm(): AlgebraicNumber {
         let x = parseFactor();
         while (i < n && (tokens[i] == '*' || tokens[i] == '/')) {
             let op = tokens[i];
             i++;
             let y = parseFactor();
-            if (op == '*') x *= y;
-            else if (op == '/') x /= y;
+            if (op == '*') x = AlgebraicNumber.multiply(x, y);
+            else if (op == '/') x = AlgebraicNumber.divide(x, y);
         }
         return x;
     }
-    function parseFactor(): number {
+    function parseFactor(): AlgebraicNumber {
         if (i < n && tokens[i] == '-') {
             i++;
             let x = parseFactor();
-            return -x;
+            return AlgebraicNumber.unaryMinus(x);
         } else if (i < n && tokens[i] == '(') {
             i++;
             let x = parseExpr();
             parseToken(')');
             return x;
-        } else if (i < n && typeof tokens[i] === 'number') {
-            let x = tokens[i] as number;
+        } else if (i < n && tokens[i] instanceof AlgebraicNumber) {
+            let x = tokens[i] as AlgebraicNumber;
             i++;
             return x;
-        } else if (i < n && tokens[i] == 'sqrt') {
-            i++;
-            parseToken('(');
-            let x = parseExpr();
-            parseToken(')');
-            return Math.sqrt(x);
         } else
             throw new Error('parse error');
     }
@@ -112,7 +112,6 @@ export function parseReal(s: string): number {
     }
     let x = parseExpr();
     if (i < n) throw new Error("parse error: expected end of string");
-    console.log(`parsed ${s} as ${x}`);
     return x;
 }
 

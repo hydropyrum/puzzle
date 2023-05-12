@@ -63,16 +63,15 @@ export function make_cuts(cuts: ExactPlane[], pieces: PolyGeometry[]): PolyGeome
     return pieces;
 }
 
-export function polyhedron(name: string, d: number): ExactPlane[] {
-    let fd = Fraction.fromNumber(d);
+export function polyhedron(name: string, d: AlgebraicNumber): ExactPlane[] {
     switch (name) {
-        case "T":  return polyhedra.tetrahedron(fd);
-        case "C":  return polyhedra.cube(fd);
-        case "O":  return polyhedra.octahedron(fd);
-        case "D":  return polyhedra.dodecahedron(fd);
-        case "I":  return polyhedra.icosahedron(fd);
-        case "jC": return polyhedra.rhombicDodecahedron(fd);
-        case "jD": return polyhedra.rhombicTriacontahedron(fd);
+        case "T":  return polyhedra.tetrahedron(d);
+        case "C":  return polyhedra.cube(d);
+        case "O":  return polyhedra.octahedron(d);
+        case "D":  return polyhedra.dodecahedron(d);
+        case "I":  return polyhedra.icosahedron(d);
+        case "jC": return polyhedra.rhombicDodecahedron(d);
+        case "jD": return polyhedra.rhombicTriacontahedron(d);
     }
     return [];
 }

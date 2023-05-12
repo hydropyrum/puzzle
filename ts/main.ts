@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls';
 import { make_shell, make_cuts, polyhedron } from './make';
 import { Cut, find_cuts, find_stops, make_move } from './move';
-import { ExactPlane, exactPlane, PolyGeometry, triangulate_polygeometry } from './piece';
+import { ExactPlane, ExactVector3, PolyGeometry, triangulate_polygeometry } from './piece';
 import { pointhash, EPSILON, setdefault } from './util';
 import * as parse from './parse';
 
@@ -288,15 +288,13 @@ function list_to_shapes(list: HTMLElement) {
     for (let item of Array.from(list.children)) {
         // skip first item, which is a dummy item
         if (item === list.firstElementChild) continue;
-        let shape = "", scale = 0;
         let se = item.getElementsByClassName('shape')[0] as HTMLSelectElement;
-        shape = se.options[se.selectedIndex].value;
+        let shape = se.options[se.selectedIndex].value;
         let de = item.getElementsByClassName('scale')[0] as HTMLInputElement;
-        scale = parse.parseReal(de.value);
-        if (isNaN(scale)) continue;
+        let scale = parse.parseReal(de.value);
         if (shape == "plane") {
             let normal = item.getElementsByClassName('normal')[0] as HTMLInputElement;
-            let coeffs = normal.value.split(',').map(parseFloat);
+            let coeffs = normal.value.split(',').map(parse.parseReal);
             ret.push({tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: scale});
         } else {
             ret.push({tag: "polyhedron", name: shape, d: scale});
@@ -318,7 +316,7 @@ function apply_cuts() {
     let planes: ExactPlane[] = [];
     for (let s of p.shell) {
         if (s.tag == "plane") {
-            planes.push(exactPlane(s.a, s.b, s.c, s.d));
+            planes.push(new ExactPlane(new ExactVector3(s.a, s.b, s.c), s.d));
         } else if (s.tag == "polyhedron") {
           planes = planes.concat(polyhedron(s.name, s.d));
         }
@@ -334,7 +332,7 @@ function apply_cuts() {
     let cutplanes = [];
     for (let s of p.cuts) {
         if (s.tag == "plane")
-            cutplanes.push(exactPlane(s.a, s.b, s.c, s.d));
+            cutplanes.push(new ExactPlane(new ExactVector3(s.a, s.b, s.c), s.d));
         else if (s.tag == "polyhedron")
             cutplanes.push(...polyhedron(s.name, s.d));
     }

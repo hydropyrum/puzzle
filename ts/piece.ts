@@ -92,18 +92,6 @@ export class ExactPlane {
     }
 };
 
-export function exactPlane(a: number, b: number, c: number, d: number): ExactPlane {
-    let K = algebraicNumberField([-1, 1], 1); // trivial
-    return new ExactPlane(
-        new ExactVector3(
-            K.fromVector([a]),
-            K.fromVector([b]),
-            K.fromVector([c])
-        ),
-        K.fromVector([d])
-    );
-}
-
 export class PolyGeometry {
     vertices: ExactVector3[];
     faces: PolyFace[];
@@ -136,7 +124,8 @@ export function cube_polygeometry(d: number = 1000): PolyGeometry {
                     new ExactVector3(K.fromVector([Fraction.fromNumber(x)]),
                                      K.fromVector([Fraction.fromNumber(y)]),
                                      K.fromVector([Fraction.fromNumber(z)])));
-    let dummy_plane = exactPlane(0, 0, 0, 0); // to do: make not dumb
+    let zero = K.fromVector([]);
+    let dummy_plane = new ExactPlane(new ExactVector3(zero, zero, zero), zero); // to do: make not dumb
     for (let i of [1, 2, 4]) {
         let j = i < 4 ? i * 2 : 1;
         let k = j < 4 ? j * 2 : 1;
