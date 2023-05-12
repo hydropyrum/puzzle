@@ -23,6 +23,9 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: ExactPlane, co
     
     let sides = vertices.map(v => plane.side(v));
 
+    if (sides.every(s => s >= 0)) return [geometry, new PolyGeometry([], [])];
+    if (sides.every(s => s <= 0)) return [new PolyGeometry([], []), geometry];
+
     let front = new PolyGeometry([], []);
     let frontmap: {[key: number]: number} = {}; // map geometry.vertices to front.vertices
     let back = new PolyGeometry([], []);
@@ -55,11 +58,6 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: ExactPlane, co
             if (sides[cur] >= 0) frontpoints.push(cur);
             if (sides[cur] <= 0) backpoints.push(cur);
             prev = cur;
-        }
-        // If face lies entirely on plane, don't add it to either half-face.
-        if (face.vertices.every(v => sides[v] == 0)) {
-            frontpoints = [];
-            backpoints = [];
         }
         if (frontpoints.length >= 3) {
             for (let i=0; i<frontpoints.length; i++) {

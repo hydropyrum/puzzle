@@ -17,7 +17,7 @@ test('cut_face', () => {
     let [front, back] = slice_polygeometry(cube, plane, new THREE.Color(), true);
     expect(front.vertices.length).toBe(8);
     expect(front.faces.map(f => f.vertices.length).sort()).toEqual([4,4,4,4,4,4]);
-    expect(front.faces.map(f => f.interior).sort()).toEqual([false,false,false,false,false,true]);
+    expect(front.faces.map(f => f.interior).sort()).toEqual([false,false,false,false,false,false]);
     expect(back.faces.length).toBe(0);
 });
 
