@@ -6,15 +6,15 @@ import { Fraction, fraction } from './fraction';
 export interface Polyhedron {
     tag: "polyhedron";
     name: string;
-    d: AlgebraicNumber;
+    d: string;
 };
 
 export interface Plane {
     tag: "plane";
-    a: AlgebraicNumber;
-    b: AlgebraicNumber;
-    c: AlgebraicNumber;
-    d: AlgebraicNumber;
+    a: string;
+    b: string;
+    c: string;
+    d: string;
 };
 
 export type Shape = Polyhedron|Plane;
@@ -118,17 +118,13 @@ export function parseReal(s: string): AlgebraicNumber {
 function parseShape(s: string): Shape {
     let parts = s.split("$");
     console.assert(parts.length == 2, "parse error: expected $");
-    let d = parseReal(parts[1]);
+    let d = parts[1];
     s = parts[0];
 
     if (s == 'plane') {
         let coeffs = s.split(",");
         console.assert(coeffs.length == 3, "parse error: expected exactly 3 coefficients");
-        return {tag: 'plane',
-                a: parseReal(coeffs[0]),
-                b: parseReal(coeffs[1]),
-                c: parseReal(coeffs[2]),
-                d: d};
+        return {tag: 'plane', a: coeffs[0], b: coeffs[1], c: coeffs[2], d: d};
     } else {
         return {tag: 'polyhedron', name: s, d: d};
     }

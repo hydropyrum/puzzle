@@ -274,10 +274,10 @@ function add_item(list: HTMLElement, shape?: parse.Shape) {
         } else if (shape.tag == "plane") {
             select_option(se, "plane");
             let ne = item.getElementsByClassName('normal')[0] as HTMLInputElement;
-            ne.value = shape.a.toString() + ',' + shape.b.toString() + ',' + shape.c.toString();
+            ne.value = shape.a + ',' + shape.b + ',' + shape.c;
         }
         let de = item.getElementsByClassName('scale')[0] as HTMLInputElement;
-        de.value = shape.d.toString();
+        de.value = shape.d;
     }
 }
 document.getElementById('add_shell')!.addEventListener('click', e => add_item(shells_list), false);
@@ -291,10 +291,10 @@ function list_to_shapes(list: HTMLElement) {
         let se = item.getElementsByClassName('shape')[0] as HTMLSelectElement;
         let shape = se.options[se.selectedIndex].value;
         let de = item.getElementsByClassName('scale')[0] as HTMLInputElement;
-        let scale = parse.parseReal(de.value);
+        let scale = de.value;
         if (shape == "plane") {
             let normal = item.getElementsByClassName('normal')[0] as HTMLInputElement;
-            let coeffs = normal.value.split(',').map(parse.parseReal);
+            let coeffs = normal.value.split(',');
             ret.push({tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: scale});
         } else {
             ret.push({tag: "polyhedron", name: shape, d: scale});
@@ -316,9 +316,12 @@ function apply_cuts() {
     let planes: ExactPlane[] = [];
     for (let s of p.shell) {
         if (s.tag == "plane") {
-            planes.push(new ExactPlane(new ExactVector3(s.a, s.b, s.c), s.d));
+            planes.push(new ExactPlane(new ExactVector3(parse.parseReal(s.a),
+                                                        parse.parseReal(s.b),
+                                                        parse.parseReal(s.c)),
+                                       parse.parseReal(s.d)));
         } else if (s.tag == "polyhedron") {
-          planes = planes.concat(polyhedron(s.name, s.d));
+            planes = planes.concat(polyhedron(s.name, parse.parseReal(s.d)));
         }
     }
     let shell = make_shell(planes);
@@ -332,9 +335,12 @@ function apply_cuts() {
     let cutplanes = [];
     for (let s of p.cuts) {
         if (s.tag == "plane")
-            cutplanes.push(new ExactPlane(new ExactVector3(s.a, s.b, s.c), s.d));
+            cutplanes.push(new ExactPlane(new ExactVector3(parse.parseReal(s.a),
+                                                           parse.parseReal(s.b),
+                                                           parse.parseReal(s.c)),
+                                          parse.parseReal(s.d)));
         else if (s.tag == "polyhedron")
-            cutplanes.push(...polyhedron(s.name, s.d));
+            cutplanes.push(...polyhedron(s.name, parse.parseReal(s.d)));
     }
     let newpuzzle = make_cuts(cutplanes, [shell]);
     console.log('number of exterior pieces:', newpuzzle.length);

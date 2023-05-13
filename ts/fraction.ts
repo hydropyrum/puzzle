@@ -56,6 +56,7 @@ export class Fraction {
     /* Temporary function for getting a fraction close to a float */
     static fromNumber(x: number) {
         const d = 1000000;
+        console.log(`warning: calling Fraction.fromNumber(${x})`);
         return fraction(Math.round(x*d), d);
     }
 

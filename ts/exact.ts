@@ -20,11 +20,9 @@ export class AlgebraicNumberField {
         this.powers = [];
         this.powers.push(polynomial([1]));
         for (let i=1; i<this.degree; i++)
-            this.powers.push(Polynomial.multiply(this.powers[i-1], polynomial([0,1])));
+            this.powers.push(this.powers[i-1].mul(polynomial([0,1])));
         for (let i=this.degree; i<=2*this.degree; i++)
-            this.powers.push(Polynomial.remainder(
-                Polynomial.multiply(this.powers[i-1], polynomial([0,1])),
-                this.poly));
+            this.powers.push(this.powers[i-1].mul(polynomial([0,1])).mod(this.poly));
     }
 
     toString(): string {
@@ -82,7 +80,7 @@ export class AlgebraicNumber {
     static check_same_field(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumberField {
         if (a.field === b.field)
             return a.field;
-        if (Polynomial.equal(a.field.poly, b.field.poly))
+        if (a.field.poly.equals(b.field.poly))
             return a.field;
         if (a.field.poly.degree == 1)
             return b.field;
@@ -93,19 +91,19 @@ export class AlgebraicNumber {
 
     static add(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
         let K = AlgebraicNumber.check_same_field(a, b);
-        return new AlgebraicNumber(K, Polynomial.add(a.poly, b.poly));
+        return new AlgebraicNumber(K, a.poly.add(b.poly));
     }
     static unaryMinus(a: AlgebraicNumber): AlgebraicNumber {
-        return new AlgebraicNumber(a.field, Polynomial.unaryMinus(a.poly));
+        return new AlgebraicNumber(a.field, a.poly.neg());
     }
     static subtract(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
         let K = AlgebraicNumber.check_same_field(a, b);
-        return new AlgebraicNumber(K, Polynomial.subtract(a.poly, b.poly));
+        return new AlgebraicNumber(K, a.poly.sub(b.poly));
     }
     static multiply(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
         let K = AlgebraicNumber.check_same_field(a, b);
-        let p = Polynomial.multiply(a.poly, b.poly);
-        //return new AlgebraicNumber(K, Polynomial.remainder(p, K.poly));
+        let p = a.poly.mul(b.poly);
+        //return new AlgebraicNumber(K, p.mod(K.poly));
         let coeffs = [];
         for (let i=0; i<K.poly.degree; i++) {
             if (i <= p.degree)
@@ -127,14 +125,14 @@ export class AlgebraicNumber {
         let zero = polynomial([0]);
         let r0 = a, r1 = b;
         let t0 = zero, t1 = polynomial([1]);
-        while (!Polynomial.equal(r1, zero)) {
-            let [q, r2] = Polynomial.divmod(r0, r1);
+        while (!r1.equals(zero)) {
+            let [q, r2] = r0.divmod(r1);
             [r0, r1] = [r1, r2];
-            [t0, t1] = [t1, Polynomial.subtract(t0, Polynomial.multiply(q, t1))];
+            [t0, t1] = [t1, t0.sub(q.mul(t1))];
         }
         if (r0.degree > 0)
             throw new RangeError("Division by zero: " + n);
-        return new AlgebraicNumber(K, Polynomial.divide(t0, r0));
+        return new AlgebraicNumber(K, t0.div(r0));
     }
     
     static divide(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
@@ -143,7 +141,7 @@ export class AlgebraicNumber {
     
     static equal(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
         let K = AlgebraicNumber.check_same_field(a, b);
-        return Polynomial.equal(a.poly, b.poly);
+        return a.poly.equals(b.poly);
     }
 
     static isZero(a: AlgebraicNumber): boolean {
@@ -152,7 +150,7 @@ export class AlgebraicNumber {
 
     static compare(a: AlgebraicNumber, b: AlgebraicNumber): number {
         let K = AlgebraicNumber.check_same_field(a, b);
-        let d = Polynomial.subtract(a.poly, b.poly);
+        let d = a.poly.sub(b.poly);
         if (d.degree == -1) return 0;
         /* // Loos
         let c = d.count_roots(K.lower, K.upper);

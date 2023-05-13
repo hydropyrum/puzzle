@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber } from './exact';
-import { Fraction } from './fraction';
+import { fraction } from './fraction';
 
 export class ExactVector3 {
     x: AlgebraicNumber;
@@ -114,17 +114,17 @@ export interface PolyFace {
     interior: boolean;
 };
 
-export function cube_polygeometry(d: number = 1000): PolyGeometry {
-    let K = algebraicNumberField([-1, 1], 1); // trivial
+export function cube_polygeometry(d?: AlgebraicNumber): PolyGeometry {
+    if (d === undefined) {
+        let K = algebraicNumberField([-1, 1], 1); // trivial
+        d = K.fromVector([fraction(1000)]);
+    }
     let g = new PolyGeometry([], []);
-    for (let z of [-d, d])
-        for (let y of [-d, d])
-            for (let x of [-d, d])
-                g.vertices.push(
-                    new ExactVector3(K.fromVector([Fraction.fromNumber(x)]),
-                                     K.fromVector([Fraction.fromNumber(y)]),
-                                     K.fromVector([Fraction.fromNumber(z)])));
-    let zero = K.fromVector([]);
+    for (let z of [AlgebraicNumber.unaryMinus(d), d])
+        for (let y of [AlgebraicNumber.unaryMinus(d), d])
+            for (let x of [AlgebraicNumber.unaryMinus(d), d])
+                g.vertices.push(new ExactVector3(x, y, z));
+    let zero = d.field.fromVector([]);
     let dummy_plane = new ExactPlane(new ExactVector3(zero, zero, zero), zero); // to do: make not dumb
     for (let i of [1, 2, 4]) {
         let j = i < 4 ? i * 2 : 1;

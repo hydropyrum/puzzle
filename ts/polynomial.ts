@@ -69,7 +69,8 @@ export class Polynomial {
         return [sum_l, sum_u];
     }
 
-    static add(a: Polynomial, b: Polynomial): Polynomial {
+    add(b: Polynomial): Polynomial {
+        let a = this;
         let coeffs: Fraction[] = [];
         for (let i=0; i<Math.max(a.coeffs.length, b.coeffs.length); i++) {
             if (i < a.coeffs.length && i < b.coeffs.length)
@@ -82,32 +83,27 @@ export class Polynomial {
         return new Polynomial(coeffs);
     }
 
-    static unaryMinus(a: Polynomial): Polynomial {
-        return new Polynomial(a.coeffs.map(c => c.neg()));
-    }
-
-    static subtract(a: Polynomial, b: Polynomial): Polynomial {
-        return Polynomial.add(a, Polynomial.unaryMinus(b));
-    }
+    neg(): Polynomial { return new Polynomial(this.coeffs.map(c => c.neg())); }
+    sub(b: Polynomial): Polynomial { return this.add(b.neg()); }
         
-    static multiply(a: Polynomial, b: Polynomial): Polynomial {
+    mul(b: Polynomial): Polynomial {
         let coeffs: Fraction[] = [];
-        let m = a.degree;
+        let m = this.degree;
         let n = b.degree;
         for (let k=0; k<=m+n; k++) {
             let ck = fraction(0);
             for (let i=Math.max(0,k-n); i<=Math.min(k,m); i++)
-                ck = ck.add(a.coeffs[i].mul(b.coeffs[k-i]));
+                ck = ck.add(this.coeffs[i].mul(b.coeffs[k-i]));
             coeffs.push(ck);
         }
         return new Polynomial(coeffs);
     }
 
-    static divmod(a: Polynomial, b: Polynomial): [Polynomial, Polynomial] {
-        let m = a.degree;
+    divmod(b: Polynomial): [Polynomial, Polynomial] {
+        let m = this.degree;
         let n = b.degree;
         if (n == -1) throw new RangeError("Division by zero");
-        let rem = a.coeffs.map(x => x);
+        let rem = this.coeffs.map(x => x);
         let quo: Fraction[] = [];
         for (let k=m; k>=n; k--) {
             let q = rem[k].div(b.coeffs[n]);
@@ -119,23 +115,23 @@ export class Polynomial {
         return [new Polynomial(quo), new Polynomial(rem)];
     }
     
-    static divide(a: Polynomial, b: Polynomial): Polynomial {
+    div(b: Polynomial): Polynomial {
         if (b.degree == 0) // special faster case
-            return new Polynomial(a.coeffs.map(x => x.div(b.coeffs[0])));
+            return new Polynomial(this.coeffs.map(x => x.div(b.coeffs[0])));
         else {
-            let [q, r] = Polynomial.divmod(a, b);
+            let [q, r] = this.divmod(b);
             return q;
         }
     }
-    static remainder(a: Polynomial, b: Polynomial): Polynomial {
-        let [q, r] = Polynomial.divmod(a, b);
+    mod(b: Polynomial): Polynomial {
+        let [q, r] = this.divmod(b);
         return r;
     }
 
-    static equal(a: Polynomial, b: Polynomial): boolean {
-        if (a.degree != b.degree) return false;
-        for (let i=0; i<=a.degree; i++)
-            if (!a.coeffs[i].equals(b.coeffs[i])) return false;
+    equals(b: Polynomial): boolean {
+        if (this.degree != b.degree) return false;
+        for (let i=0; i<=this.degree; i++)
+            if (!this.coeffs[i].equals(b.coeffs[i])) return false;
         return true;
     }
 
@@ -158,7 +154,7 @@ export class Polynomial {
                     changes++;
                 prev_sign = cur_sign;
             }
-            [p0, p1] = [p1, Polynomial.unaryMinus(Polynomial.remainder(p0, p1))];
+            [p0, p1] = [p1, p0.mod(p1).neg()];
         }
         return changes;
     }

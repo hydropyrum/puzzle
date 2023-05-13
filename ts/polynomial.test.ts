@@ -45,10 +45,10 @@ test('eval_approx', () => {
                 .toBeCloseTo(p.f(x));
 });
 
-test('equal', () => {
+test('equals', () => {
     for (let p of polys.concat(leading_zeros).map(p => polynomial(p.c)))
         for (let q of polys.concat(leading_zeros).map(q => polynomial(q.c)))
-            if (Polynomial.equal(p, q)) {
+            if (p.equals(q)) {
                 for (let x of args.map(x => fraction(x)))
                     expect(p.eval(x).equals(q.eval(x))).toBe(true);
             } else {
@@ -63,38 +63,37 @@ test('add', () => {
     for (let p of polys.map(p => polynomial(p.c)))
         for (let q of polys.map(q => polynomial(q.c)))
             for (let x of args.map(x => fraction(x)))
-                expect(Polynomial.add(p, q).eval(x).equals(
+                expect(p.add(q).eval(x).equals(
                     p.eval(x).add(q.eval(x)))).toBe(true);
 });
 test('unaryMinus', () => {
     for (let p of polys.map(p => polynomial(p.c)))
         for (let x of args.map(x => fraction(x)))
-            expect(Polynomial.unaryMinus(p).eval(x).equals(
+            expect(p.neg().eval(x).equals(
                 p.eval(x).neg())).toBe(true);
 });
 test('subtract', () => {
     for (let p of polys.map(p => polynomial(p.c)))
         for (let q of polys.map(q => polynomial(q.c)))
             for (let x of args.map(x => fraction(x)))
-                expect(Polynomial.subtract(p, q).eval(x).equals(
+                expect(p.sub(q).eval(x).equals(
                     p.eval(x).sub(q.eval(x)))).toBe(true);
 });
 test('multiply', () => {
     for (let p of polys.map(p => polynomial(p.c)))
         for (let q of polys.map(q => polynomial(q.c)))
             for (let x of args.map(x => fraction(x)))
-                expect(Polynomial.multiply(p, q).eval(x).equals(
+                expect(p.mul(q).eval(x).equals(
                     p.eval(x).mul(q.eval(x)))).toBe(true);
 });
 test('divmod', () => {
     for (let dividend of polys.map(p => polynomial(p.c)))
         for (let divisor of polys.map(q => polynomial(q.c))) {
             if (divisor.degree >= 0) {
-                let [quotient, remainder] = Polynomial.divmod(dividend, divisor);
-                expect(Polynomial.equal(Polynomial.add(Polynomial.multiply(divisor, quotient), remainder),
-                                        dividend)).toBe(true);
+                let [quotient, remainder] = dividend.divmod(divisor);
+                expect(divisor.mul(quotient).add(remainder).equals(dividend)).toBe(true);
             } else {
-                expect(() => Polynomial.divmod(dividend, divisor)).toThrow("Division by zero");
+                expect(() => dividend.divmod(divisor)).toThrow("Division by zero");
             }
         }
 });
@@ -103,7 +102,7 @@ test('count_roots', () => {
     let roots = [-3, 0, 3];
     let points = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
     let factors = roots.map(x => polynomial([fraction(-x), fraction(1)]));
-    let poly = factors.reduce(Polynomial.multiply);
+    let poly = factors.reduce((p, q) => p.mul(q));
     for (let i=0; i<points.length; i++)
         for (let j=i; j<points.length; j++) {
             let true_count = 0;
@@ -118,7 +117,7 @@ test('isolate_root', () => {
     let roots = [-3, 0, 3];
     let points = [-3.1, -3, -2.9, -0.1, 0, 0.1, 2.9, 3, 3.1];
     let factors = roots.map(x => polynomial([fraction(-x), fraction(1)]));
-    let poly = factors.reduce(Polynomial.multiply);
+    let poly = factors.reduce((p, q) => p.mul(q));
     for (let x of points) {
         roots.sort((a,b) => Math.abs(a-x) - Math.abs(b-x));
         let root = roots[0];
