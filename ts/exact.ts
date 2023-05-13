@@ -67,8 +67,7 @@ export class AlgebraicNumber {
     }
 
     toString(): string {
-        //return this.poly.toString();
-        return String(this.poly.eval_approx(this.field.approx));
+        return this.poly.toString();
     }
     
     // alternatively, could initially refine a few times and use
