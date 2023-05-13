@@ -13,10 +13,7 @@ export class ExactVector3 {
     }
 
     toThree(): THREE.Vector3 {
-        return new THREE.Vector3(
-            AlgebraicNumber.toNumber(this.x),
-            AlgebraicNumber.toNumber(this.y),
-            AlgebraicNumber.toNumber(this.z));
+        return new THREE.Vector3(this.x.toNumber(), this.y.toNumber(), this.z.toNumber());
     }
 
     toString(): string {
@@ -24,30 +21,17 @@ export class ExactVector3 {
     }
 
     add (other: ExactVector3): ExactVector3 {
-        return new ExactVector3(
-            AlgebraicNumber.add(this.x, other.x),
-            AlgebraicNumber.add(this.y, other.y),
-            AlgebraicNumber.add(this.z, other.z));
+        return new ExactVector3(this.x.add(other.x), this.y.add(other.y), this.z.add(other.z));
     }
     sub (other: ExactVector3): ExactVector3 {
-        return new ExactVector3(
-            AlgebraicNumber.subtract(this.x, other.x),
-            AlgebraicNumber.subtract(this.y, other.y),
-            AlgebraicNumber.subtract(this.z, other.z));
+        return new ExactVector3(this.x.sub(other.x), this.y.sub(other.y), this.z.sub(other.z));
     }
     scale (other: AlgebraicNumber): ExactVector3 {
-        return new ExactVector3(
-            AlgebraicNumber.multiply(this.x, other),
-            AlgebraicNumber.multiply(this.y, other),
-            AlgebraicNumber.multiply(this.z, other));
+        return new ExactVector3(this.x.mul(other), this.y.mul(other), this.z.mul(other));
     }
 
     dot (other: ExactVector3): AlgebraicNumber {
-        return AlgebraicNumber.add(
-            AlgebraicNumber.multiply(this.x, other.x),
-            AlgebraicNumber.add(
-                AlgebraicNumber.multiply(this.y, other.y),
-                AlgebraicNumber.multiply(this.z, other.z)));
+        return this.x.mul(other.x).add(this.y.mul(other.y)).add(this.z.mul(other.z));
     }
 };
 
@@ -59,24 +43,18 @@ export class ExactPlane {
         this.constant = constant;
     }
     toThree(): THREE.Plane {
-        return new THREE.Plane(
-            this.normal.toThree(),
-            AlgebraicNumber.toNumber(this.constant)
-        ).normalize();
+        return new THREE.Plane(this.normal.toThree(), this.constant.toNumber()).normalize();
     }
 
     negate(): ExactPlane {
         return new ExactPlane(
-            new ExactVector3(
-                AlgebraicNumber.unaryMinus(this.normal.x),
-                AlgebraicNumber.unaryMinus(this.normal.y),
-                AlgebraicNumber.unaryMinus(this.normal.z)
-            ),
-            AlgebraicNumber.unaryMinus(this.constant));
+            new ExactVector3(this.normal.x.neg(), this.normal.y.neg(), this.normal.z.neg()),
+            this.constant.neg()
+        );
     }
 
     side(v: ExactVector3) {
-        return AlgebraicNumber.sign(AlgebraicNumber.add(this.normal.dot(v), this.constant));
+        return this.normal.dot(v).add(this.constant).sign();
     }
 
     intersectLine(a: ExactVector3, b: ExactVector3) {
@@ -85,9 +63,7 @@ export class ExactPlane {
         // => n·a + n·(b-a) t + d = 0
         // => t = - (n·a + d) / n·(b-a)
         let ab = b.sub(a);
-        let t = AlgebraicNumber.divide(
-            AlgebraicNumber.add(this.normal.dot(a), this.constant),
-            this.normal.dot(ab));
+        let t = this.normal.dot(a).add(this.constant).div(this.normal.dot(ab));
         return a.sub(ab.scale(t));
     }
 };
@@ -120,9 +96,9 @@ export function cube_polygeometry(d?: AlgebraicNumber): PolyGeometry {
         d = K.fromVector([fraction(1000)]);
     }
     let g = new PolyGeometry([], []);
-    for (let z of [AlgebraicNumber.unaryMinus(d), d])
-        for (let y of [AlgebraicNumber.unaryMinus(d), d])
-            for (let x of [AlgebraicNumber.unaryMinus(d), d])
+    for (let z of [d.neg(), d])
+        for (let y of [d.neg(), d])
+            for (let x of [d.neg(), d])
                 g.vertices.push(new ExactVector3(x, y, z));
     let zero = d.field.fromVector([]);
     let dummy_plane = new ExactPlane(new ExactVector3(zero, zero, zero), zero); // to do: make not dumb

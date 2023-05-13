@@ -17,80 +17,59 @@ let vals = [
 
 test('toNumber', () => {
     for (let val of vals)
-        expect(AlgebraicNumber.toNumber(K.fromVector(val.c))).toBeCloseTo(val.a);
+        expect(K.fromVector(val.c).toNumber()).toBeCloseTo(val.a);
 })
 
-test('equal', () => {
+test('equals', () => {
     for (let a of vals.map(v => K.fromVector(v.c)))
         for (let b of vals.map(v => K.fromVector(v.c))) {
-            if (AlgebraicNumber.equal(a,b))
-                expect(AlgebraicNumber.toNumber(a)).toBeCloseTo(AlgebraicNumber.toNumber(b), 15);
+            if (a.equals(b))
+                expect(a.toNumber()).toBeCloseTo(b.toNumber(), 15);
             else
-                expect(AlgebraicNumber.toNumber(a)).not.toBeCloseTo(AlgebraicNumber.toNumber(b), 15);
+                expect(a.toNumber()).not.toBeCloseTo(b.toNumber(), 15);
         }
 });
 
 test('add', () => {
     for (let a of vals)
         for (let b of vals)
-            expect(AlgebraicNumber.toNumber(AlgebraicNumber.add(K.fromVector(a.c), K.fromVector(b.c)))).toBeCloseTo(a.a + b.a);
+            expect(K.fromVector(a.c).add(K.fromVector(b.c)).toNumber()).toBeCloseTo(a.a + b.a);
 });
-test('unaryMinus', () => {
+test('neg', () => {
     for (let a of vals)
-        expect(AlgebraicNumber.toNumber(AlgebraicNumber.unaryMinus(K.fromVector(a.c)))).toBeCloseTo(-a.a);
+        expect(K.fromVector(a.c).neg().toNumber()).toBeCloseTo(-a.a);
 });
-test('subtract', () => {
-    for (let a of vals)
-        for (let b of vals)
-            expect(AlgebraicNumber.toNumber(AlgebraicNumber.subtract(K.fromVector(a.c), K.fromVector(b.c)))).toBeCloseTo(a.a - b.a);
-});
-test('multiply', () => {
+test('sub', () => {
     for (let a of vals)
         for (let b of vals)
-            expect(AlgebraicNumber.toNumber(AlgebraicNumber.multiply(K.fromVector(a.c), K.fromVector(b.c)))).toBeCloseTo(a.a * b.a);
+            expect(K.fromVector(a.c).sub(K.fromVector(b.c)).toNumber()).toBeCloseTo(a.a - b.a);
 });
-test('invert', () => {
+test('mul', () => {
+    for (let a of vals)
+        for (let b of vals)
+            expect(K.fromVector(a.c).mul(K.fromVector(b.c)).toNumber()).toBeCloseTo(a.a * b.a);
+});
+test('inverse', () => {
     for (let a of vals) {
         let p = K.fromVector(a.c);
-        if (!AlgebraicNumber.isZero(p))
-            expect(AlgebraicNumber.toNumber(AlgebraicNumber.invert(p))).toBeCloseTo(1/a.a);
+        if (!p.isZero())
+            expect(p.inverse().toNumber()).toBeCloseTo(1/a.a);
         else
-            expect(() => AlgebraicNumber.invert(p)).toThrow("Division by zero");
+            expect(() => p.inverse()).toThrow("Division by zero");
     }
 });
 test('divide', () => {
     for (let a of vals)
         for (let b of vals) {
             let ap = K.fromVector(a.c), bp = K.fromVector(b.c);
-            if (!AlgebraicNumber.isZero(bp))
-                expect(AlgebraicNumber.toNumber(AlgebraicNumber.divide(ap, bp))).toBeCloseTo(a.a / b.a);
+            if (!bp.isZero())
+                expect(ap.div(bp).toNumber()).toBeCloseTo(a.a / b.a);
             else
-                expect(() => AlgebraicNumber.divide(ap, bp)).toThrow("Division by zero");
+                expect(() => ap.div(bp)).toThrow("Division by zero");
         }
-});
-
-test('lessThan', () => {
-    for (let a of vals.map(v => K.fromVector(v.c)))
-        for (let b of vals.map(v => K.fromVector(v.c)))
-            expect(AlgebraicNumber.lessThan(a,b)).toBe(AlgebraicNumber.toNumber(a) < AlgebraicNumber.toNumber(b));
-});
-test('lessThanOrEqual', () => {
-    for (let a of vals.map(v => K.fromVector(v.c)))
-        for (let b of vals.map(v => K.fromVector(v.c)))
-            expect(AlgebraicNumber.lessThanOrEqual(a,b)).toBe(AlgebraicNumber.toNumber(a) <= AlgebraicNumber.toNumber(b));
-});
-test('greaterThan', () => {
-    for (let a of vals.map(v => K.fromVector(v.c)))
-        for (let b of vals.map(v => K.fromVector(v.c)))
-            expect(AlgebraicNumber.greaterThan(a,b)).toBe(AlgebraicNumber.toNumber(a) > AlgebraicNumber.toNumber(b));
-});
-test('greaterThanOrEqual', () => {
-    for (let a of vals.map(v => K.fromVector(v.c)))
-        for (let b of vals.map(v => K.fromVector(v.c)))
-            expect(AlgebraicNumber.greaterThanOrEqual(a,b)).toBe(AlgebraicNumber.toNumber(a) >= AlgebraicNumber.toNumber(b));
 });
 
 test('sign', () => {
     for (let a of vals.map(v => K.fromVector(v.c)))
-        expect(AlgebraicNumber.sign(a)).toBe(Math.sign(AlgebraicNumber.toNumber(a)));
+        expect(a.sign()).toBe(Math.sign(a.toNumber()));
 });

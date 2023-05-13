@@ -70,8 +70,8 @@ export function parseReal(s: string): AlgebraicNumber {
             let op = tokens[i];
             i++;
             let y = parseTerm();
-            if (op == '+') x = AlgebraicNumber.add(x, y);
-            else if (op == '-') x = AlgebraicNumber.subtract(x, y);
+            if (op == '+') x = x.add(y);
+            else if (op == '-') x = x.sub(y);
         }
         return x;
     }
@@ -81,8 +81,8 @@ export function parseReal(s: string): AlgebraicNumber {
             let op = tokens[i];
             i++;
             let y = parseFactor();
-            if (op == '*') x = AlgebraicNumber.multiply(x, y);
-            else if (op == '/') x = AlgebraicNumber.divide(x, y);
+            if (op == '*') x = x.mul(y);
+            else if (op == '/') x = x.div(y);
         }
         return x;
     }
@@ -90,7 +90,7 @@ export function parseReal(s: string): AlgebraicNumber {
         if (i < n && tokens[i] == '-') {
             i++;
             let x = parseFactor();
-            return AlgebraicNumber.unaryMinus(x);
+            return x.neg();
         } else if (i < n && tokens[i] == '(') {
             i++;
             let x = parseExpr();

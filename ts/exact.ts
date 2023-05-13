@@ -73,8 +73,8 @@ export class AlgebraicNumber {
     
     // alternatively, could initially refine a few times and use
     // midpoint of isolating interval
-    static toNumber(a: AlgebraicNumber): number {
-        return a.poly.eval_approx(a.field.approx);
+    toNumber(): number {
+        return this.poly.eval_approx(this.field.approx);
     }
 
     static check_same_field(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumberField {
@@ -89,20 +89,20 @@ export class AlgebraicNumber {
         throw RangeError("AlgebraicNumbers must have same field (" + a.field.toString() + " != " + b.field.toString() + ")");
     }
 
-    static add(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
-        let K = AlgebraicNumber.check_same_field(a, b);
-        return new AlgebraicNumber(K, a.poly.add(b.poly));
+    add(b: AlgebraicNumber): AlgebraicNumber {
+        let K = AlgebraicNumber.check_same_field(this, b);
+        return new AlgebraicNumber(K, this.poly.add(b.poly));
     }
-    static unaryMinus(a: AlgebraicNumber): AlgebraicNumber {
-        return new AlgebraicNumber(a.field, a.poly.neg());
+    neg(): AlgebraicNumber {
+        return new AlgebraicNumber(this.field, this.poly.neg());
     }
-    static subtract(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
-        let K = AlgebraicNumber.check_same_field(a, b);
-        return new AlgebraicNumber(K, a.poly.sub(b.poly));
+    sub(b: AlgebraicNumber): AlgebraicNumber {
+        let K = AlgebraicNumber.check_same_field(this, b);
+        return new AlgebraicNumber(K, this.poly.sub(b.poly));
     }
-    static multiply(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
-        let K = AlgebraicNumber.check_same_field(a, b);
-        let p = a.poly.mul(b.poly);
+    mul(b: AlgebraicNumber): AlgebraicNumber {
+        let K = AlgebraicNumber.check_same_field(this, b);
+        let p = this.poly.mul(b.poly);
         //return new AlgebraicNumber(K, p.mod(K.poly));
         let coeffs = [];
         for (let i=0; i<K.poly.degree; i++) {
@@ -116,12 +116,12 @@ export class AlgebraicNumber {
                 coeffs[j] = coeffs[j].add(K.powers[i].coeffs[j].mul(p.coeffs[i]));
         return new AlgebraicNumber(K, new Polynomial(coeffs));
     }
-    static invert(n: AlgebraicNumber): AlgebraicNumber {
+    inverse(): AlgebraicNumber {
         // Inverse of a modulo b=this.poly
         // Extended Euclidean algorithm to find ra+sb=1
-        let K = n.field;
+        let K = this.field;
         let a = K.poly;
-        let b = n.poly;
+        let b = this.poly;
         let zero = polynomial([0]);
         let r0 = a, r1 = b;
         let t0 = zero, t1 = polynomial([1]);
@@ -131,26 +131,22 @@ export class AlgebraicNumber {
             [t0, t1] = [t1, t0.sub(q.mul(t1))];
         }
         if (r0.degree > 0)
-            throw new RangeError("Division by zero: " + n);
+            throw new RangeError("Division by zero: " + this);
         return new AlgebraicNumber(K, t0.div(r0));
     }
     
-    static divide(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumber {
-        return AlgebraicNumber.multiply(a, AlgebraicNumber.invert(b));
-    }
+    div(b: AlgebraicNumber): AlgebraicNumber { return this.mul(b.inverse()); }
     
-    static equal(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
-        let K = AlgebraicNumber.check_same_field(a, b);
-        return a.poly.equals(b.poly);
+    equals(b: AlgebraicNumber): boolean {
+        let K = AlgebraicNumber.check_same_field(this, b);
+        return this.poly.equals(b.poly);
     }
 
-    static isZero(a: AlgebraicNumber): boolean {
-        return a.poly.degree == -1;
-    }
+    isZero(): boolean { return this.poly.degree == -1; }
 
-    static compare(a: AlgebraicNumber, b: AlgebraicNumber): number {
-        let K = AlgebraicNumber.check_same_field(a, b);
-        let d = a.poly.sub(b.poly);
+    compare(b: AlgebraicNumber): number {
+        let K = AlgebraicNumber.check_same_field(this, b);
+        let d = this.poly.sub(b.poly);
         if (d.degree == -1) return 0;
         /* // Loos
         let c = d.count_roots(K.lower, K.upper);
@@ -167,20 +163,5 @@ export class AlgebraicNumber {
         return val_l.sign();
     }
 
-    static lessThan(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
-        return AlgebraicNumber.compare(a, b) < 0;
-    }
-    static greaterThan(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
-        return AlgebraicNumber.compare(a, b) > 0;
-    }
-    static lessThanOrEqual(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
-        return AlgebraicNumber.compare(a, b) <= 0;
-    }
-    static greaterThanOrEqual(a: AlgebraicNumber, b: AlgebraicNumber): boolean {
-        return AlgebraicNumber.compare(a, b) >= 0;
-    }
-
-    static sign(a: AlgebraicNumber): number {
-        return AlgebraicNumber.compare(a, a.field.fromVector([]));
-    }
+    sign(): number { return this.compare(this.field.fromVector([])); }
 }

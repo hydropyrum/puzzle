@@ -43,7 +43,7 @@ export function make_cuts(cuts: ExactPlane[], pieces: PolyGeometry[]): PolyGeome
     
     for (let ps of Object.values(planes)) {
         let backpieces: PolyGeometry[] = [];
-        ps.sort((a,b) => -AlgebraicNumber.compare(a.constant, b.constant));
+        ps.sort((a,b) => -a.constant.compare(b.constant));
         for (let cut of ps) {
             let frontpieces: PolyGeometry[] = [];
             for (let piece of pieces) {

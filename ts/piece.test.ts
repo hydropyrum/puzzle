@@ -1,12 +1,12 @@
-import { ExactVector3, ExactPlane, exactPlane } from './piece';
+import { ExactVector3, ExactPlane } from './piece';
 import { algebraicNumberField } from './exact';
 import * as THREE from 'three';
 
 let K = algebraicNumberField([-1, 1], 1); // trivial
 let planes = [
-    exactPlane(1, 1, 1, 0),
-    exactPlane(1, 1, 1, 3),
-    exactPlane(1, 1, 1, -3),
+    new ExactPlane(new ExactVector3(K.fromVector([1]), K.fromVector([1]), K.fromVector([1])), K.fromVector([0])),
+    new ExactPlane(new ExactVector3(K.fromVector([1]), K.fromVector([1]), K.fromVector([1])), K.fromVector([3])),
+    new ExactPlane(new ExactVector3(K.fromVector([1]), K.fromVector([1]), K.fromVector([1])), K.fromVector([-3]))
 ];
 let points = [
     new ExactVector3(K.fromVector([0]), K.fromVector([0]), K.fromVector([0])),

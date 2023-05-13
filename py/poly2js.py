@@ -202,7 +202,7 @@ def process(data):
         
         normal = [translate_number(x) for x in normal]
         constant = translate_number(constant)
-        print(f'        new ExactPlane(new ExactVector3({normal[0]}, {normal[1]}, {normal[2]}), AlgebraicNumber.multiply({constant}, scale))', end='')
+        print(f'        new ExactPlane(new ExactVector3({normal[0]}, {normal[1]}, {normal[2]}), {constant}.mul(scale))', end='')
         if fi < len(data['faces'])-1:
             print(',')
         else:

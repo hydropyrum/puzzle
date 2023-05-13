@@ -1,8 +1,17 @@
 import * as THREE from 'three';
-import { exactPlane, PolyGeometry, cube_polygeometry } from './piece';
+import { ExactPlane, ExactVector3, PolyGeometry, cube_polygeometry } from './piece';
 import { slice_polygeometry } from './slice';
+import { algebraicNumberField} from './exact';
 
-let cube = cube_polygeometry(1);
+let K = algebraicNumberField([-1, 1], 1); // trivial
+let cube = cube_polygeometry(K.fromVector([1]));
+
+function exactPlane(a, b, c, d) {
+    return new ExactPlane(
+        new ExactVector3(K.fromVector([a]), K.fromVector([b]), K.fromVector([c])),
+        K.fromVector([d])
+    );
+}
 
 test('no_cut', () => {
     let plane = exactPlane(0, 0, -1, 2);
