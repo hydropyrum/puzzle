@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls';
 import { make_shell, make_cuts, polyhedron } from './make';
 import { Cut, find_cuts, find_stops, make_move } from './move';
-import { ExactPlane, ExactVector3, PolyGeometry, triangulate_polygeometry } from './piece';
-import { pointhash, EPSILON, setdefault } from './util';
+import { ExactPlane, ExactVector3, ExactQuaternion, PolyGeometry, triangulate_polygeometry, Puzzle } from './piece';
+import { AlgebraicNumber } from './exact';
+import { setdefault } from './util';
 import * as parse from './parse';
 
 // Set up
@@ -39,8 +40,7 @@ scene.add(alight);
 
 /* Build puzzle */
 
-var puzzle: PolyGeometry[] = [];
-var global_rot: THREE.Quaternion;
+var puzzle = new Puzzle();
 
 const face_material = new THREE.MeshLambertMaterial({
     flatShading: true,
@@ -54,12 +54,12 @@ const face_material = new THREE.MeshLambertMaterial({
 const edge_material = new THREE.LineBasicMaterial({color: 0x000000, linewidth: 2});
 //const wire_material = new THREE.LineBasicMaterial({color: 0xffffff, linewidth: 1});
 
-function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: number) {
-    for (let piece of puzzle)
+function draw_puzzle(newPieces: PolyGeometry[], scene: THREE.Scene, scale: number) {
+    for (let piece of puzzle.pieces)
         if (piece.object)
             scene.remove(piece.object);
-    for (let piece of newpuzzle) {
-        piece.rot = new THREE.Quaternion();
+    for (let piece of newPieces) {
+        piece.rot = ExactQuaternion.identity();
         piece.object = new THREE.Object3D();
         let g = triangulate_polygeometry(piece);
         piece.object.add(new THREE.Mesh(g, face_material));
@@ -69,8 +69,8 @@ function draw_puzzle(newpuzzle: PolyGeometry[], scene: THREE.Scene, scale: numbe
 
         scene.add(piece.object);
     }
-    puzzle = newpuzzle;
-    global_rot = new THREE.Quaternion();
+    puzzle.pieces = newPieces;
+    puzzle.global_rot = ExactQuaternion.identity();
     draw_arrows();
     render_requested = true;
 }
@@ -112,7 +112,7 @@ function draw_arrow(cut: Cut, d: number) {
     let arrow = new THREE.Mesh(arrow_geometry, arrow_material);
     arrow.scale.multiplyScalar(0.2);
     var rot = new THREE.Quaternion();
-    rot.setFromUnitVectors(new THREE.Vector3(0, 0, 1), cut.plane.normal.clone().applyQuaternion(global_rot));
+    rot.setFromUnitVectors(new THREE.Vector3(0, 0, 1), puzzle.global_rot.apply(cut.plane.normal).toThree());
     arrow.position.z = 1.25 + 0.25*d;
     arrow.position.applyQuaternion(rot);
     arrow.quaternion.copy(rot);
@@ -126,7 +126,7 @@ function draw_arrow(cut: Cut, d: number) {
 
 function reverse_cut(cut: Cut) {
     return {
-        plane: cut.plane.clone().negate(),
+        plane: cut.plane.neg(),
         back: cut.front,
         front: cut.back
     };
@@ -137,22 +137,22 @@ function draw_arrows() {
         scene.remove(arrow);
     mouseover_arrow = null;
     arrows = [];
-    cuts = find_cuts(puzzle);
+    cuts = find_cuts(puzzle.pieces);
     let n = cuts.length;
     // make normals point away from origin; deep cuts go both ways
     let new_cuts: Cut[] = [];
     for (let cut of cuts) {
-        if (cut.plane.constant <= EPSILON)
+        if (cut.plane.constant.sign() <= 0)
             new_cuts.push(cut);
-        if (cut.plane.constant >= -EPSILON)
+        if (cut.plane.constant.sign() >= 0)
             new_cuts.push(reverse_cut(cut));
     }
     cuts = new_cuts;
-    cuts.sort((a, b) => b.plane.constant - a.plane.constant);
+    cuts.sort((a, b) => b.plane.constant.compare(a.plane.constant));
     let count: {[key: string]: number} = {};
     for (let cut of cuts) {
         // bug: if cuts are close, arrows can collide
-        let h = pointhash(cut.plane.normal);
+        let h = String(cut.plane.normal);
         setdefault(count, h, 0);
         draw_arrow(cut, count[h]);
         count[h] += 1;
@@ -342,10 +342,10 @@ function apply_cuts() {
         else if (s.tag == "polyhedron")
             cutplanes.push(...polyhedron(s.name, parse.parseReal(s.d)));
     }
-    let newpuzzle = make_cuts(cutplanes, [shell]);
-    console.log('number of exterior pieces:', newpuzzle.length);
+    let newPieces = make_cuts(cutplanes, [shell]);
+    console.log('number of exterior pieces:', newPieces.length);
     console.timeEnd('pieces constructed in');
-    draw_puzzle(newpuzzle, scene, 1/r);
+    draw_puzzle(newPieces, scene, 1/r);
     render_requested = true;
 }
 document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
@@ -382,35 +382,38 @@ type Move = {
 const rad_per_sec = 2*Math.PI;
 
 var cur_move: Move = null;
+
 function begin_move(ci: number, dir: number) {
     let cut = cuts[ci];
     if (cur_move !== null)
         end_move();
     
-    let rots = find_stops(puzzle, cut);
-    let rot: THREE.Quaternion;
+    let rots = find_stops(puzzle.pieces, cut);
+    let rot: ExactQuaternion;
     let angle: number;
     if (rots.length == 0) {
         // No move possible; just do a 360-degree move
-        rot = new THREE.Quaternion(0, 0, 0, 1);
+        rot = ExactQuaternion.identity();
+        angle = 2*Math.PI;
     } else {
+        // Find first nonzero rotation in dir
         let zi: number;
         if (dir < 0) {
             zi = rots.length-1;
-            while (rots[zi].w >= 1-EPSILON && zi > 0)
+            while (rots[zi].pseudoAngle().isZero() && zi > 0)
                 zi -= 1;
         } else {
             zi = 0;
-            while (rots[zi].w >= 1-EPSILON && zi < rots.length-1)
+            while (rots[zi].pseudoAngle().isZero() && zi < rots.length-1)
                 zi += 1;
         }
         rot = rots[zi];
+        angle = rot.approxAngle();
     }
-    angle = Math.acos(rot.w)*2;
     if (dir < 0) while (angle >= 0) angle -= 2*Math.PI;
     if (dir > 0) while (angle <= 0) angle += 2*Math.PI;
     let urot = new THREE.Quaternion();
-    urot.setFromAxisAngle(cut.plane.normal, 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
+    urot.setFromAxisAngle(cut.plane.normal.toThree().normalize(), 1); // rotate 1 radian to avoid problems with exactly 180 degree rotations
 
     cur_move = {
         cut: cut,
@@ -422,21 +425,22 @@ function begin_move(ci: number, dir: number) {
         angle: angle
     };
     for (let i of cur_move!.pieces) {
-        //cur_move.from_quat.push(puzzle[i].rot.clone());
-        //cur_move.step_quat.push(urot.clone().multiply(puzzle[i].rot));
-        cur_move.from_quat.push(global_rot.clone().multiply(puzzle[i].rot));
-        cur_move.step_quat.push(global_rot.clone().multiply(urot).multiply(puzzle[i].rot));
+        let grot = puzzle.global_rot.toThree();
+        let prot = puzzle.pieces[i].rot!.toThree();
+        cur_move.from_quat.push(grot.clone().multiply(prot));
+        cur_move.step_quat.push(grot.clone().multiply(urot).multiply(prot));
     }
-    make_move(puzzle, cut, rot, global_rot);
+    make_move(puzzle, cut, rot);
     draw_arrows();
 }
 
 function end_move() {
     // Snap to final angle
     //for (let p of cur_move!.pieces) {
-    for (let p=0; p<puzzle.length; p++) {
-        let q = puzzle[p].object!.quaternion;
-        q.copy(global_rot.clone().multiply(puzzle[p].rot));
+    for (let p=0; p<puzzle.pieces.length; p++) {
+        let q = puzzle.pieces[p].object!.quaternion;
+        let r = puzzle.global_rot.mul(puzzle.pieces[p].rot!);
+        q.copy(r.toThree());
     }
     cur_move = null;
     render_requested = true;
@@ -467,7 +471,7 @@ function animate(t: number) {
             end_move();
         } else
             for (let i=0; i<cur_move.pieces.length; i++)
-                puzzle[cur_move.pieces[i]].object!.quaternion.slerpQuaternions(
+                puzzle.pieces[cur_move.pieces[i]].object!.quaternion.slerpQuaternions(
                     cur_move.from_quat[i],
                     cur_move.step_quat[i],
                     ti*cur_move.angle);

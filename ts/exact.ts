@@ -66,6 +66,19 @@ export class AlgebraicNumber {
         this.poly = poly;
     }
 
+    static fromInteger(x: number): AlgebraicNumber {
+        let K = algebraicNumberField([-1, 1], 1); // trivial
+        if (!Number.isInteger(x))
+            throw new RangeError('x must be an integer');
+        return K.fromVector([fraction(x)]);
+    }
+
+    // temporary
+    static fromNumber(x: number): AlgebraicNumber {
+        let K = algebraicNumberField([-1, 1], 1); // trivial
+        return K.fromVector([Fraction.fromNumber(x)]);
+    }
+
     toString(): string {
         return this.poly.toString();
     }
@@ -143,24 +156,31 @@ export class AlgebraicNumber {
 
     isZero(): boolean { return this.poly.degree == -1; }
 
-    compare(b: AlgebraicNumber): number {
-        let K = AlgebraicNumber.check_same_field(this, b);
-        let d = this.poly.sub(b.poly);
-        if (d.degree == -1) return 0;
+    compare(b: AlgebraicNumber): number { return this.sub(b).sign(); }
+
+    sign(): number {
+        let K = this.field;
+        let p = this.poly;
+        if (p.degree == -1) return 0;
         /* // Loos
-        let c = d.count_roots(K.lower, K.upper);
+        let c = p.count_roots(K.lower, K.upper);
         while (c > 0) {
             K.refine();
-            c = d.count_roots(K.lower, K.upper);
+            c = p.count_roots(K.lower, K.upper);
             }
-        return d.eval(K.lower).sign();*/
-        let [val_l, val_u] = d.eval_interval(K.lower, K.upper);
+        return p.eval(K.lower).sign();*/
+        let [val_l, val_u] = p.eval_interval(K.lower, K.upper);
         while (val_l.sign() != val_u.sign()) {
             K.refine();
-            [val_l, val_u] = d.eval_interval(K.lower, K.upper);
+            [val_l, val_u] = p.eval_interval(K.lower, K.upper);
         }
         return val_l.sign();
     }
-
-    sign(): number { return this.compare(this.field.fromVector([])); }
+    
+    abs(): AlgebraicNumber {
+        if (this.sign() < 0)
+            return this.neg();
+        else
+            return this;
+    }
 }

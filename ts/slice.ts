@@ -88,7 +88,7 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: ExactPlane, co
     }
 
     close_polyhedron(back, plane, color, interior);
-    close_polyhedron(front, plane.negate(), color, interior);
+    close_polyhedron(front, plane.neg(), color, interior);
     
     return [front, back];
 }

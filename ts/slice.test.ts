@@ -1,15 +1,15 @@
 import * as THREE from 'three';
 import { ExactPlane, ExactVector3, PolyGeometry, cube_polygeometry } from './piece';
 import { slice_polygeometry } from './slice';
-import { algebraicNumberField} from './exact';
+import { AlgebraicNumber } from './exact';
 
-let K = algebraicNumberField([-1, 1], 1); // trivial
-let cube = cube_polygeometry(K.fromVector([1]));
+let fromNumber = AlgebraicNumber.fromInteger;
+let cube = cube_polygeometry(fromNumber(1));
 
 function exactPlane(a, b, c, d) {
     return new ExactPlane(
-        new ExactVector3(K.fromVector([a]), K.fromVector([b]), K.fromVector([c])),
-        K.fromVector([d])
+        new ExactVector3(fromNumber(a), fromNumber(b), fromNumber(c)),
+        fromNumber(d)
     );
 }
 

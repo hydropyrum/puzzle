@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { setdefault, canonicalize_plane, floathash, pointhash, rothash } from './util';
-import { PolyGeometry } from './piece';
-import { keys, EPSILON } from './util';
+import { setdefault } from './util';
+import { PolyGeometry, ExactPlane, ExactQuaternion, Puzzle } from './piece';
+import { AlgebraicNumber } from './exact';
+import { keys } from './util';
 
 export interface Cut {
-    plane: THREE.Plane;
+    plane: ExactPlane;
     front: () => number[];
     back: () => number[];
 }
@@ -13,7 +14,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
     /* Given a list of (indexes of) pieces, find all planes that touch
        but don't cut them. The return value is a list of objects; each
        has three fields:
-       - plane: Plane
+       - plane: ExactPlane
        - front: function (taking no arguments) that returns a list of pieces in front of the plane
        - back: function (taking no arguments) that returns a list of pieces behind the plane 
 
@@ -29,13 +30,14 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
     }
 
     // Make list of candidate planes, grouping together parallel planes
-    let planes: {[key: string]: {[key: string]: THREE.Plane}} = {};
+    // and removing duplicate planes
+    let planes: {[key: string]: {[key: string]: ExactPlane}} = {};
     for (let p of ps)
         for (let face of puzzle[p].faces) {
-            let plane = face.plane.toThree();
-            plane.normal.applyQuaternion(puzzle[p].rot).normalize();
-            canonicalize_plane(plane);
-            setdefault(planes, pointhash(plane.normal), {})[floathash(plane.constant)] = plane;
+            let plane = new ExactPlane(
+                puzzle[p].rot ? puzzle[p].rot!.apply(face.plane.normal) : face.plane.normal,
+                face.plane.constant).canonicalize();
+            setdefault(planes, String(plane.normal), {})[String(plane.constant)] = plane;
         }
 
     let cuts: {[key: string]: Cut} = {};
@@ -51,29 +53,29 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
 
         const BEGIN_PIECE = 1, END_PIECE = -1, PLANE = 0;
         
-        let a: [number, number, number|THREE.Plane][] = [];
+        let a: [AlgebraicNumber, number, number|ExactPlane][] = [];
         let planes_n = Object.values(planes[nh]);
         let n = planes_n[0].normal;
         for (let plane of planes_n)
-            a.push([-plane.constant, PLANE, plane]);
+            a.push([plane.constant.neg(), PLANE, plane]);
         for (let p of ps) {
-            let xmin = Infinity;
-            let xmax = -Infinity;
+            let xmin: AlgebraicNumber|undefined = undefined; // ∞
+            let xmax: AlgebraicNumber|undefined = undefined; // -∞
             // Instead of rotating all of p's vertices,
             // rotate n in the opposite direction.
-            let nq = n.clone();
-            nq.applyQuaternion(puzzle[p].rot.clone().conjugate());
+            let nq = puzzle[p].rot ? puzzle[p].rot!.conj().apply(n) : n;
             for (let v of puzzle[p].vertices) {
-                let x = nq.dot(v.toThree());
-                if (x < xmin) xmin = x;
-                if (x > xmax) xmax = x;
+                let x = nq.dot(v);
+                if (xmin === undefined || x.compare(xmin) < 0) xmin = x;
+                if (xmax === undefined || x.compare(xmax) > 0) xmax = x;
             }
-            // Shrink piece by EPSILON in case of rounding errors
-            a.push([xmin+EPSILON, BEGIN_PIECE, p]);
-            a.push([xmax-EPSILON, END_PIECE, p]);
+            if (xmin !== undefined && xmax !== undefined) {
+                a.push([xmin, BEGIN_PIECE, p]);
+                a.push([xmax, END_PIECE, p]);
+            }
         }
         a.sort(function (x, y) {
-            let d = x[0] - y[0];
+            let d = x[0].compare(y[0]);
             return d == 0 ? x[1] - y[1] : d;
         });
 
@@ -81,8 +83,8 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
             let ret = [];
             for (let i=start; i<stop; i++) {
                 let [d, type, what] = a[i];
-                if (type == BEGIN_PIECE && typeof what === "number")
-                    ret.push(what);
+                if (type == BEGIN_PIECE)
+                    ret.push(what as number);
             }
             return ret;
         };
@@ -98,7 +100,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
             else if (type == PLANE &&
                      inside == 0 && // only keep planes not inside pieces
                      i > 0 && i < a.length-1 && // only keep planes between pieces
-                     what instanceof THREE.Plane) {
+                     what instanceof ExactPlane) {
                 // hash by back-side pieces to avoid duplication
                 let h = get_pieces(0, i).sort().join(',');
                 cuts[h] = {plane: what, 
@@ -110,7 +112,10 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
     return Object.values(cuts);
 }
 
-export function find_stops(puzzle: PolyGeometry[], cut: Cut): THREE.Quaternion[] {
+export function find_stops(puzzle: PolyGeometry[], cut: Cut): ExactQuaternion[] {
+    let one = AlgebraicNumber.fromInteger(1);
+    let c = cut.plane.normal;
+    
     let move_pieces = cut.front();
     let stay_pieces = cut.back();
 
@@ -119,77 +124,48 @@ export function find_stops(puzzle: PolyGeometry[], cut: Cut): THREE.Quaternion[]
     let stay_cuts = find_cuts(puzzle, stay_pieces);
 
     // Find all rotation angles that form a total cut
-
-    let stops: {[key: string]: THREE.Quaternion} = {};
+    let stops: {[key: string]: ExactQuaternion} = {}; // set of rotations
     for (let half1 of move_cuts)
         for (let half2 of stay_cuts) {
-            let c = cut.plane.normal;
             let p1 = half1.plane.normal, p2 = half2.plane.normal;
             let d1 = half1.plane.constant, d2 = half2.plane.constant;
             let h1 = c.dot(p1), h2 = c.dot(p2);
-            let h: number;
+
+            // If parallel to cut, then skip
+            if (h1.mul(h1).equals(c.dot(c).mul(p1.dot(p1)))) continue;
 
             // Check if half1.plane can be rotated to half2.plane (or its negation)
-            if (Math.abs(d1 - d2) < EPSILON &&
-                Math.abs(h1 - h2) < EPSILON)
-                h = h2;
-            else if (Math.abs(d1 + d2) < EPSILON &&
-                     Math.abs(h1 + h2) < EPSILON) {
-                p2 = p2.clone().negate();
-                h = -h2;
-            } else
-                continue;
-            
-            // Skip if half1 and half2 are parallel to cut
-            if (Math.abs(h) >= 1-EPSILON)
-                continue;
-
-            // Project p1 and p2 onto cut.plane and find half-angle between them
-            let r = Math.sqrt(1-h*h);
-            // cos ∠(n1,n2)/2 = ‖n1/‖n1‖ + n2/‖n2‖‖/2
-            let cos_half = c.clone().multiplyScalar(-2*h).add(p1).add(p2).length()/(2*r);
-            // sin ∠(n1,n2)/2 = ‖n1/‖n1‖ - n2/‖n2‖‖/2
-            let sin_half = p1.clone().sub(p2).length()/(2*r);
-            
-            // This makes q.w lie in [+1, -1), which corresponds to [0, 360) degrees
-            let triple = p1.clone().cross(p2).dot(c);
-            if (triple < 0 && cos_half < 1)
-                cos_half = -cos_half;
-            let q = new THREE.Quaternion(
-                sin_half * c.x,
-                sin_half * c.y,
-                sin_half * c.z,
-                cos_half
-            ).normalize();
-            // bug: a rounding error here could cause two stops to be
-            // found differing only by a very small angle, but this
-            // doesn't matter, because we (currently) are only
-            // interested in the smallest nonzero stop.
-            stops[floathash(q.w)] = q;
+            // and compute rotation quaternion
+            if (d1.equals(d2) && h1.equals(h2)) {
+                let rot = ExactQuaternion.fromAxisPoints(c, p1, p2);
+                stops[String(rot)] = rot;
+            }
+            if (d1.neg().equals(d2) && h1.neg().equals(h2)) {
+                let rot = ExactQuaternion.fromAxisPoints(c, p1, p2.neg());
+                stops[String(rot)] = rot;
+            }
         }
-    let ret = Object.values(stops);
-    ret.sort((a: THREE.Quaternion, b: THREE.Quaternion) => b.w-a.w);
-    return ret;
+    
+    // Sort the cuts by (pseudo)angle
+    let ret: [AlgebraicNumber, ExactQuaternion][] = Object.values(stops).map(
+        rot => [rot.pseudoAngle(), rot]
+    );
+    ret.sort((a,b) => a[0].compare(b[0]));
+    return ret.map(x => x[1]);
 }
 
-export function make_move(puzzle: PolyGeometry[], cut: Cut, rot: THREE.Quaternion, global_rot: THREE.Quaternion): void {
-    // Piece 0 is immovable
+export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void {
+    // Piece 0 is immovable. This guarantees that the rotations are
+    // the composition of a bounded number of rotations. This ensures
+    // there is no coefficient explosion and might make it possible to
+    // cache computations.
     if (cut.front().includes(0)) {
-        global_rot.multiply(rot).normalize();
-        let inv = rot.clone().conjugate();
+        puzzle.global_rot = puzzle.global_rot.mul(rot);
+        rot = rot.conj();
         for (let p of cut.back())
-            puzzle[p].rot.premultiply(inv).normalize();
+            puzzle.pieces[p].rot = rot.mul(puzzle.pieces[p].rot!);
     } else {
         for (let p of cut.front())
-            puzzle[p].rot.premultiply(rot).normalize();
-    }
-    // If a piece's rotation is close to a previous one,
-    // use the old rotation. This eliminates buildup of rounding errors.
-    for (let piece of puzzle) {
-        let h = rothash(piece.rot);
-        if (h in piece.cache)
-            piece.rot.copy(piece.cache[h]);
-        else
-            piece.cache[h] = piece.rot.clone();
+            puzzle.pieces[p].rot = rot.mul(puzzle.pieces[p].rot!);
     }
 }
