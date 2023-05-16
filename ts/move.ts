@@ -1,12 +1,21 @@
 import * as THREE from 'three';
 import { setdefault } from './util';
-import { PolyGeometry, ExactPlane, ExactQuaternion, Puzzle } from './piece';
+import { PolyGeometry, Puzzle } from './piece';
+import { ExactPlane, ExactQuaternion } from './math';
 import { AlgebraicNumber } from './exact';
 
-export interface Cut {
+export class Cut {
     plane: ExactPlane;
     front: () => number[];
     back: () => number[];
+
+    constructor(plane: ExactPlane, front: () => number[], back: () => number[]) {
+        this.plane = plane;
+        this.front = front;
+        this.back = back;
+    }
+
+    neg(): Cut { return new Cut(this.plane.neg(), this.back, this.front); }
 }
 
 export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
@@ -102,9 +111,11 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
                      what instanceof ExactPlane) {
                 // hash by back-side pieces to avoid duplication
                 let h = get_pieces(0, i).sort().join(',');
-                cuts[h] = {plane: what, 
-                           front: function () { return get_pieces(i+1, a.length) },
-                           back: function () { return get_pieces(0, i) }};
+                cuts[h] = new Cut(
+                    what, 
+                    function () { return get_pieces(i+1, a.length) },
+                    function () { return get_pieces(0, i) }
+                );
             }
         }
     }

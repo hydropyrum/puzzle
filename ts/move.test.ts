@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { AlgebraicNumber } from './exact';
-import { ExactPlane, ExactVector3, ExactQuaternion, cube_polygeometry } from './piece';
-import { slice_polygeometry } from './slice';
+import { ExactPlane, ExactVector3, ExactQuaternion } from './math';
+import { cube_polygeometry, slice_polygeometry } from './piece';
 import { find_cuts, find_stops } from './move';
 
 let fromNumber = AlgebraicNumber.fromInteger;

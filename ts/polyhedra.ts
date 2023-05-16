@@ -1,6 +1,6 @@
-import { Fraction, fraction } from './fraction';
-import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber } from './exact';
-import { ExactVector3, ExactPlane } from './piece';
+import { fraction } from './fraction';
+import { algebraicNumberField, AlgebraicNumber } from './exact';
+import { ExactVector3, ExactPlane } from './math';
 
 export function tetrahedron(scale: AlgebraicNumber): ExactPlane[] {
     let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847);

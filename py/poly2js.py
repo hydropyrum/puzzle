@@ -214,9 +214,9 @@ def process(data):
 
 if __name__ == "__main__":
     
-    print("import { Fraction, fraction } from './fraction';")
-    print("import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber } from './exact';")
-    print("import { ExactVector3, ExactPlane } from './piece';")
+    print("import { fraction } from './fraction';")
+    print("import { algebraicNumberField, AlgebraicNumber } from './exact';")
+    print("import { ExactVector3, ExactPlane } from './math';")
     print("")
 
     for name in ['Tetrahedron',

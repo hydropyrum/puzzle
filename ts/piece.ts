@@ -1,187 +1,14 @@
 import * as THREE from 'three';
 import { AlgebraicNumber } from './exact';
+import { ExactVector3, ExactPlane, ExactQuaternion } from './math';
+import { setdefault, keys } from './util';
 
-export class ExactVector3 {
-    x: AlgebraicNumber;
-    y: AlgebraicNumber;
-    z: AlgebraicNumber;
-    constructor (x: AlgebraicNumber, y: AlgebraicNumber, z: AlgebraicNumber) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
-
-    toThree(): THREE.Vector3 {
-        return new THREE.Vector3(this.x.toNumber(), this.y.toNumber(), this.z.toNumber());
-    }
-
-    toString(): string {
-        return `[${this.x},${this.y},${this.z}]`;
-    }
-
-    equals(other: ExactVector3): boolean {
-        return this.x.equals(other.x) && this.y.equals(other.y) && this.z.equals(other.z);
-    }
-
-    add (other: ExactVector3): ExactVector3 {
-        return new ExactVector3(this.x.add(other.x), this.y.add(other.y), this.z.add(other.z));
-    }
-    sub (other: ExactVector3): ExactVector3 {
-        return new ExactVector3(this.x.sub(other.x), this.y.sub(other.y), this.z.sub(other.z));
-    }
-    neg(): ExactVector3 {
-        return new ExactVector3(this.x.neg(), this.y.neg(), this.z.neg());
-    }
-    scale (other: AlgebraicNumber): ExactVector3 {
-        return new ExactVector3(this.x.mul(other), this.y.mul(other), this.z.mul(other));
-    }
-
-    dot (other: ExactVector3): AlgebraicNumber {
-        return this.x.mul(other.x).add(this.y.mul(other.y)).add(this.z.mul(other.z));
-    }
-
-    cross (other: ExactVector3): ExactVector3 {
-        return new ExactVector3(
-            this.y.mul(other.z).sub(this.z.mul(other.y)),
-            this.z.mul(other.x).sub(this.x.mul(other.z)),
-            this.x.mul(other.y).sub(this.y.mul(other.x))
-        );
-    }
+export interface PolyFace {
+    vertices: number[];
+    plane: ExactPlane;
+    color: THREE.Color;
+    interior: boolean;
 };
-
-export class ExactPlane {
-    normal: ExactVector3; // unlike THREE.Plane, does not need to be normalized
-    constant: AlgebraicNumber;
-    constructor (normal: ExactVector3, constant: AlgebraicNumber) {
-        this.normal = normal;
-        this.constant = constant;
-    }
-    toThree(): THREE.Plane {
-        return new THREE.Plane(this.normal.toThree(), this.constant.toNumber()).normalize();
-    }
-
-    neg(): ExactPlane { return new ExactPlane(this.normal.neg(), this.constant.neg()); }
-    side(v: ExactVector3) { return this.normal.dot(v).add(this.constant).sign(); }
-
-    intersectLine(a: ExactVector3, b: ExactVector3) {
-        // n·x + d = 0
-        // x = a + (b-a) t
-        // => n·a + n·(b-a) t + d = 0
-        // => t = - (n·a + d) / n·(b-a)
-        let ab = b.sub(a);
-        let t = this.normal.dot(a).add(this.constant).div(this.normal.dot(ab));
-        return a.sub(ab.scale(t));
-    }
-
-    /* Take the "absolute value" of a plane so that it compares equal with its negation. */
-    canonicalize() {
-        if (this.normal.x.sign() < 0)
-            return this.neg();
-        else if (this.normal.x.isZero() && this.normal.y.sign() < 0)
-            return this.neg();
-        else if (this.normal.x.isZero() && this.normal.y.isZero() && this.normal.z.sign() < 0)
-            return this.neg();
-        else
-            return this;
-    }
-};
-
-export class ExactQuaternion {
-    x: AlgebraicNumber;
-    y: AlgebraicNumber;
-    z: AlgebraicNumber;
-    w: AlgebraicNumber;
-    constructor(x: AlgebraicNumber, y: AlgebraicNumber, z: AlgebraicNumber, w: AlgebraicNumber) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.w = w;
-    }
-
-    static identity(): ExactQuaternion {
-        let zero = AlgebraicNumber.fromInteger(0);
-        let one = AlgebraicNumber.fromInteger(1);
-        return new ExactQuaternion(zero, zero, zero, one);
-    }
-
-    /* Given an axis k (not necessarily normalized, and x, y such that
-       ||x|| = ||y|| and k·x = k·y, find the rotation about k that takes x to y.
-    */
-    static fromAxisPoints(k: ExactVector3, x: ExactVector3, y: ExactVector3): ExactQuaternion {
-        let kxy = k.dot(x.cross(y));
-        let kx = k.dot(x); // = k.dot(y)
-        let xy = x.dot(y);
-        if (kxy.isZero()) {
-            if (xy.sign() > 0)
-                return ExactQuaternion.identity(); // 0 degrees
-            else
-                return new ExactQuaternion(k.x, k.y, k.z, AlgebraicNumber.fromInteger(0)); // 180 degrees
-        } else {
-            return new ExactQuaternion(k.x, k.y, k.z, kxy.div(x.dot(x).sub(xy)));
-        }
-    }
-
-    toString(): string {
-        return `[${this.x},${this.y},${this.z},${this.w}]`;
-    }
-
-    toThree(): THREE.Quaternion {
-        return new THREE.Quaternion(this.x.toNumber(), this.y.toNumber(),
-                                    this.z.toNumber(), this.w.toNumber()).normalize();
-    }
-
-    equals(other: ExactQuaternion): boolean {
-        return this.x.equals(other.x) && this.y.equals(other.y) && this.z.equals(other.z) && this.w.equals(other.w);
-    }
-
-    normSquared(): AlgebraicNumber {
-        let x = this.x, y = this.y, z = this.z, w = this.w;
-        return w.mul(w).add(x.mul(x).add(y.mul(y)).add(z.mul(z)));
-    }
-
-    approxAngle(): number {
-        let x = this.x.toNumber(), y = this.y.toNumber();
-        let z = this.z.toNumber(), w = this.w.toNumber();
-        return Math.acos(w / Math.sqrt(x*x+y*y+z*z+w*w))*2;
-    }
-
-    pseudoAngle(): AlgebraicNumber {
-        let one = AlgebraicNumber.fromInteger(1);
-        let w = this.w;
-        return one.sub(w.mul(w.abs()).div(this.normSquared()));
-    }
-
-    mul(b: ExactQuaternion): ExactQuaternion {
-        let a = this;
-        return new ExactQuaternion(
-            a.w.mul(b.x).add(a.x.mul(b.w)).add(a.y.mul(b.z)).sub(a.z.mul(b.y)),
-            a.w.mul(b.y).sub(a.x.mul(b.z)).add(a.y.mul(b.w)).add(a.z.mul(b.x)),
-            a.w.mul(b.z).add(a.x.mul(b.y)).sub(a.y.mul(b.x)).add(a.z.mul(b.w)),
-            a.w.mul(b.w).sub(a.x.mul(b.x)).sub(a.y.mul(b.y)).sub(a.z.mul(b.z))
-        );
-    }
-    scale(b: AlgebraicNumber): ExactQuaternion {
-        return new ExactQuaternion(
-            this.x.mul(b), this.y.mul(b), this.z.mul(b), this.w.mul(b)
-        );
-    }
-
-    conj(): ExactQuaternion {
-        return new ExactQuaternion(this.x.neg(), this.y.neg(), this.z.neg(), this.w);
-    }
-
-    inverse(): ExactQuaternion {
-        return this.conj().scale(this.normSquared().inverse());
-    }
-
-    apply(v: ExactVector3): ExactVector3 {
-        let zero = AlgebraicNumber.fromInteger(0);
-        let vq = new ExactQuaternion(v.x, v.y, v.z, zero);
-        let vr = this.mul(vq).mul(this.inverse());
-        console.assert(vr.w.isZero());
-        return new ExactVector3(vr.x, vr.y, vr.z);
-    }
-}
 
 export class PolyGeometry {
     vertices: ExactVector3[];
@@ -194,13 +21,36 @@ export class PolyGeometry {
         this.rot = null;
         this.object = null;
     }
-};
-
-export interface PolyFace {
-    vertices: number[];
-    plane: ExactPlane;
-    color: THREE.Color;
-    interior: boolean;
+    
+    toThree(): THREE.BufferGeometry {
+        let pg = this;
+        let positions: number[] = [];
+        let normals: number[] = [];
+        let colors: number[] = [];
+        let g = new THREE.BufferGeometry();
+        for (let pf of pg.faces) {
+            let vs = pf.vertices;
+            let n = pf.plane.toThree().normal;
+            for (let i=1; i<vs.length-1; i++) {
+                let v0 = pg.vertices[vs[0]].toThree();
+                let vcur = pg.vertices[vs[i]].toThree();
+                let vnext = pg.vertices[vs[i+1]].toThree();
+                positions.push(v0.x, v0.y, v0.z);
+                positions.push(vcur.x, vcur.y, vcur.z);
+                positions.push(vnext.x, vnext.y, vnext.z);
+                normals.push(n.x, n.y, n.z);
+                normals.push(n.x, n.y, n.z);
+                normals.push(n.x, n.y, n.z);
+                colors.push(pf.color.r, pf.color.g, pf.color.b, 1);
+                colors.push(pf.color.r, pf.color.g, pf.color.b, 1);
+                colors.push(pf.color.r, pf.color.g, pf.color.b, 1);
+            }
+        }
+        g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
+        return g;
+    }
 };
 
 export function cube_polygeometry(d?: AlgebraicNumber): PolyGeometry {
@@ -228,33 +78,152 @@ export function cube_polygeometry(d?: AlgebraicNumber): PolyGeometry {
     return g;
 }
 
-export function triangulate_polygeometry(pg: PolyGeometry): THREE.BufferGeometry {
-    let positions: number[] = [];
-    let normals: number[] = [];
-    let colors: number[] = [];
-    let g = new THREE.BufferGeometry();
-    for (let pf of pg.faces) {
-        let vs = pf.vertices;
-        let n = pf.plane.toThree().normal;
-        for (let i=1; i<vs.length-1; i++) {
-            let v0 = pg.vertices[vs[0]].toThree();
-            let vcur = pg.vertices[vs[i]].toThree();
-            let vnext = pg.vertices[vs[i+1]].toThree();
-            positions.push(v0.x, v0.y, v0.z);
-            positions.push(vcur.x, vcur.y, vcur.z);
-            positions.push(vnext.x, vnext.y, vnext.z);
-            normals.push(n.x, n.y, n.z);
-            normals.push(n.x, n.y, n.z);
-            normals.push(n.x, n.y, n.z);
-            colors.push(pf.color.r, pf.color.g, pf.color.b, 1);
-            colors.push(pf.color.r, pf.color.g, pf.color.b, 1);
-            colors.push(pf.color.r, pf.color.g, pf.color.b, 1);
+/* slice_polygeometry
+  
+   Slices a PolyGeometry into one or two PolyGeometries.
+   
+   - geometry: the PolyGeometry to slice
+   - plane: the plane along which to slice
+   - color: what color to make any newly created faces
+   - interior: whether any newly created faces are interior faces
+   
+   Returns: [front, back] where either front or back might be empty.
+   
+   cf. https://github.com/tdhooper/threejs-slice-geometry, but
+   - preserves colors of faces
+   - creates new faces where the geometry is sliced */
+
+export function slice_polygeometry(geometry: PolyGeometry, plane: ExactPlane, color: THREE.Color, interior: boolean): [PolyGeometry, PolyGeometry] {
+    let vertices = [];
+    vertices.push(...geometry.vertices); // copy so we can append to it
+    
+    let sides = vertices.map(v => plane.side(v));
+
+    if (sides.every(s => s >= 0)) return [geometry, new PolyGeometry([], [])];
+    if (sides.every(s => s <= 0)) return [new PolyGeometry([], []), geometry];
+
+    let front = new PolyGeometry([], []);
+    let frontmap: {[key: number]: number} = {}; // map geometry.vertices to front.vertices
+    let back = new PolyGeometry([], []);
+    back.vertices = [];
+    back.faces = [];
+    let backmap: {[key:number]: number} = {}; // map geometry.vertices to back.vertices
+    let cross_index: {[key: string]: number} = {}; // cache for intersections
+    for (let face of geometry.faces) {
+        // Slice face into frontpoints and backpoints
+        let frontpoints: number[] = [], backpoints: number[] = [];
+        let prev = face.vertices[face.vertices.length-1];
+        for (let cur of face.vertices) {
+            if (sides[cur] * sides[prev] < 0) {
+                // cur and prev are on opposite sides;
+                // add intersection point as new vertex.
+                let h = sides[cur] > 0 ? prev+","+cur : cur+","+prev;
+                let c;
+                if (h in cross_index)
+                    c = cross_index[h];
+                else {
+                    let point = plane.intersectLine(vertices[prev], vertices[cur]);
+                    vertices.push(point);
+                    sides.push(0);
+                    c = vertices.length-1;
+                    cross_index[h] = c;
+                }
+                frontpoints.push(c);
+                backpoints.push(c);
+            }
+            if (sides[cur] >= 0) frontpoints.push(cur);
+            if (sides[cur] <= 0) backpoints.push(cur);
+            prev = cur;
+        }
+        if (frontpoints.length >= 3) {
+            for (let i=0; i<frontpoints.length; i++) {
+                let v = frontpoints[i];
+                if (!(v in frontmap)) {
+                    front.vertices.push(vertices[v]);
+                    frontmap[v] = front.vertices.length-1;
+                }
+                frontpoints[i] = frontmap[v];
+            }
+            let frontface = Object.assign({}, face);
+            frontface.vertices = frontpoints;
+            front.faces.push(frontface);
+        }
+        if (backpoints.length >= 3) {
+            for (let i=0; i<backpoints.length; i++) {
+                let v = backpoints[i];
+                if (!(v in backmap)) {
+                    back.vertices.push(vertices[v]);
+                    backmap[v] = back.vertices.length-1;
+                }
+                backpoints[i] = backmap[v];
+            }
+            let backface = Object.assign({}, face);
+            backface.vertices = backpoints;
+            back.faces.push(backface);
         }
     }
-    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-    g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
-    return g;
+
+    close_polyhedron(back, plane, color, interior);
+    close_polyhedron(front, plane.neg(), color, interior);
+    
+    return [front, back];
+}
+
+/* close_polyhedron
+
+   Finds the missing face and adds it.
+
+   - geometry: a PolyGeometry for a polyhedron possibly with a missing face
+   - plane: the plane in which the missing face (if any) lies
+   - color: what color to make any newly created faces
+   - interior: whether any newly created faces are interior faces */
+
+function close_polyhedron(geometry: PolyGeometry, plane: ExactPlane, color: THREE.Color, interior: boolean): void {
+    let edge_index: {[key: number]: [number, number][]} = {};
+    function count_edge(a: number, b: number) {
+        let h = a < b ? a+","+b : b+","+a;
+        setdefault(edge_index, h, []).push([a, b]);
+    }
+    for (let face of geometry.faces) {
+        let prev = face.vertices[face.vertices.length-1];
+        for (let cur of face.vertices) {
+            count_edge(prev, cur);
+            prev = cur;
+        }
+    }
+    // The edges of the missing face appear only once.
+    // Make an undirected graph out of these.
+    let cutgraph: {[key: number]: number[]} = {};
+    for (let edges of Object.values(edge_index)) {
+        console.assert(edges.length <= 2);
+        if (edges.length == 1) {
+            let [a, b] = edges[0];
+            setdefault(cutgraph, b, []).push(a);
+        }
+    }
+
+    let visited: {[key: number]: boolean} = {};
+    let n_visited = 0;
+    let vs = keys(cutgraph) as number[];
+
+    // Traverse cutgraph to put points in ccw order
+    while (n_visited < vs.length) {
+        let cutpoints = [];
+        let v: number|undefined;
+        v = vs.find(u => !(u in visited)); // arbitrary point
+        while (v !== undefined) {
+            cutpoints.push(v);
+            visited[v] = true;
+            n_visited += 1;
+            v = cutgraph[v].find(u => !(u in visited));
+        }
+        if (cutpoints.length == 0) {
+            console.error("not all cut points visited");
+            break;
+        }
+        let cutface = {vertices: cutpoints, plane: plane, color: color, interior: interior};
+        geometry.faces.push(cutface);
+    }
 }
 
 export class Puzzle {

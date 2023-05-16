@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls';
 import { make_shell, make_cuts, polyhedron } from './make';
 import { Cut, find_cuts, find_stops, make_move } from './move';
-import { ExactPlane, ExactVector3, ExactQuaternion, PolyGeometry, triangulate_polygeometry, Puzzle } from './piece';
+import { PolyGeometry, Puzzle } from './piece';
+import { ExactPlane, ExactVector3, ExactQuaternion } from './math';
 import { AlgebraicNumber } from './exact';
 import { setdefault } from './util';
 import * as parse from './parse';
@@ -61,7 +62,7 @@ function draw_puzzle(newPieces: PolyGeometry[], scene: THREE.Scene, scale: numbe
     for (let piece of newPieces) {
         piece.rot = ExactQuaternion.identity();
         piece.object = new THREE.Object3D();
-        let g = triangulate_polygeometry(piece);
+        let g = piece.toThree();
         piece.object.add(new THREE.Mesh(g, face_material));
         piece.object.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), edge_material));
         //piece.object.add(new THREE.LineSegments(new THREE.WireframeGeometry(g), wire_material));
@@ -77,7 +78,7 @@ function draw_puzzle(newPieces: PolyGeometry[], scene: THREE.Scene, scale: numbe
 
 // Canvas controls
 
-var cuts: Cut[] = [];
+var grips: Cut[] = [];
 var raycaster = new THREE.Raycaster();
 var mouse = new THREE.Vector2();
 
@@ -124,39 +125,34 @@ function draw_arrow(cut: Cut, d: number): void {
     arrows.push(arrow);
 }
 
-function reverse_cut(cut: Cut): Cut {
-    return {
-        plane: cut.plane.neg(),
-        back: cut.front,
-        front: cut.back
-    };
-}
-
 function draw_arrows(): void {
+    // remove old arrows
     for (let arrow of arrows)
         scene.remove(arrow);
     mouseover_arrow = null;
     arrows = [];
-    cuts = find_cuts(puzzle.pieces);
-    let n = cuts.length;
+
+    // compute new grips
     // make normals point away from origin; deep cuts go both ways
-    let new_cuts: Cut[] = [];
-    for (let cut of cuts) {
+    grips = []
+    for (let cut of find_cuts(puzzle.pieces)) {
         if (cut.plane.constant.sign() <= 0)
-            new_cuts.push(cut);
+            grips.push(cut);
         if (cut.plane.constant.sign() >= 0)
-            new_cuts.push(reverse_cut(cut));
+            grips.push(cut.neg());
     }
-    cuts = new_cuts;
-    cuts.sort((a, b) => b.plane.constant.compare(a.plane.constant));
+
+    // draw new arrows, linking each to a cut
+    grips.sort((a, b) => b.plane.constant.compare(a.plane.constant));
     let count: {[key: string]: number} = {};
-    for (let cut of cuts) {
+    for (let cut of grips) {
         // bug: if cuts are close, arrows can collide
         let h = String(cut.plane.normal);
         setdefault(count, h, 0);
         draw_arrow(cut, count[h]);
         count[h] += 1;
     }
+    
     // update matrices for raycaster
     for (let arrow of arrows)
         arrow.updateMatrixWorld(true);
@@ -361,8 +357,8 @@ apply_cuts();
 
 var random_moves = 0;
 function move_random(): void {
-    console.assert(cuts.length > 0, "no available cuts");
-    let ci = Math.floor(Math.random()*cuts.length);
+    console.assert(grips.length > 0, "no available grips");
+    let ci = Math.floor(Math.random()*grips.length);
     let dir = Math.floor(Math.random()*2)*2-1;
     begin_move(ci, dir);
     random_moves -= 1;
@@ -384,7 +380,7 @@ const rad_per_sec = 2*Math.PI;
 var cur_move: Move = null;
 
 function begin_move(ci: number, dir: number): void {
-    let cut = cuts[ci];
+    let cut = grips[ci];
     if (cur_move !== null)
         end_move();
     

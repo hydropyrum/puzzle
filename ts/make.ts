@@ -1,8 +1,8 @@
 /* Various utility functions for creating pieces. */
 
 import * as THREE from 'three';
-import { PolyGeometry, cube_polygeometry, ExactPlane} from './piece';
-import { slice_polygeometry } from './slice';
+import { PolyGeometry, cube_polygeometry, slice_polygeometry } from './piece';
+import { ExactPlane } from './math';
 import { setdefault } from './util';
 import * as polyhedra from './polyhedra';
 import { AlgebraicNumber } from './exact';
