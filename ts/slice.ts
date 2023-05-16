@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { setdefault, keys } from './util';
-import { ExactPlane, PolyGeometry, PolyFace } from './piece';
+import { ExactPlane, PolyGeometry } from './piece';
 
 /* slice_polygeometry
   

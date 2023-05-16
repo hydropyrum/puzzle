@@ -1,6 +1,5 @@
 import { ExactVector3, ExactPlane, ExactQuaternion } from './piece';
-import { algebraicNumberField, AlgebraicNumber } from './exact';
-import { fraction } from './fraction';
+import { AlgebraicNumber } from './exact';
 import * as THREE from 'three';
 
 let fromNumber = AlgebraicNumber.fromInteger;

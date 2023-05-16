@@ -12,9 +12,7 @@ function jsbi_sign(x: JSBI): number {
     else /* if (JSBI.GT(x, 0)) */ return +1;
 }
 
-/* Find GCD using Euclid's algorithm. 
- * To do: use binary version (https://en.wikipedia.org/wiki/Binary_GCD_algorithm)?
- */
+/* Find GCD using Euclid's algorithm. */
 function jsbi_gcd(x: JSBI, y: JSBI) {
     x = jsbi_abs(x);
     y = jsbi_abs(y);
@@ -51,12 +49,6 @@ export class Fraction {
             return String(this.n);
         else
             return String(this.n) + '/' + String(this.d);
-    }
-
-    /* Temporary function for getting a fraction close to a float */
-    static fromNumber(x: number) {
-        const d = 1000000;
-        return fraction(Math.round(x*d), d);
     }
 
     toNumber(): number {

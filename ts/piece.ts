@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber } from './exact';
-import { fraction } from './fraction';
+import { AlgebraicNumber } from './exact';
 
 export class ExactVector3 {
     x: AlgebraicNumber;

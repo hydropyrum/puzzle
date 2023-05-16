@@ -9,8 +9,7 @@ export class AlgebraicNumberField {
     approx: number;   // floating-point approximation of θ
     upper: Fraction;  // upper bound on θ
     powers: Polynomial[];
-    constructor(poly: Polynomial,
-                approx: number) {
+    constructor(poly: Polynomial, approx: number) {
         this.degree = poly.degree;
         this.poly = poly;
         this.approx = approx;
@@ -71,12 +70,6 @@ export class AlgebraicNumber {
         if (!Number.isInteger(x))
             throw new RangeError('x must be an integer');
         return K.fromVector([fraction(x)]);
-    }
-
-    // temporary
-    static fromNumber(x: number): AlgebraicNumber {
-        let K = algebraicNumberField([-1, 1], 1); // trivial
-        return K.fromVector([Fraction.fromNumber(x)]);
     }
 
     toString(): string {

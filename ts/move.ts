@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { setdefault } from './util';
 import { PolyGeometry, ExactPlane, ExactQuaternion, Puzzle } from './piece';
 import { AlgebraicNumber } from './exact';
-import { keys } from './util';
 
 export interface Cut {
     plane: ExactPlane;

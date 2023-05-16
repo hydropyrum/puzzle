@@ -1,7 +1,7 @@
 /* Parse URL */
 
 import { algebraicNumberField, AlgebraicNumber } from './exact';
-import { Fraction, fraction } from './fraction';
+import { fraction } from './fraction';
 
 export interface Polyhedron {
     tag: "polyhedron";
@@ -41,7 +41,7 @@ export interface Puzzle {
 export function parseReal(s: string): AlgebraicNumber {
     let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847); // Q(sqrt(2), sqrt(5))
     let tokens: (string|AlgebraicNumber)[] = [];
-    let tokenRE = /[+\-*/()]|sqrt\((\d+)\)|(\d+\.\d+)|(\d+)/y;
+    let tokenRE = /[+\-*/()]|sqrt\((\d+)\)|(\d+)/y;
     let m = tokenRE.exec(s);
     while (m !== null) {
         if (m[1] !== undefined) {
@@ -52,10 +52,8 @@ export function parseReal(s: string): AlgebraicNumber {
                 tokens.push(K.fromVector([0, fraction(17,6), 0, fraction(-1,6)]));
             else
                 throw new Error(`I don't know how to take the sqrt of ${arg}`);
-        } else if (m[2] !== undefined) // to do: remove this case
-            tokens.push(K.fromVector([Fraction.fromNumber(parseFloat(m[2]))]));
-        else if (m[3] !== undefined)
-            tokens.push(K.fromVector([parseInt(m[3])]));
+        } else if (m[2] !== undefined)
+            tokens.push(K.fromVector([parseInt(m[2])]));
         else
             tokens.push(m[0]);
         m = tokenRE.exec(s);

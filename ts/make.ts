@@ -1,12 +1,11 @@
 /* Various utility functions for creating pieces. */
 
 import * as THREE from 'three';
-import { PolyGeometry, cube_polygeometry, ExactVector3, ExactPlane} from './piece';
+import { PolyGeometry, cube_polygeometry, ExactPlane} from './piece';
 import { slice_polygeometry } from './slice';
-import { setdefault, PHI } from './util';
+import { setdefault } from './util';
 import * as polyhedra from './polyhedra';
-import { algebraicNumberField, AlgebraicNumber } from './exact';
-import { Fraction, fraction } from './fraction';
+import { AlgebraicNumber } from './exact';
 
 function get_color(i: number): THREE.Color {
     /* Generate colors. The first six colors are the original Rubik's
@@ -14,6 +13,7 @@ function get_color(i: number): THREE.Color {
     colors:
     https://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/ */
     let basic_colors = [0xFFFFFF, 0xC41E3A, 0x009E60, 0x0051BA, 0xFF5800, 0xFFD500];
+    let PHI = (1+Math.sqrt(5))/2;
     if (i < 6)
         return new THREE.Color(basic_colors[i]);
     else
