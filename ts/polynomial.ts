@@ -181,7 +181,7 @@ export class Polynomial {
     }
 }
 
-export function polynomial(coeffs: (Fraction|number)[]) {
+export function polynomial(coeffs: (Fraction|number)[]): Polynomial {
     return new Polynomial(
         coeffs.map(x => typeof x === 'number' ? fraction(x) : x)
     );

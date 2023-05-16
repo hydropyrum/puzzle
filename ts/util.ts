@@ -1,5 +1,3 @@
-import * as THREE from 'three';
-
 export function setdefault(d: any, k: any, v: any): any {
     if (!(k in d))
         d[k] = v;

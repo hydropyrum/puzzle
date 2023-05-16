@@ -9,7 +9,7 @@ export interface Cut {
     back: () => number[];
 }
 
-export function find_cuts(puzzle: PolyGeometry[], ps?: number[]) {
+export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
     /* Given a list of (indexes of) pieces, find all planes that touch
        but don't cut them. The return value is a list of objects; each
        has three fields:

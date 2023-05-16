@@ -54,7 +54,7 @@ const face_material = new THREE.MeshLambertMaterial({
 const edge_material = new THREE.LineBasicMaterial({color: 0x000000, linewidth: 2});
 //const wire_material = new THREE.LineBasicMaterial({color: 0xffffff, linewidth: 1});
 
-function draw_puzzle(newPieces: PolyGeometry[], scene: THREE.Scene, scale: number) {
+function draw_puzzle(newPieces: PolyGeometry[], scene: THREE.Scene, scale: number): void {
     for (let piece of puzzle.pieces)
         if (piece.object)
             scene.remove(piece.object);
@@ -108,7 +108,7 @@ const mouseover_arrow_material = new THREE.MeshLambertMaterial({
     color: new THREE.Color(0xFFFFCC),
     transparent: true, opacity: 0.9, side: THREE.DoubleSide});
 
-function draw_arrow(cut: Cut, d: number) {
+function draw_arrow(cut: Cut, d: number): void {
     let arrow = new THREE.Mesh(arrow_geometry, arrow_material);
     arrow.scale.multiplyScalar(0.2);
     var rot = new THREE.Quaternion();
@@ -124,7 +124,7 @@ function draw_arrow(cut: Cut, d: number) {
     arrows.push(arrow);
 }
 
-function reverse_cut(cut: Cut) {
+function reverse_cut(cut: Cut): Cut {
     return {
         plane: cut.plane.neg(),
         back: cut.front,
@@ -132,7 +132,7 @@ function reverse_cut(cut: Cut) {
     };
 }
 
-function draw_arrows() {
+function draw_arrows(): void {
     for (let arrow of arrows)
         scene.remove(arrow);
     mouseover_arrow = null;
@@ -164,7 +164,7 @@ function draw_arrows() {
     render_requested = true;
 }
 
-function highlight_arrow() {
+function highlight_arrow(): void {
     let new_arrow: THREE.Mesh|null = null;
     if (mouse !== null) {
         raycaster.setFromCamera(mouse, camera);
@@ -183,7 +183,7 @@ function highlight_arrow() {
     }
 }
 
-function set_mouse(x: number, y: number) {
+function set_mouse(x: number, y: number): void {
     let rect = renderer.domElement.getBoundingClientRect();
     mouse.x = (x - rect.left) / rect.width * 2 - 1;
     mouse.y = -(y - rect.top) / rect.height * 2 + 1;
@@ -195,7 +195,7 @@ canvas.addEventListener('mousemove', function (event: MouseEvent) {
     set_mouse(event.clientX, event.clientY);
     highlight_arrow();
 }, false);
-function ontouchmove(event: TouchEvent) {
+function ontouchmove(event: TouchEvent): void {
     if (event.touches.length != 1) return;
     event.preventDefault();
     event.stopPropagation();
@@ -214,7 +214,7 @@ canvas.addEventListener('touchstart', function (event: TouchEvent) {
     click_arrow = mouseover_arrow;
 }, false);
 
-function activate_arrow() {
+function activate_arrow(): void {
     highlight_arrow();
     if (mouseover_arrow === null || mouseover_arrow !== click_arrow)
         return;
@@ -224,7 +224,7 @@ function activate_arrow() {
     begin_move(ci, dir);
 }
 
-function onmouseup(event: Event) {
+function onmouseup(event: Event): void {
     event.preventDefault();
     // do propagate because TrackballControl's mouseup is on document
     activate_arrow();
@@ -243,7 +243,7 @@ canvas.addEventListener('touchend', function (event: TouchEvent) {
 const shells_list = document.getElementById("shells")!;
 const cuts_list = document.getElementById("cuts")!;
 
-function select_option(select: HTMLSelectElement, value: string) {
+function select_option(select: HTMLSelectElement, value: string): void {
     for (let i=0; i<select.options.length; i++)
         if (select.options[i].value == value) {
             select.selectedIndex = i;
@@ -252,7 +252,7 @@ function select_option(select: HTMLSelectElement, value: string) {
         }
 }
 
-function add_item(list: HTMLElement, shape?: parse.Shape) {
+function add_item(list: HTMLElement, shape?: parse.Shape): void {
     // Add new item to HTML
     let item = list.firstElementChild!.cloneNode(true) as HTMLElement;
     item.style.display = "block";
@@ -283,7 +283,7 @@ function add_item(list: HTMLElement, shape?: parse.Shape) {
 document.getElementById('add_shell')!.addEventListener('click', e => add_item(shells_list), false);
 document.getElementById('add_cut')!.addEventListener('click', e => add_item(cuts_list), false);
 
-function list_to_shapes(list: HTMLElement) {
+function list_to_shapes(list: HTMLElement): parse.Shape[] {
     let ret: parse.Shape[] = [];
     for (let item of Array.from(list.children)) {
         // skip first item, which is a dummy item
@@ -305,7 +305,7 @@ function list_to_shapes(list: HTMLElement) {
 
 // Apply
 
-function apply_cuts() {
+function apply_cuts(): void {
     let p: parse.Puzzle = {
         shell: list_to_shapes(shells_list),
         cuts: list_to_shapes(cuts_list)
@@ -360,7 +360,7 @@ apply_cuts();
 // Scramble
 
 var random_moves = 0;
-function move_random() {
+function move_random(): void {
     console.assert(cuts.length > 0, "no available cuts");
     let ci = Math.floor(Math.random()*cuts.length);
     let dir = Math.floor(Math.random()*2)*2-1;
@@ -383,7 +383,7 @@ const rad_per_sec = 2*Math.PI;
 
 var cur_move: Move = null;
 
-function begin_move(ci: number, dir: number) {
+function begin_move(ci: number, dir: number): void {
     let cut = cuts[ci];
     if (cur_move !== null)
         end_move();
@@ -434,7 +434,7 @@ function begin_move(ci: number, dir: number) {
     draw_arrows();
 }
 
-function end_move() {
+function end_move(): void {
     // Snap to final angle
     //for (let p of cur_move!.pieces) {
     for (let p=0; p<puzzle.pieces.length; p++) {
@@ -446,13 +446,13 @@ function end_move() {
     render_requested = true;
 }
 
-function render() {
+function render(): void {
     renderer.render(scene, camera);
     render_requested = false;
     highlight_arrow();
 }
 
-function resize() {
+function resize(): void {
     let size = canvas.clientWidth;
     if (size != canvas.width || size != canvas.height) {
         renderer.setSize(size, size, false);
@@ -460,7 +460,7 @@ function resize() {
     }
 }
 
-function animate(t: number) {
+function animate(t: number): void {
     resize();
     if (cur_move !== null) {
         if (cur_move.start_time === null)

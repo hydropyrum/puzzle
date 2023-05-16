@@ -13,7 +13,7 @@ function jsbi_sign(x: JSBI): number {
 }
 
 /* Find GCD using Euclid's algorithm. */
-function jsbi_gcd(x: JSBI, y: JSBI) {
+function jsbi_gcd(x: JSBI, y: JSBI): JSBI {
     x = jsbi_abs(x);
     y = jsbi_abs(y);
     if (JSBI.lessThan(x, y)) [x, y] = [y, x];
@@ -80,7 +80,7 @@ export class Fraction {
     abs(): Fraction { return new Fraction(jsbi_abs(this.n), this.d); }
 }
 
-export function fraction(n: JSBI|number, d: JSBI|number = 1) {
+export function fraction(n: JSBI|number, d: JSBI|number = 1): Fraction {
     if (typeof n === 'number') n = JSBI.BigInt(n);
     if (typeof d === 'number') d = JSBI.BigInt(d);
     return new Fraction(n, d);
