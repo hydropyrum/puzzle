@@ -112,7 +112,7 @@ function draw_arrow(cut: Cut, d: number) {
     let arrow = new THREE.Mesh(arrow_geometry, arrow_material);
     arrow.scale.multiplyScalar(0.2);
     var rot = new THREE.Quaternion();
-    rot.setFromUnitVectors(new THREE.Vector3(0, 0, 1), puzzle.global_rot.apply(cut.plane.normal).toThree());
+    rot.setFromUnitVectors(new THREE.Vector3(0, 0, 1), puzzle.global_rot.apply(cut.plane.normal).toThree().normalize());
     arrow.position.z = 1.25 + 0.25*d;
     arrow.position.applyQuaternion(rot);
     arrow.quaternion.copy(rot);
