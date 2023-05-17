@@ -1,4 +1,3 @@
-import JSBI from 'jsbi';
 import { Fraction, fraction } from './fraction';
 
 export class Polynomial {
@@ -166,17 +165,17 @@ export class Polynomial {
     
     /* Find an isolating interval for the root of p nearest x. */
     isolate_root(x: number): [Fraction, Fraction] {
-        let denom = JSBI.BigInt(1);
+        let denom = 1n;
         while (true) {
-            let lnumer = JSBI.BigInt(Math.floor(x * JSBI.toNumber(denom)));
-            let unumer = JSBI.add(lnumer, JSBI.BigInt(1));
+            let lnumer = BigInt(Math.floor(x * Number(denom)));
+            let unumer = lnumer + 1n;
             let lower = fraction(lnumer, denom), upper = fraction(unumer, denom);
             let c = this.count_roots(lower, upper);
             if (c == 1)
                 return [lower, upper];
             else if (c == 0)
                 throw new RangeError("no root in interval [" + String(lower) + "," + String(upper) + "]");
-            denom = JSBI.multiply(denom, JSBI.BigInt(2));
+            denom *= 2n;
         }
     }
 }
