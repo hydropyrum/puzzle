@@ -43,12 +43,12 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
     for (let p of ps)
         for (let face of puzzle[p].faces) {
             let plane = new ExactPlane(
-                puzzle[p].rot ? puzzle[p].rot!.apply(face.plane.normal) : face.plane.normal,
+                puzzle[p].rot.apply(face.plane.normal),
                 face.plane.constant).canonicalize();
             setdefault(planes, String(plane.normal), {})[String(plane.constant)] = plane;
         }
 
-    let cuts: {[key: string]: Cut} = {};
+    let cuts: Cut[] = [];
 
     for (let nh in planes) {
         
@@ -71,7 +71,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
             let xmax: AlgebraicNumber|null = null; // -∞
             // Instead of rotating all of p's vertices,
             // rotate n in the opposite direction.
-            let nq = puzzle[p].rot ? puzzle[p].rot!.conj().apply(n) : n;
+            let nq = puzzle[p].rot.conj().apply(n);
             for (let v of puzzle[p].vertices) {
                 let x = nq.dot(v);
                 if (xmin === null || x.compare(xmin) < 0) xmin = x;
@@ -109,17 +109,16 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
                      inside == 0 && // only keep planes not inside pieces
                      i > 0 && i < a.length-1 && // only keep planes between pieces
                      what instanceof ExactPlane) {
-                // hash by back-side pieces to avoid duplication
                 let h = get_pieces(0, i).sort().join(',');
-                cuts[h] = new Cut(
+                cuts.push( new Cut(
                     what, 
                     function () { return get_pieces(i+1, a.length) },
                     function () { return get_pieces(0, i) }
-                );
+                ));
             }
         }
     }
-    return Object.values(cuts);
+    return cuts;
 }
 
 export function find_stops(puzzle: PolyGeometry[], cut: Cut): ExactQuaternion[] {
@@ -173,9 +172,9 @@ export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void 
         puzzle.global_rot = puzzle.global_rot.mul(rot);
         rot = rot.conj();
         for (let p of cut.back())
-            puzzle.pieces[p].rot = rot.mul(puzzle.pieces[p].rot!);
+            puzzle.pieces[p].rot = rot.mul(puzzle.pieces[p].rot);
     } else {
         for (let p of cut.front())
-            puzzle.pieces[p].rot = rot.mul(puzzle.pieces[p].rot!);
+            puzzle.pieces[p].rot = rot.mul(puzzle.pieces[p].rot);
     }
 }

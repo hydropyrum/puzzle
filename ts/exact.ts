@@ -155,13 +155,6 @@ export class AlgebraicNumber {
         let K = this.field;
         let p = this.poly;
         if (p.degree == -1) return 0;
-        /* // Loos
-        let c = p.count_roots(K.lower, K.upper);
-        while (c > 0) {
-            K.refine();
-            c = p.count_roots(K.lower, K.upper);
-            }
-        return p.eval(K.lower).sign();*/
         let [val_l, val_u] = p.eval_interval(K.lower, K.upper);
         while (val_l.sign() != val_u.sign()) {
             K.refine();

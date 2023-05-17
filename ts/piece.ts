@@ -13,12 +13,12 @@ export interface PolyFace {
 export class PolyGeometry {
     vertices: ExactVector3[];
     faces: PolyFace[];
-    rot: ExactQuaternion | null;
+    rot: ExactQuaternion;
     object: THREE.Object3D | null;
     constructor(vertices: ExactVector3[], faces: PolyFace[]) {
         this.vertices = vertices;
         this.faces = faces;
-        this.rot = null;
+        this.rot = ExactQuaternion.identity();
         this.object = null;
     }
     

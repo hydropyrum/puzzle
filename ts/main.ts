@@ -424,7 +424,7 @@ function begin_move(ci: number, dir: number): void {
     };
     for (let i of cur_move!.pieces) {
         let grot = puzzle.global_rot.toThree();
-        let prot = puzzle.pieces[i].rot!.toThree();
+        let prot = puzzle.pieces[i].rot.toThree();
         cur_move.from_quat.push(grot.clone().multiply(prot));
         cur_move.step_quat.push(grot.clone().multiply(urot).multiply(prot));
     }
@@ -438,7 +438,7 @@ function end_move(): void {
     //for (let p of cur_move!.pieces) {
     for (let p=0; p<puzzle.pieces.length; p++) {
         let q = puzzle.pieces[p].object!.quaternion;
-        let r = puzzle.global_rot.mul(puzzle.pieces[p].rot!);
+        let r = puzzle.global_rot.mul(puzzle.pieces[p].rot);
         q.copy(r.toThree());
     }
     cur_move = null;
