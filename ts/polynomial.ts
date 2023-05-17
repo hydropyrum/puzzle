@@ -44,7 +44,7 @@ export class Polynomial {
         // Horner's rule
         let sum = fraction(0);
         for (let i=this.degree; i>=0; i--)
-            sum = sum.mul(arg).add(this.coeffs[i]);
+            sum = sum.imul(arg).iadd(this.coeffs[i]);
         return sum;
     }
     
@@ -59,12 +59,12 @@ export class Polynomial {
         let sum_l = fraction(0), sum_u = fraction(0);
         for (let i=this.degree; i>=0; i--) {
             let sums = [sum_l.mul(arg_l),
-                        sum_l.mul(arg_u),
+                        sum_l.imul(arg_u),
                         sum_u.mul(arg_l),
-                        sum_u.mul(arg_u)];
+                        sum_u.imul(arg_u)];
             sums.sort((a,b) => a.compare(b));
-            sum_l = sums[0].add(this.coeffs[i]);
-            sum_u = sums[3].add(this.coeffs[i]);
+            sum_l = sums[0].iadd(this.coeffs[i]);
+            sum_u = sums[3].iadd(this.coeffs[i]);
         }
         return [sum_l, sum_u];
     }
@@ -93,7 +93,7 @@ export class Polynomial {
         for (let k=0; k<=m+n; k++) {
             let ck = fraction(0);
             for (let i=Math.max(0,k-n); i<=Math.min(k,m); i++)
-                ck = ck.add(this.coeffs[i].mul(b.coeffs[k-i]));
+                ck.iadd(this.coeffs[i].mul(b.coeffs[k-i]));
             coeffs.push(ck);
         }
         return new Polynomial(coeffs);
@@ -103,13 +103,13 @@ export class Polynomial {
         let m = this.degree;
         let n = b.degree;
         if (n == -1) throw new RangeError("Division by zero");
-        let rem = this.coeffs.map(x => x);
+        let rem = this.coeffs.map(x => x.clone());
         let quo: Fraction[] = [];
         for (let k=m; k>=n; k--) {
             let q = rem[k].div(b.coeffs[n]);
             quo.push(q);
             for (let j=0; j<=n; j++)
-                rem[k-n+j] = rem[k-n+j].sub(q.mul(b.coeffs[j]));
+                rem[k-n+j].isub(q.mul(b.coeffs[j]));
         }
         quo = quo.reverse();
         return [new Polynomial(quo), new Polynomial(rem)];

@@ -35,14 +35,19 @@ export class Fraction {
         } else if (JSBI.EQ(d, 0)) {
             throw new RangeError("Division by zero");
         }
-        if (reduce) {
-            let g = jsbi_gcd(n, d);
-            n = JSBI.divide(n, g);
-            d = JSBI.divide(d, g);
-        }
         this.n = n;
         this.d = d;
+        if (reduce) this.reduce();
     }
+
+    reduce(): Fraction {
+        let g = jsbi_gcd(this.n, this.d);
+        this.n = JSBI.divide(this.n, g);
+        this.d = JSBI.divide(this.d, g);
+        return this;
+    }
+
+    clone(): Fraction { return new Fraction(this.n, this.d, false); }
 
     toString(): string {
         if (JSBI.EQ(this.d, 1))
@@ -54,30 +59,57 @@ export class Fraction {
     toNumber(): number {
         return JSBI.toNumber(this.n)/JSBI.toNumber(this.d);
     }
+
+    ineg(): Fraction { this.n = JSBI.unaryMinus(this.n); return this; }
+    neg(): Fraction { return this.clone().ineg(); }
     
-    neg() {
-        return new Fraction(JSBI.unaryMinus(this.n), this.d, false);
+    iadd(y: Fraction): Fraction {
+        this.n = JSBI.add(JSBI.multiply(this.n, y.d), JSBI.multiply(this.d, y.n));
+        this.d = JSBI.multiply(this.d, y.d);
+        return this.reduce();
     }
-    add(y: Fraction) {
-        return new Fraction(
-            JSBI.add(JSBI.multiply(this.n, y.d), JSBI.multiply(this.d, y.n)),
-            JSBI.multiply(this.d, y.d)
-        );
-    }
-    sub(y: Fraction) { return this.add(y.neg()); }
-    mul(y: Fraction) {
-        return new Fraction(
-            JSBI.multiply(this.n, y.n),
-            JSBI.multiply(this.d, y.d)
-        );
-    }
-    inverse() { return new Fraction(this.d, this.n, false); }
-    div(y: Fraction) { return this.mul(y.inverse()); }
+    add(y: Fraction): Fraction { return this.clone().iadd(y); }
     
-    equals(y: Fraction) { return JSBI.EQ(this.sub(y).n, 0); }
+    isub(y: Fraction): Fraction {
+        this.n = JSBI.subtract(JSBI.multiply(this.n, y.d), JSBI.multiply(this.d, y.n));
+        this.d = JSBI.multiply(this.d, y.d);
+        return this.reduce();
+    }
+    sub(y: Fraction): Fraction { return this.clone().isub(y); }
+
+    imul(y: Fraction): Fraction {
+        this.n = JSBI.multiply(this.n, y.n);
+        this.d = JSBI.multiply(this.d, y.d);
+        return this;
+    }
+    mul(y: Fraction): Fraction { return this.clone().imul(y); }
+
+    iinv(): Fraction {
+        if (JSBI.EQ(this.n, 0))
+            throw new RangeError("Division by zero");
+        [this.n, this.d] = [this.d, this.n];
+        return this;
+    }
+    inverse(): Fraction { return this.clone().iinv(); }
+
+    idiv(y: Fraction): Fraction {
+        if (JSBI.EQ(y.n, 0))
+            throw new RangeError("Division by zero");
+        this.n = JSBI.multiply(this.n, y.d);
+        this.d = JSBI.multiply(this.d, y.n);
+        return this;
+    }
+    div(y: Fraction): Fraction { return this.clone().idiv(y); }
+    
+    equals(y: Fraction): boolean {
+        return JSBI.EQ(JSBI.multiply(this.n, y.d), JSBI.multiply(this.d, y.n));
+    }
     sign(): number { return jsbi_sign(this.n); }
-    compare(y: Fraction): number { return jsbi_sign(this.sub(y).n); }
-    abs(): Fraction { return new Fraction(jsbi_abs(this.n), this.d); }
+    compare(y: Fraction): number {
+        return jsbi_sign(JSBI.subtract(JSBI.multiply(this.n, y.d), JSBI.multiply(this.d, y.n)));
+    }
+    iabs(): Fraction { this.n = jsbi_abs(this.n); return this; }
+    abs(): Fraction { return this.clone().iabs(); }
 }
 
 export function fraction(n: JSBI|number, d: JSBI|number = 1): Fraction {

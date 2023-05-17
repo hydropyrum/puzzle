@@ -67,17 +67,17 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
         for (let plane of planes_n)
             a.push([plane.constant.neg(), PLANE, plane]);
         for (let p of ps) {
-            let xmin: AlgebraicNumber|undefined = undefined; // ∞
-            let xmax: AlgebraicNumber|undefined = undefined; // -∞
+            let xmin: AlgebraicNumber|null = null; // ∞
+            let xmax: AlgebraicNumber|null = null; // -∞
             // Instead of rotating all of p's vertices,
             // rotate n in the opposite direction.
             let nq = puzzle[p].rot ? puzzle[p].rot!.conj().apply(n) : n;
             for (let v of puzzle[p].vertices) {
                 let x = nq.dot(v);
-                if (xmin === undefined || x.compare(xmin) < 0) xmin = x;
-                if (xmax === undefined || x.compare(xmax) > 0) xmax = x;
+                if (xmin === null || x.compare(xmin) < 0) xmin = x;
+                if (xmax === null || x.compare(xmax) > 0) xmax = x;
             }
-            if (xmin !== undefined && xmax !== undefined) {
+            if (xmin !== null && xmax !== null) {
                 a.push([xmin, BEGIN_PIECE, p]);
                 a.push([xmax, END_PIECE, p]);
             }

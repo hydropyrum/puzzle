@@ -383,6 +383,8 @@ function begin_move(ci: number, dir: number): void {
     let cut = grips[ci];
     if (cur_move !== null)
         end_move();
+
+    console.time('move initiated in');
     
     let rots = find_stops(puzzle.pieces, cut);
     let rot: ExactQuaternion;
@@ -428,6 +430,7 @@ function begin_move(ci: number, dir: number): void {
     }
     make_move(puzzle, cut, rot);
     draw_arrows();
+    console.timeEnd('move initiated in');
 }
 
 function end_move(): void {

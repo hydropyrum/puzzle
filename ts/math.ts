@@ -105,8 +105,7 @@ export class ExactQuaternion {
     }
 
     /* Given an axis k (not necessarily normalized, and x, y such that
-       ||x|| = ||y|| and k·x = k·y, find the rotation about k that takes x to y.
-    */
+       ||x|| = ||y|| and k·x = k·y, find the rotation about k that takes x to y. */
     static fromAxisPoints(k: ExactVector3, x: ExactVector3, y: ExactVector3): ExactQuaternion {
         let kxy = k.dot(x.cross(y));
         let kx = k.dot(x); // = k.dot(y)
