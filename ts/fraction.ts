@@ -2,14 +2,16 @@
 
 import JSBI from "jsbi";
 
+const jsbi_zero = JSBI.BigInt(0);
+
 function jsbi_abs(x: JSBI): JSBI {
-    return JSBI.LT(x, 0) ? JSBI.unaryMinus(x) : x;
+    return JSBI.lessThan(x, jsbi_zero) ? JSBI.unaryMinus(x) : x;
 }
 
 function jsbi_sign(x: JSBI): number {
-    if (JSBI.EQ(x, 0)) return 0;
-    else if (JSBI.LT(x, 0)) return -1;
-    else /* if (JSBI.GT(x, 0)) */ return +1;
+    if (JSBI.equal(x, jsbi_zero)) return 0;
+    if (JSBI.lessThan(x, jsbi_zero)) return -1;
+    else /*if (JSBI.greaterThan(x, jsbi_zero))*/ return +1;
 }
 
 /* Find GCD using Euclid's algorithm. */
@@ -18,7 +20,7 @@ function jsbi_gcd(x: JSBI, y: JSBI): JSBI {
     y = jsbi_abs(y);
     if (JSBI.lessThan(x, y)) [x, y] = [y, x];
     let r;
-    while (JSBI.NE(y, 0)) {
+    while (JSBI.notEqual(y, jsbi_zero)) {
         r = JSBI.remainder(x, y);
         [x, y] = [y, r];
     }
@@ -29,10 +31,10 @@ export class Fraction {
     n: JSBI;
     d: JSBI;
     constructor(n: JSBI, d: JSBI, reduce: boolean = true) {
-        if (JSBI.LT(d, 0)) {
+        if (JSBI.lessThan(d, jsbi_zero)) {
             n = JSBI.unaryMinus(n);
             d = JSBI.unaryMinus(d);
-        } else if (JSBI.EQ(d, 0)) {
+        } else if (JSBI.equal(d, jsbi_zero)) {
             throw new RangeError("Division by zero");
         }
         this.n = n;
@@ -85,7 +87,7 @@ export class Fraction {
     mul(y: Fraction): Fraction { return this.clone().imul(y); }
 
     iinv(): Fraction {
-        if (JSBI.EQ(this.n, 0))
+        if (JSBI.equal(this.n, jsbi_zero))
             throw new RangeError("Division by zero");
         [this.n, this.d] = [this.d, this.n];
         return this;
@@ -93,7 +95,7 @@ export class Fraction {
     inverse(): Fraction { return this.clone().iinv(); }
 
     idiv(y: Fraction): Fraction {
-        if (JSBI.EQ(y.n, 0))
+        if (JSBI.equal(y.n, jsbi_zero))
             throw new RangeError("Division by zero");
         this.n = JSBI.multiply(this.n, y.d);
         this.d = JSBI.multiply(this.d, y.n);
@@ -102,11 +104,11 @@ export class Fraction {
     div(y: Fraction): Fraction { return this.clone().idiv(y); }
     
     equals(y: Fraction): boolean {
-        return JSBI.EQ(JSBI.multiply(this.n, y.d), JSBI.multiply(this.d, y.n));
+        return JSBI.equal(JSBI.multiply(this.n, y.d), JSBI.multiply(this.d, y.n));
     }
     sign(): number { return jsbi_sign(this.n); }
     compare(y: Fraction): number {
-        return jsbi_sign(JSBI.subtract(JSBI.multiply(this.n, y.d), JSBI.multiply(this.d, y.n)));
+        return jsbi_sign(JSBI.subtract(JSBI.multiply(this.n, y.d), JSBI.multiply(y.n, this.d)));
     }
     iabs(): Fraction { this.n = jsbi_abs(this.n); return this; }
     abs(): Fraction { return this.clone().iabs(); }
