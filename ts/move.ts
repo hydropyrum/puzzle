@@ -54,18 +54,19 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
         
         // Make a list of pieces and planes, sorted by their
         // projection onto the current axis (represented by nh). Each
-        // element of this list is a triple [proj, type, what], where
+        // element of this list is a triple [proj, type, plane], where
         // proj is the projection, type is +1 for begin piece, -1 for
-        // end piece, and 0 for plane, and what is a piece index or a
-        // plane.
+        // end piece, and 0 for plane, and plane is an ExactPlane or
+        // list of piece indices.
 
         const BEGIN_PIECE = 1, END_PIECE = -1, PLANE = 0;
         
-        let a: [AlgebraicNumber, number, number|ExactPlane][] = [];
+        let a: [AlgebraicNumber, number, ExactPlane|number[]][] = [];
         let planes_n = Object.values(planes[nh]);
         let n = planes_n[0].normal;
         for (let plane of planes_n)
             a.push([plane.constant.neg(), PLANE, plane]);
+        let extents: {[key: string]: [AlgebraicNumber, AlgebraicNumber, number[]]} = {};
         for (let p of ps) {
             let xmin: AlgebraicNumber|null = null; // ∞
             let xmax: AlgebraicNumber|null = null; // -∞
@@ -78,10 +79,15 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
                 if (xmax === null || x.compare(xmax) > 0) xmax = x;
             }
             if (xmin !== null && xmax !== null) {
-                a.push([xmin, BEGIN_PIECE, p]);
-                a.push([xmax, END_PIECE, p]);
+                let key = String(xmin)+":"+String(xmax);
+                setdefault(extents, key, [xmin, xmax, []])[2].push(p);
             }
         }
+        for (let e of Object.values(extents)) {
+            a.push([e[0], BEGIN_PIECE, e[2]]);
+            a.push([e[1], END_PIECE, e[2]]);
+        }
+        console.log('sorting', a.length);
         a.sort(function (x, y) {
             let d = x[0].compare(y[0]);
             return d == 0 ? x[1] - y[1] : d;
@@ -92,7 +98,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
             for (let i=start; i<stop; i++) {
                 let [d, type, what] = a[i];
                 if (type == BEGIN_PIECE)
-                    ret.push(what as number);
+                    ret.push(...what as number[]);
             }
             return ret;
         };
