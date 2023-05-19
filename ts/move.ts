@@ -42,9 +42,7 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
     let planes: {[key: string]: {[key: string]: ExactPlane}} = {};
     for (let p of ps)
         for (let face of puzzle[p].faces) {
-            let plane = new ExactPlane(
-                puzzle[p].rot.apply(face.plane.normal),
-                face.plane.constant).canonicalize();
+            let plane = face.plane.canonicalize();
             setdefault(planes, String(plane.normal), {})[String(plane.constant)] = plane;
         }
 
@@ -70,11 +68,8 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
         for (let p of ps) {
             let xmin: AlgebraicNumber|null = null; // ∞
             let xmax: AlgebraicNumber|null = null; // -∞
-            // Instead of rotating all of p's vertices,
-            // rotate n in the opposite direction.
-            let nq = puzzle[p].rot.conj().apply(n);
             for (let v of puzzle[p].vertices) {
-                let x = nq.dot(v);
+                let x = n.dot(v);
                 if (xmin === null || x.compare(xmin) < 0) xmin = x;
                 if (xmax === null || x.compare(xmax) > 0) xmax = x;
             }
@@ -173,13 +168,19 @@ export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void 
     // the composition of a bounded number of rotations. This ensures
     // there is no coefficient explosion and might make it possible to
     // cache computations.
-    if (cut.front().includes(0)) {
+    let ps: number[] = cut.front();
+    if (ps.includes(0)) {
         puzzle.global_rot = puzzle.global_rot.mul(rot);
         rot = rot.conj();
-        for (let p of cut.back())
-            puzzle.pieces[p].rot = rot.mul(puzzle.pieces[p].rot);
-    } else {
-        for (let p of cut.front())
-            puzzle.pieces[p].rot = rot.mul(puzzle.pieces[p].rot);
+        ps = cut.back();
+    }
+    for (let p of ps) {
+        let pg = puzzle.pieces[p];
+        pg.rot = rot.mul(puzzle.pieces[p].rot);
+        for (let i=0; i<pg.vertices.length; i++)
+            pg.vertices[i] = rot.apply(pg.vertices[i]);
+        for (let face of pg.faces) {
+            face.plane = new ExactPlane(rot.apply(face.plane.normal), face.plane.constant);
+        }
     }
 }
