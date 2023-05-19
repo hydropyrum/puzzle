@@ -87,7 +87,6 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
             a.push([e[0], BEGIN_PIECE, e[2]]);
             a.push([e[1], END_PIECE, e[2]]);
         }
-        console.log('sorting', a.length);
         a.sort(function (x, y) {
             let d = x[0].compare(y[0]);
             return d == 0 ? x[1] - y[1] : d;

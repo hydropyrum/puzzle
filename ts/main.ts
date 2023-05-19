@@ -134,6 +134,7 @@ function draw_arrows(): void {
 
     // compute new grips
     // make normals point away from origin; deep cuts go both ways
+    console.time('grips found in ');
     grips = []
     for (let cut of find_cuts(puzzle.pieces)) {
         if (cut.plane.constant.sign() <= 0)
@@ -141,6 +142,7 @@ function draw_arrows(): void {
         if (cut.plane.constant.sign() >= 0)
             grips.push(cut.neg());
     }
+    console.timeEnd('grips found in ');
 
     // draw new arrows, linking each to a cut
     grips.sort((a, b) => b.plane.constant.compare(a.plane.constant));
@@ -384,9 +386,10 @@ function begin_move(ci: number, dir: number): void {
     if (cur_move !== null)
         end_move();
 
-    console.time('move initiated in');
-    
+    console.time('stops found in');
     let rots = find_stops(puzzle.pieces, cut);
+    console.timeEnd('stops found in');
+    
     let rot: ExactQuaternion;
     let angle: number;
     if (rots.length == 0) {
@@ -430,7 +433,6 @@ function begin_move(ci: number, dir: number): void {
     }
     make_move(puzzle, cut, rot);
     draw_arrows();
-    console.timeEnd('move initiated in');
 }
 
 function end_move(): void {
