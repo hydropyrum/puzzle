@@ -1,5 +1,4 @@
 import { Fraction, fraction } from './fraction';
-import JSBI from 'jsbi';
 
 let fracs = [
     {n: -1, d: 1, s: "-1"},

@@ -76,23 +76,32 @@ export class Fraction {
     imul(y: Fraction): Fraction {
         this.n *= y.n;
         this.d *= y.d;
-        return this;
+        return this.reduce();
     }
     mul(y: Fraction): Fraction { return this.clone().imul(y); }
 
     iinv(): Fraction {
-        if (this.n == 0n)
+        if (this.n > 0n) {
+            [this.n, this.d] = [this.d, this.n];
+        } else if (this.n < 0n) {
+            [this.n, this.d] = [-this.d, -this.n];
+        } else /* if (this.n == 0n) */ {
             throw new RangeError("Division by zero");
-        [this.n, this.d] = [this.d, this.n];
+        }
         return this;
     }
     inverse(): Fraction { return this.clone().iinv(); }
 
     idiv(y: Fraction): Fraction {
-        if (y.n == 0n)
+        if (y.n > 0n) {
+            this.n *= y.d;
+            this.d *= y.n;
+        } else if (y.n < 0n) {
+            this.n *= -y.d;
+            this.d *= -y.n;
+        } else /* if (y.n == 0n) */ {
             throw new RangeError("Division by zero");
-        this.n *= y.d;
-        this.d *= y.n;
+        }
         return this;
     }
     div(y: Fraction): Fraction { return this.clone().idiv(y); }
