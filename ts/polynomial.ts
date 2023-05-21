@@ -54,20 +54,6 @@ export class Polynomial {
         return sum;
     }
 
-    eval_interval(arg_l: Fraction, arg_u: Fraction): [Fraction, Fraction] {
-        let sum_l = fraction(0), sum_u = fraction(0);
-        for (let i=this.degree; i>=0; i--) {
-            let sums = [sum_l.mul(arg_l),
-                        sum_l.imul(arg_u),
-                        sum_u.mul(arg_l),
-                        sum_u.imul(arg_u)];
-            sums.sort((a,b) => a.compare(b));
-            sum_l = sums[0].iadd(this.coeffs[i]);
-            sum_u = sums[3].iadd(this.coeffs[i]);
-        }
-        return [sum_l, sum_u];
-    }
-
     add(b: Polynomial): Polynomial {
         let a = this;
         let coeffs: Fraction[] = [];

@@ -9,6 +9,8 @@ export class AlgebraicNumberField {
     approx: number;   // floating-point approximation of θ
     upper: Fraction;  // upper bound on θ
     powers: Polynomial[];
+    powers_upper: Fraction[] = [];
+    powers_lower: Fraction[] = [];
     constructor(poly: Polynomial, approx: number) {
         this.degree = poly.degree;
         this.poly = poly;
@@ -22,10 +24,26 @@ export class AlgebraicNumberField {
             this.powers.push(this.powers[i-1].mul(polynomial([0,1])));
         for (let i=this.degree; i<=2*this.degree; i++)
             this.powers.push(this.powers[i-1].mul(polynomial([0,1])).mod(this.poly));
+
+        this.precompute_interval_powers();
     }
 
     toString(): string {
         return this.poly.toString();
+    }
+
+    precompute_interval_powers() {
+        this.powers_lower = [fraction(1)];
+        this.powers_upper = [fraction(1)];
+        for (let i=1; i <= this.degree; i++) {
+            let vals = [this.powers_lower[i-1].mul(this.lower),
+                        this.powers_lower[i-1].mul(this.upper),
+                        this.powers_upper[i-1].mul(this.lower),
+                        this.powers_upper[i-1].mul(this.upper)];
+            vals.sort((a,b) => a.compare(b));
+            this.powers_lower.push(vals[0]);
+            this.powers_upper.push(vals[3]);
+        }
     }
 
     refine() {
@@ -43,6 +61,7 @@ export class AlgebraicNumberField {
             this.lower = mid;
         else /* if (sm == su) */
             this.upper = mid;
+        this.precompute_interval_powers();
     }
 
     fromVector(coeffs: (number|Fraction)[]): AlgebraicNumber {
@@ -151,14 +170,31 @@ export class AlgebraicNumber {
 
     compare(b: AlgebraicNumber): number { return this.sub(b).sign(); }
 
+    interval(): [Fraction, Fraction] {
+        let K = this.field;
+        let p = this.poly;
+        let l = fraction(0), u = fraction(0);
+        for (let i=0; i<=p.degree; i++) {
+            let s = p.coeffs[i].sign();
+            if (s > 0) {
+                l.iadd(p.coeffs[i].mul(K.powers_lower[i]));
+                u.iadd(p.coeffs[i].mul(K.powers_upper[i]));
+            } else if (s < 0) {
+                l.iadd(p.coeffs[i].mul(K.powers_upper[i]));
+                u.iadd(p.coeffs[i].mul(K.powers_lower[i]));
+            }
+        }
+        return [l, u];
+    }
+
     sign(): number {
         let K = this.field;
         let p = this.poly;
         if (p.degree == -1) return 0;
-        let [val_l, val_u] = p.eval_interval(K.lower, K.upper);
+        let [val_l, val_u] = this.interval();
         while (val_l.sign() != val_u.sign()) {
             K.refine();
-            [val_l, val_u] = p.eval_interval(K.lower, K.upper);
+            [val_l, val_u] = this.interval();
         }
         return val_l.sign();
     }
