@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls';
 import { make_shell, make_cuts, polyhedron } from './make';
-import { Cut, find_cuts, find_stops, make_move } from './move';
-import { PolyGeometry, Puzzle } from './piece';
+import { Puzzle, Cut, find_axes, find_cuts, find_stops, make_move } from './move';
+import { PolyGeometry } from './piece';
 import { ExactPlane, ExactVector3, ExactQuaternion } from './math';
 import { AlgebraicNumber } from './exact';
 import { setdefault } from './util';
@@ -136,7 +136,7 @@ function draw_arrows(): void {
     // make normals point away from origin; deep cuts go both ways
     console.time('grips found in');
     grips = []
-    for (let cut of find_cuts(puzzle.pieces)) {
+    for (let cut of find_cuts(puzzle)) {
         if (cut.plane.constant.sign() <= 0)
             grips.push(cut);
         if (cut.plane.constant.sign() >= 0)
@@ -387,7 +387,7 @@ function begin_move(ci: number, dir: number): void {
         end_move();
 
     console.time('stops found in');
-    let rots = find_stops(puzzle.pieces, cut);
+    let rots = find_stops(puzzle, cut);
     console.timeEnd('stops found in');
 
     let rot: ExactQuaternion;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { AlgebraicNumber } from './exact';
 import { ExactPlane, ExactVector3, ExactQuaternion } from './math';
 import { cube_polygeometry, slice_polygeometry } from './piece';
-import { find_cuts, find_stops } from './move';
+import { Puzzle, find_cuts, find_stops } from './move';
 
 let fromNumber = AlgebraicNumber.fromInteger;
 
@@ -37,6 +37,9 @@ for (let cut of cuts) {
     pieces = newpieces;
 }
 
+let puzzle = new Puzzle();
+puzzle.pieces = pieces;
+
 function planeEqual(p1: ExactPlane, p2: ExactPlane) {
     return (p1.normal.x.equals(p2.normal.x) &&
         p1.normal.y.equals(p2.normal.y) &&
@@ -45,15 +48,15 @@ function planeEqual(p1: ExactPlane, p2: ExactPlane) {
 }
 
 test('find_cuts', () => {
-    let found = find_cuts(pieces);
+    let found = find_cuts(puzzle);
     expect(found.length).toBe(cuts.length);
     for (let foundcut of found.map(x => x.plane.canonicalize()))
         expect(cuts.some(x => planeEqual(foundcut, x.plane.canonicalize()))).toBe(true);
 });
 
 test('find_stops', () => {
-    for (let cut of find_cuts(pieces)) {
-        let found_stops = find_stops(pieces, cut);
+    for (let cut of find_cuts(puzzle)) {
+        let found_stops = find_stops(puzzle, cut);
         let found_angles = found_stops.map(rot => rot.approxAngle() / Math.PI * 180);
         let true_angles = cuts.filter(x => planeEqual(cut.plane, x.plane.canonicalize()))[0].stops;
         expect(found_angles.length).toBe(true_angles.length);

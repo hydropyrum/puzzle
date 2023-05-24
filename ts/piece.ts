@@ -226,11 +226,3 @@ function close_polyhedron(geometry: PolyGeometry, plane: ExactPlane, color: THRE
     }
 }
 
-export class Puzzle {
-    pieces: PolyGeometry[];
-    global_rot: ExactQuaternion;
-    constructor() {
-        this.pieces = [];
-        this.global_rot = ExactQuaternion.identity();
-    }
-};

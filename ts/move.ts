@@ -1,24 +1,124 @@
 import * as THREE from 'three';
 import { setdefault } from './util';
-import { PolyGeometry, Puzzle } from './piece';
-import { ExactPlane, ExactQuaternion } from './math';
+import { PolyGeometry } from './piece';
+import { ExactPlane, ExactQuaternion, ExactVector3 } from './math';
 import { AlgebraicNumber } from './exact';
 
-export class Cut {
-    plane: ExactPlane;
-    front: () => number[];
-    back: () => number[];
-
-    constructor(plane: ExactPlane, front: () => number[], back: () => number[]) {
-        this.plane = plane;
-        this.front = front;
-        this.back = back;
+export class Puzzle {
+    pieces: PolyGeometry[];
+    global_rot: ExactQuaternion;
+    axes?: Axis[];
+    constructor() {
+        this.pieces = [];
+        this.global_rot = ExactQuaternion.identity();
+        this.axes = undefined;
     }
+};
 
-    neg(): Cut { return new Cut(this.plane.neg(), this.back, this.front); }
+enum PointType { Begin = 1, End = -1 }; // numeric values are used for sorting
+
+export interface Point {
+    proj: AlgebraicNumber;
+    type: PointType;
+    pieceNums: number[];
 }
 
-export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
+export interface Axis {
+    vector: ExactVector3;
+    points: Point[];
+};
+
+export class Cut {
+    axis: Axis;
+    pos: number;
+    dir: number;
+    plane: ExactPlane;
+
+    constructor(axis: Axis, pos: number, dir: number, plane: ExactPlane) {
+        this.axis = axis;
+        this.pos = pos; // front side starts at this.axis.points[pos]+1
+        this.dir = dir;
+        this.plane = plane;
+    }
+
+    neg(): Cut {
+        return new Cut(this.axis, this.pos, -this.dir, this.plane.neg());
+    }
+
+    private get_pieces(start: number, stop: number) {
+        let ret = [];
+        for (let i=start; i<stop; i++) {
+            let point = this.axis.points[i];
+            if (point.type === PointType.Begin)
+                ret.push(...point.pieceNums);
+        }
+        return ret;
+    };
+    
+        
+    front(): number[] {
+        if (this.dir > 0)
+            return this.get_pieces(this.pos+1, this.axis.points.length);
+        else
+            return this.get_pieces(0, this.pos);
+    }
+
+    back(): number[] {
+        if (this.dir > 0)
+            return this.get_pieces(0, this.pos);
+        else
+            return this.get_pieces(this.pos+1, this.axis.points.length);
+    }
+}
+
+export function find_axes(puzzle: Puzzle): void {
+    // Every face normal (removing duplicates) is a potential axis
+    // to do: skip exterior faces
+    let axes: {[key: string]: Axis} = {};
+    for (let piece of puzzle.pieces)
+        for (let face of piece.faces) {
+            let n = face.plane.canonicalize().normal;
+            setdefault(axes, String(n), {vector: n, points: []});
+        }
+    puzzle.axes = Object.values(axes);
+
+    for (let ax of puzzle.axes) {
+        // Make a list of pieces, sorted by their projection onto
+        // ax. Each element of this list is a triple [proj,
+        // type, pieces], where proj is the projection, type is +1 for
+        // begin piece and -1 for end piece, and pieces is a list of
+        // piece indices.
+
+        // Find the minimum and maximum projection of each piece onto ax
+        let begin: {[key: string]: [AlgebraicNumber, number[]]} = {};
+        let end: {[key: string]: [AlgebraicNumber, number[]]} = {};
+        for (let p=0; p<puzzle.pieces.length; p++) {
+            let xmin: AlgebraicNumber|null = null; // ∞
+            let xmax: AlgebraicNumber|null = null; // -∞
+            for (let v of puzzle.pieces[p].vertices) {
+                let x = ax.vector.dot(v);
+                if (xmin === null || x.compare(xmin) < 0) xmin = x;
+                if (xmax === null || x.compare(xmax) > 0) xmax = x;
+            }
+            if (xmin !== null && xmax !== null) {
+                setdefault(begin, String(xmin), [xmin, []])[1].push(p);
+                setdefault(end, String(xmax), [xmax, []])[1].push(p);
+            } /* else assert(false); */
+        }
+
+        // Assemble them into a sorted list
+        for (let e of Object.values(begin))
+            ax.points.push({proj: e[0], type: PointType.Begin, pieceNums: e[1]});
+        for (let e of Object.values(end))
+            ax.points.push({proj: e[0], type: PointType.End, pieceNums: e[1]});
+        ax.points.sort(function (x, y) {
+            let d = x.proj.compare(y.proj);
+            return d == 0 ? x.type - y.type : d;
+        });
+    }
+}
+
+export function find_cuts(puzzle: Puzzle, ps?: number[]): Cut[] {
     /* Given a list of (indexes of) pieces, find all planes that touch
        but don't cut them. The return value is a list of objects; each
        has three fields:
@@ -29,99 +129,44 @@ export function find_cuts(puzzle: PolyGeometry[], ps?: number[]): Cut[] {
        Only considers infinite planes, and so could miss places where
        pieces could physically move.
     */
+    if (puzzle.axes === undefined)
+        find_axes(puzzle);
 
-    // Default is all pieces
     if (ps === undefined) {
         ps = [];
-        for (let i=0; i<puzzle.length; i++)
+        for (let i=0; i<puzzle.pieces.length; i++)
             ps.push(i);
     }
-
-    // Make list of candidate planes, grouping together parallel planes
-    // and removing duplicate planes
-    let planes: {[key: string]: {[key: string]: ExactPlane}} = {};
-    for (let p of ps)
-        for (let face of puzzle[p].faces) {
-            let plane = face.plane.canonicalize();
-            setdefault(planes, String(plane.normal), {})[String(plane.constant)] = plane;
-        }
-
+    
     let cuts: Cut[] = [];
-
-    for (let nh in planes) {
-        
-        // Make a list of pieces and planes, sorted by their
-        // projection onto the current axis (represented by nh). Each
-        // element of this list is a triple [proj, type, plane], where
-        // proj is the projection, type is +1 for begin piece, -1 for
-        // end piece, and 0 for plane, and plane is an ExactPlane or
-        // list of piece indices.
-
-        const BEGIN_PIECE = 1, END_PIECE = -1, PLANE = 0;
-        
-        let a: [AlgebraicNumber, number, ExactPlane|number[]][] = [];
-        let planes_n = Object.values(planes[nh]);
-        let n = planes_n[0].normal;
-        for (let plane of planes_n)
-            a.push([plane.constant.neg(), PLANE, plane]);
-        let extents: {[key: string]: [AlgebraicNumber, AlgebraicNumber, number[]]} = {};
-        for (let p of ps) {
-            let xmin: AlgebraicNumber|null = null; // ∞
-            let xmax: AlgebraicNumber|null = null; // -∞
-            for (let v of puzzle[p].vertices) {
-                let x = n.dot(v);
-                if (xmin === null || x.compare(xmin) < 0) xmin = x;
-                if (xmax === null || x.compare(xmax) > 0) xmax = x;
-            }
-            if (xmin !== null && xmax !== null) {
-                let key = String(xmin)+":"+String(xmax);
-                setdefault(extents, key, [xmin, xmax, []])[2].push(p);
-            }
-        }
-        for (let e of Object.values(extents)) {
-            a.push([e[0], BEGIN_PIECE, e[2]]);
-            a.push([e[1], END_PIECE, e[2]]);
-        }
-        a.sort(function (x, y) {
-            let d = x[0].compare(y[0]);
-            return d == 0 ? x[1] - y[1] : d;
-        });
-
-        let get_pieces = function (start: number, stop: number) {
-            let ret = [];
-            for (let i=start; i<stop; i++) {
-                let [d, type, what] = a[i];
-                if (type == BEGIN_PIECE)
-                    ret.push(...what as number[]);
-            }
-            return ret;
-        };
-        
-        // Now traverse the list to find the planes that are cuts
+    for (let ax of puzzle.axes!) {
+        // Traverse the list to find the planes that are cuts
         let inside = 0; // running count of how many pieces are open
-        for (let i=0; i<a.length; i++) {
-            let [d, type, what] = a[i];
-            if (type == BEGIN_PIECE)
-                inside += 1;
-            else if (type == END_PIECE)
-                inside -= 1;
-            else if (type == PLANE &&
-                     inside == 0 && // only keep planes not inside pieces
-                     i > 0 && i < a.length-1 && // only keep planes between pieces
-                     what instanceof ExactPlane) {
-                let h = get_pieces(0, i).sort().join(',');
-                cuts.push( new Cut(
-                    what, 
-                    function () { return get_pieces(i+1, a.length) },
-                    function () { return get_pieces(0, i) }
-                ));
+        for (let i=0; i<ax.points.length; i++) {
+            let point = ax.points[i];
+            let c = 0;
+            for (let p of point.pieceNums)
+                if (ps.includes(p))
+                    c++;
+            if (point.type === PointType.Begin)
+                inside += c;
+            else if (point.type === PointType.End) {
+                inside -= c;
+                if (inside === 0 && i+1 < ax.points.length && ax.points[i+1].type === PointType.Begin) {
+                    if (!point.proj.equals(ax.points[i+1].proj))
+                        console.log("warning: nonzero gap");
+                    cuts.push(new Cut(ax, i, +1, new ExactPlane(ax.vector, point.proj.neg())));
+                }
             }
         }
     }
     return cuts;
 }
 
-export function find_stops(puzzle: PolyGeometry[], cut: Cut): ExactQuaternion[] {
+export function find_stops(puzzle: Puzzle, cut: Cut): ExactQuaternion[] {
+    if (puzzle.axes === undefined)
+        throw new Error("Puzzle is missing axes");
+        
     let one = AlgebraicNumber.fromInteger(1);
     let c = cut.plane.normal;
     
@@ -183,4 +228,5 @@ export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void 
             face.plane = new ExactPlane(rot.apply(face.plane.normal), face.plane.constant);
         }
     }
+    puzzle.axes = undefined;
 }
