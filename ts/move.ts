@@ -54,7 +54,6 @@ export class Cut {
         }
         return ret;
     };
-    
         
     front(): number[] {
         if (this.dir > 0)
@@ -76,10 +75,11 @@ export function find_axes(puzzle: Puzzle): void {
     // to do: skip exterior faces
     let axes: {[key: string]: Axis} = {};
     for (let piece of puzzle.pieces)
-        for (let face of piece.faces) {
-            let n = face.plane.canonicalize().normal;
-            setdefault(axes, String(n), {vector: n, points: []});
-        }
+        for (let face of piece.faces)
+            if (face.interior) {
+                let n = face.plane.canonicalize().normal;
+                setdefault(axes, String(n), {vector: n, points: []});
+            }
     puzzle.axes = Object.values(axes);
 
     for (let ax of puzzle.axes) {
@@ -152,7 +152,7 @@ export function find_cuts(puzzle: Puzzle, ps?: number[]): Cut[] {
                 inside += c;
             else if (point.type === PointType.End) {
                 inside -= c;
-                if (inside === 0 && i+1 < ax.points.length && ax.points[i+1].type === PointType.Begin) {
+                if (inside === 0 && c > 0 && i+1 < ax.points.length && ax.points[i+1].type === PointType.Begin) {
                     if (!point.proj.equals(ax.points[i+1].proj))
                         console.log("warning: nonzero gap");
                     cuts.push(new Cut(ax, i, +1, new ExactPlane(ax.vector, point.proj.neg())));
