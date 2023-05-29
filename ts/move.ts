@@ -8,8 +8,8 @@ export class Puzzle {
     pieces: PolyGeometry[];
     global_rot: ExactQuaternion;
     axes?: Axis[];
-    constructor() {
-        this.pieces = [];
+    constructor(pieces?: PolyGeometry[]) {
+        this.pieces = pieces !== undefined ? pieces : [];
         this.global_rot = ExactQuaternion.identity();
         this.axes = undefined;
     }

@@ -55,12 +55,12 @@ const face_material = new THREE.MeshLambertMaterial({
 const edge_material = new THREE.LineBasicMaterial({color: 0x000000, linewidth: 2});
 //const wire_material = new THREE.LineBasicMaterial({color: 0xffffff, linewidth: 1});
 
-function draw_puzzle(newPieces: PolyGeometry[], scene: THREE.Scene, scale: number): void {
+function draw_puzzle(newPuzzle: Puzzle, scene: THREE.Scene, scale: number): void {
     for (let piece of puzzle.pieces)
         if (piece.object)
             scene.remove(piece.object);
-    for (let piece of newPieces) {
-        piece.rot = ExactQuaternion.identity();
+    puzzle = newPuzzle;
+    for (let piece of puzzle.pieces) {
         piece.object = new THREE.Object3D();
         let g = piece.toThree();
         piece.object.add(new THREE.Mesh(g, face_material));
@@ -70,8 +70,6 @@ function draw_puzzle(newPieces: PolyGeometry[], scene: THREE.Scene, scale: numbe
 
         scene.add(piece.object);
     }
-    puzzle.pieces = newPieces;
-    puzzle.global_rot = ExactQuaternion.identity();
     draw_arrows();
     render_requested = true;
 }
@@ -340,10 +338,9 @@ function apply_cuts(): void {
         else if (s.tag == "polyhedron")
             cutplanes.push(...polyhedron(s.name, parse.parseReal(s.d)));
     }
-    let newPieces = make_cuts(cutplanes, [shell]);
-    console.log('number of exterior pieces:', newPieces.length);
+    let newPuzzle = new Puzzle(make_cuts(cutplanes, [shell]));
     console.timeEnd('pieces constructed in');
-    draw_puzzle(newPieces, scene, 1/r);
+    draw_puzzle(newPuzzle, scene, 1/r);
     render_requested = true;
 }
 document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
