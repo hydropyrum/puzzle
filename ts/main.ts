@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls';
 import { make_shell, make_cuts, polyhedron } from './make';
-import { Puzzle, Cut, find_axes, find_cuts, find_stops, make_move } from './move';
+import { Puzzle, Cut, find_cuts, find_stops, make_move } from './move';
 import { PolyGeometry } from './piece';
 import { ExactPlane, ExactVector3, ExactQuaternion } from './math';
 import { AlgebraicNumber } from './exact';
@@ -428,7 +428,9 @@ function begin_move(ci: number, dir: number): void {
         cur_move.from_quat.push(grot.clone().multiply(prot));
         cur_move.step_quat.push(grot.clone().multiply(urot).multiply(prot));
     }
+    console.time('move performed in');
     make_move(puzzle, cut, rot);
+    console.timeEnd('move performed in');
     draw_arrows();
 }
 

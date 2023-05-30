@@ -19,6 +19,15 @@ export class ExactVector3 {
         return `[${this.x},${this.y},${this.z}]`;
     }
 
+    pseudoSign(): number {
+        if (this.x.sign() !== 0)
+            return this.x.sign();
+        else if (this.y.sign() !== 0)
+            return this.y.sign();
+        else
+            return this.z.sign();
+    }
+
     equals(other: ExactVector3): boolean {
         return this.x.equals(other.x) && this.y.equals(other.y) && this.z.equals(other.z);
     }
@@ -75,11 +84,7 @@ export class ExactPlane {
 
     /* Take the "absolute value" of a plane so that it compares equal with its negation. */
     canonicalize() {
-        if (this.normal.x.sign() < 0)
-            return this.neg();
-        else if (this.normal.x.isZero() && this.normal.y.sign() < 0)
-            return this.neg();
-        else if (this.normal.x.isZero() && this.normal.y.isZero() && this.normal.z.sign() < 0)
+        if (this.normal.pseudoSign() < 0)
             return this.neg();
         else
             return this;

@@ -17,14 +17,14 @@ export class Puzzle {
 
 enum PointType { Begin = 1, End = -1 }; // numeric values are used for sorting
 
-export interface Point {
+interface Point {
     proj: AlgebraicNumber;
     type: PointType;
     pieceNums: number[];
 }
 
-export interface Axis {
-    vector: ExactVector3;
+interface Axis {
+    dir: ExactVector3;
     points: Point[];
 };
 
@@ -70,52 +70,60 @@ export class Cut {
     }
 }
 
-export function find_axes(puzzle: Puzzle): void {
+function make_axis(puzzle: Puzzle, dir: ExactVector3, pieceNums: number[]) {
+    let ax: Axis = {dir: dir, points: []};
+    
+    // Make a list of pieces, sorted by their projection onto
+    // ax. Each element of this list is a triple [proj,
+    // type, pieces], where proj is the projection, type is +1 for
+    // begin piece and -1 for end piece, and pieces is a list of
+    // piece indices.
+
+    // Find the minimum and maximum projection of each piece onto ax
+    let begin: {[key: string]: [AlgebraicNumber, number[]]} = {};
+    let end: {[key: string]: [AlgebraicNumber, number[]]} = {};
+    for (let p of pieceNums) {
+        let xmin: AlgebraicNumber|null = null; // ∞
+        let xmax: AlgebraicNumber|null = null; // -∞
+        for (let v of puzzle.pieces[p].vertices) {
+            let x = ax.dir.dot(v);
+            if (xmin === null || x.compare(xmin) < 0) xmin = x;
+            if (xmax === null || x.compare(xmax) > 0) xmax = x;
+        }
+        if (xmin !== null && xmax !== null) {
+            setdefault(begin, String(xmin), [xmin, []])[1].push(p);
+            setdefault(end, String(xmax), [xmax, []])[1].push(p);
+        } /* else assert(false); */
+    }
+    
+    // Assemble them into a sorted list
+    for (let e of Object.values(begin))
+        ax.points.push({proj: e[0], type: PointType.Begin, pieceNums: e[1]});
+    for (let e of Object.values(end))
+        ax.points.push({proj: e[0], type: PointType.End, pieceNums: e[1]});
+    ax.points.sort(function (x, y) {
+        let d = x.proj.compare(y.proj);
+        return d == 0 ? x.type - y.type : d;
+    });
+    return ax;
+}
+
+function find_axes(puzzle: Puzzle): void {
     // Every face normal (removing duplicates) is a potential axis
-    // to do: skip exterior faces
-    let axes: {[key: string]: Axis} = {};
+    let dirs: {[key: string]: ExactVector3} = {};
     for (let piece of puzzle.pieces)
         for (let face of piece.faces)
             if (face.interior) {
-                let n = face.plane.canonicalize().normal;
-                setdefault(axes, String(n), {vector: n, points: []});
+                let dir = face.plane.canonicalize().normal;
+                setdefault(dirs, String(dir), dir);
             }
-    puzzle.axes = Object.values(axes);
-
-    for (let ax of puzzle.axes) {
-        // Make a list of pieces, sorted by their projection onto
-        // ax. Each element of this list is a triple [proj,
-        // type, pieces], where proj is the projection, type is +1 for
-        // begin piece and -1 for end piece, and pieces is a list of
-        // piece indices.
-
-        // Find the minimum and maximum projection of each piece onto ax
-        let begin: {[key: string]: [AlgebraicNumber, number[]]} = {};
-        let end: {[key: string]: [AlgebraicNumber, number[]]} = {};
-        for (let p=0; p<puzzle.pieces.length; p++) {
-            let xmin: AlgebraicNumber|null = null; // ∞
-            let xmax: AlgebraicNumber|null = null; // -∞
-            for (let v of puzzle.pieces[p].vertices) {
-                let x = ax.vector.dot(v);
-                if (xmin === null || x.compare(xmin) < 0) xmin = x;
-                if (xmax === null || x.compare(xmax) > 0) xmax = x;
-            }
-            if (xmin !== null && xmax !== null) {
-                setdefault(begin, String(xmin), [xmin, []])[1].push(p);
-                setdefault(end, String(xmax), [xmax, []])[1].push(p);
-            } /* else assert(false); */
-        }
-
-        // Assemble them into a sorted list
-        for (let e of Object.values(begin))
-            ax.points.push({proj: e[0], type: PointType.Begin, pieceNums: e[1]});
-        for (let e of Object.values(end))
-            ax.points.push({proj: e[0], type: PointType.End, pieceNums: e[1]});
-        ax.points.sort(function (x, y) {
-            let d = x.proj.compare(y.proj);
-            return d == 0 ? x.type - y.type : d;
-        });
-    }
+    let pieceNums: number[] = [];
+    for (let i=0; i<puzzle.pieces.length; i++)
+        pieceNums.push(i);
+    
+    puzzle.axes = [];
+    for (let dir of Object.values(dirs))
+        puzzle.axes.push(make_axis(puzzle, dir, pieceNums));
 }
 
 export function find_cuts(puzzle: Puzzle, ps?: number[]): Cut[] {
@@ -152,10 +160,13 @@ export function find_cuts(puzzle: Puzzle, ps?: number[]): Cut[] {
                 inside += c;
             else if (point.type === PointType.End) {
                 inside -= c;
-                if (inside === 0 && c > 0 && i+1 < ax.points.length && ax.points[i+1].type === PointType.Begin) {
-                    if (!point.proj.equals(ax.points[i+1].proj))
-                        console.log("warning: nonzero gap");
-                    cuts.push(new Cut(ax, i, +1, new ExactPlane(ax.vector, point.proj.neg())));
+                if (inside === 0 && c > 0 && i+1 < ax.points.length && ax.points[i+1].type === PointType.Begin && point.proj.equals(ax.points[i+1].proj)) {
+                    let c = 0;
+                    for (let p of ax.points[i+1].pieceNums)
+                        if (ps.includes(p))
+                            c++;
+                    if (c > 0)
+                        cuts.push(new Cut(ax, i, +1, new ExactPlane(ax.dir, point.proj.neg())));
                 }
             }
         }
@@ -208,18 +219,97 @@ export function find_stops(puzzle: Puzzle, cut: Cut): ExactQuaternion[] {
     return ret.map(x => x[1]);
 }
 
+function select_pieces(puzzle: Puzzle, sub: number[]): Axis[] {
+    // Collect all the face normals of the selected pieces
+    let dirs: {[key: string]: ExactVector3} = {};
+    for (let p of sub)
+        for (let face of puzzle.pieces[p].faces)
+            if (face.interior) {
+                let dir = face.plane.canonicalize().normal;
+                setdefault(dirs, String(dir), dir);
+            }
+    // For each axis in the direction of a face normal,
+    // keep only the extents of selected pieces
+    let axes_sub: Axis[] = [];
+    for (let ax of puzzle.axes!) {
+        if (!(String(ax.dir) in dirs)) continue;
+        let ax_sub: Axis = {dir: ax.dir, points: []};
+        for (let point of ax.points) {
+            let pieceNums_sub = [];
+            for (let p of point.pieceNums)
+                if (sub.includes(p)) pieceNums_sub.push(p);
+            if (pieceNums_sub.length > 0)
+                ax_sub.points.push({proj: point.proj, type: point.type, pieceNums: pieceNums_sub});
+        }
+        axes_sub.push(ax_sub);
+    }
+    return axes_sub;
+}
+
+function merge_axis(ax1: Axis, ax2: Axis): Axis {
+    // assert(ax1.dir.equals(ax2.dir));
+    let ax: Axis = {dir: ax1.dir, points: []};
+    let i1 = 0, i2 = 0;
+    while (i1 < ax1.points.length && i2 < ax2.points.length) {
+        let c = ax1.points[i1].proj.compare(ax2.points[i2].proj);
+        if (c < 0)
+            ax.points.push(ax1.points[i1++]);
+        else if (c > 0)
+            ax.points.push(ax2.points[i2++]);
+        else if (ax1.points[i1].type < ax2.points[i2].type)
+            ax.points.push(ax1.points[i1++]);
+        else if (ax1.points[i1].type > ax2.points[i2].type)
+            ax.points.push(ax2.points[i2++]);
+        else {
+            ax.points.push({
+                proj: ax1.points[i1].proj,
+                type: ax1.points[i1].type,
+                pieceNums: ax1.points[i1].pieceNums.concat(ax2.points[i2].pieceNums)
+            });
+            i1++; i2++;
+        }
+    }
+    while (i1 < ax1.points.length)
+        ax.points.push(ax1.points[i1++]);
+    while (i2 < ax2.points.length)
+        ax.points.push(ax2.points[i2++]);
+    return ax;
+}
+
+function merge_axes(puzzle: Puzzle,
+                    axes1: Axis[], pieceNums1: number[],
+                    axes2: Axis[], pieceNums2: number[]): Axis[] {
+    let axes: Axis[] = [];
+    let axes1_index: {[key: string]: Axis} = {};
+    for (let ax of axes1) axes1_index[String(ax.dir)] = ax;
+    let axes2_index: {[key: string]: Axis} = {};
+    for (let ax of axes2) axes2_index[String(ax.dir)] = ax;
+    for (let ax1 of axes1) {
+        let vh = String(ax1.dir);
+        if (vh in axes2_index)
+            axes.push(merge_axis(ax1, axes2_index[vh]));
+        else
+            axes.push(merge_axis(ax1, make_axis(puzzle, ax1.dir, pieceNums2)));
+    }
+    for (let ax2 of axes2)
+        if (!(String(ax2.dir) in axes1_index))
+            axes.push(merge_axis(make_axis(puzzle, ax2.dir, pieceNums1), ax2));
+    return axes;
+}
+
 export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void {
     // Piece 0 is immovable. This guarantees that the rotations are
     // the composition of a bounded number of rotations. This ensures
     // there is no coefficient explosion and might make it possible to
     // cache computations.
-    let ps: number[] = cut.front();
-    if (ps.includes(0)) {
+    let move_pieces = cut.front();
+    let stay_pieces = cut.back();
+    if (move_pieces.includes(0)) {
         puzzle.global_rot = puzzle.global_rot.mul(rot);
         rot = rot.conj();
-        ps = cut.back();
+        [move_pieces, stay_pieces] = [stay_pieces, move_pieces];
     }
-    for (let p of ps) {
+    for (let p of move_pieces) {
         let pg = puzzle.pieces[p];
         pg.rot = rot.mul(puzzle.pieces[p].rot);
         for (let i=0; i<pg.vertices.length; i++)
@@ -228,5 +318,21 @@ export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void 
             face.plane = new ExactPlane(rot.apply(face.plane.normal), face.plane.constant);
         }
     }
-    puzzle.axes = undefined;
+    // Split axes in two
+    let move_axes = select_pieces(puzzle, move_pieces);
+    let stay_axes = select_pieces(puzzle, stay_pieces);
+    // Rotate move_axes
+    for (let ax of move_axes) {
+        ax.dir = rot.apply(ax.dir);
+        if (ax.dir.pseudoSign() < 0) {
+            ax.dir = ax.dir.neg();
+            ax.points.reverse();
+            for (let point of ax.points) {
+                point.proj = point.proj.neg();
+                point.type = -point.type; // Begin <-> End
+            }
+        }
+    }
+    // Merge two halves
+    puzzle.axes = merge_axes(puzzle, move_axes, move_pieces, stay_axes, stay_pieces);
 }
