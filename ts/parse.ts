@@ -43,29 +43,34 @@ export interface Puzzle {
   F -> ( E )
   F -> - F
   F -> <function> ( E )
+  F -> <constant>
 */
 
 export function parseReal(s: string): AlgebraicNumber {
     let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847); // Q(sqrt(2), sqrt(5))
     let tokens: (string|AlgebraicNumber)[] = [];
-    let tokenRE = /[+\-*/()]|sqrt\((\d+)\)|(\d+)/y;
+    let tokenRE = /\s*(?:([+\-*/()])|([A-Za-z_][A-Za-z_0-9]*)|(\d+)(\.\d+)?)\s*/y;
     while (tokenRE.lastIndex < s.length) {
         let pos = tokenRE.lastIndex;
         let m = tokenRE.exec(s);
         if (m === null)
-            throw new ParseError(`unexpected character '${s[pos]}'`);
-        if (m[1] !== undefined) {
-            let arg = parseInt(m[1]);
-            if (arg == 2)
-                tokens.push(K.fromVector([0, fraction(-11,6), 0, fraction(1,6)]));
-            else if (arg == 5)
-                tokens.push(K.fromVector([0, fraction(17,6), 0, fraction(-1,6)]));
-            else
-                throw new ParseError(`I don't know how to take the sqrt of ${arg}`);
-        } else if (m[2] !== undefined)
-            tokens.push(K.fromVector([parseInt(m[2])]));
-        else
-            tokens.push(m[0]);
+            throw new ParseError(`Unexpected character <code>${s[pos]}</code>`);
+        else if (m[1] !== undefined) {
+            tokens.push(m[1]);
+        } else if (m[2] !== undefined) {
+            tokens.push('$' + m[2]);
+        } else if (m[3] !== undefined) {
+            let n = parseInt(m[3]);
+            let d = 1;
+            if (m[4] !== undefined) {
+                d = 10**(m[4].length-1);
+                n *= d;
+                if (m[4].length > 1)
+                    n += parseInt(m[4].substring(1));
+            }
+            tokens.push(K.fromVector([fraction(n,d)]));
+        } else
+            throw new ParseError(`Unexpected character <code>${s[pos]}</code> (this shouldn't happen)`);
     }
 
     let i = 0;
@@ -94,33 +99,56 @@ export function parseReal(s: string): AlgebraicNumber {
         return x;
     }
     function parseFactor(): AlgebraicNumber {
-        if (i < n && tokens[i] == '-') {
+        if (i == n)
+            throw new ParseError('Unexpected end of expression');
+        let token = tokens[i];
+        if (token == '-') {
             i++;
             let x = parseFactor();
             return x.neg();
-        } else if (i < n && tokens[i] == '(') {
+        } else if (token == '(') {
             i++;
             let x = parseExpr();
             parseToken(')');
             return x;
-        } else if (i < n && tokens[i] instanceof AlgebraicNumber) {
-            let x = tokens[i] as AlgebraicNumber;
+        } else if (token instanceof AlgebraicNumber) {
             i++;
-            return x;
-        } else if (i < n)
-            throw new ParseError(`unexpected character '${tokens[i]}'`);
-        else
-            throw new ParseError('unexpected end of expression');
+            return token;
+        } else if (typeof token === 'string' && token[0] === '$') {
+            let id = token.substring(1);
+            i++;
+            if (i < n && tokens[i] === '(') { // function call
+                i++;
+                let x = parseExpr();
+                parseToken(')');
+                if (id === 'sqrt') {
+                    if (x.equals(K.fromVector([2])))
+                        return K.fromVector([0, fraction(-11,6), 0, fraction(1,6)]);
+                    else if (x.equals(K.fromVector([5])))
+                        return K.fromVector([0, fraction(17,6), 0, fraction(-1,6)]);
+                    else
+                        throw new ParseError(`I don't know how to take the sqrt of ${x.toNumber()} (only 2 or 5)`);
+                } else {
+                    throw new ParseError(`Unknown function <code>${id}</code> (the only allowed function is <code>sqrt</code>)`);
+                }
+            } else {
+                throw new ParseError(`Unknown constant <code>${id}</code> (actually, I don't know any constants)`);
+            }
+        } else
+            throw new ParseError(`Unexpected <code>${tokens[i]}</code>`);
     }
     function parseToken(tok: string): string {
-        if (i < n && tokens[i] == tok) {
+        if (i >= n)
+            throw new ParseError(`Expected <code>${tok}</code>, but reached end of expression`);
+        else if (tokens[i] !== tok) {
+            throw new ParseError(`Expected <code>${tok}</code>, but found <code>${tokens[i]}</code>`);
+        } else {
             i++;
             return tok;
-        } else
-            throw new ParseError(`expected ${tok}`);
+        }
     }
     let x = parseExpr();
-    if (i < n) throw new ParseError("expected end of string");
+    if (i < n) throw new ParseError(`Expected end of string, but found <code>${tokens[i]}</code>`);
     return x;
 }
 
@@ -141,8 +169,8 @@ function parseShape(s: string): Shape {
 }
 
 export function parseQuery(s: string): Puzzle {
-    // to do: use URLSearchParams
     let ret: Puzzle = {shell: [], cuts: []};
+    s = decodeURIComponent(s);
     if (s.length == 0)
         return ret;
     if (s.charAt(0) !== '?') throw new ParseError("expected ?");

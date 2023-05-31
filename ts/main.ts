@@ -312,13 +312,16 @@ class RecipeForm {
         help.style.display = "none";
         try {
             let scale = de.value;
-            parse.parseReal(scale);
             if (shape == "plane") {
                 let normal = item.getElementsByClassName('normal')[0] as HTMLInputElement;
                 let coeffs = normal.value.split(',');
+                if (coeffs.length != 3)
+                    throw new parse.ParseError('normal vector should be of the form <i>x</i>,<i>y</i>,<i>z</i>');
                 coeffs.map(parse.parseReal);
+                parse.parseReal(scale);
                 return {tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: scale};
             } else {
+                parse.parseReal(scale);
                 return {tag: "polyhedron", name: shape, d: scale};
             }
         } catch (e) {
