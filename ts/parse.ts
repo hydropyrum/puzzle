@@ -1,7 +1,14 @@
-/* Parse URL */
+/* Parse expressions and URLs */
 
 import { algebraicNumberField, AlgebraicNumber } from './exact';
 import { fraction } from './fraction';
+
+export class ParseError extends Error {
+    constructor(message: string) {
+        super();
+        this.message = message;
+    }
+};
 
 export interface Polyhedron {
     tag: "polyhedron";
@@ -42,8 +49,11 @@ export function parseReal(s: string): AlgebraicNumber {
     let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847); // Q(sqrt(2), sqrt(5))
     let tokens: (string|AlgebraicNumber)[] = [];
     let tokenRE = /[+\-*/()]|sqrt\((\d+)\)|(\d+)/y;
-    let m = tokenRE.exec(s);
-    while (m !== null) {
+    while (tokenRE.lastIndex < s.length) {
+        let pos = tokenRE.lastIndex;
+        let m = tokenRE.exec(s);
+        if (m === null)
+            throw new ParseError(`unexpected character '${s[pos]}'`);
         if (m[1] !== undefined) {
             let arg = parseInt(m[1]);
             if (arg == 2)
@@ -51,12 +61,11 @@ export function parseReal(s: string): AlgebraicNumber {
             else if (arg == 5)
                 tokens.push(K.fromVector([0, fraction(17,6), 0, fraction(-1,6)]));
             else
-                throw new Error(`I don't know how to take the sqrt of ${arg}`);
+                throw new ParseError(`I don't know how to take the sqrt of ${arg}`);
         } else if (m[2] !== undefined)
             tokens.push(K.fromVector([parseInt(m[2])]));
         else
             tokens.push(m[0]);
-        m = tokenRE.exec(s);
     }
 
     let i = 0;
@@ -98,30 +107,33 @@ export function parseReal(s: string): AlgebraicNumber {
             let x = tokens[i] as AlgebraicNumber;
             i++;
             return x;
-        } else
-            throw new Error('parse error');
+        } else if (i < n)
+            throw new ParseError(`unexpected character '${tokens[i]}'`);
+        else
+            throw new ParseError('unexpected end of expression');
     }
     function parseToken(tok: string): string {
         if (i < n && tokens[i] == tok) {
             i++;
             return tok;
         } else
-            throw new Error(`parse error: expected ${tok}`);
+            throw new ParseError(`expected ${tok}`);
     }
     let x = parseExpr();
-    if (i < n) throw new Error("parse error: expected end of string");
+    if (i < n) throw new ParseError("expected end of string");
     return x;
 }
 
 function parseShape(s: string): Shape {
     let parts = s.split("$");
-    console.assert(parts.length == 2, "parse error: expected $");
+    if (parts.length !== 2)
+        throw new ParseError("expected $");
     let d = parts[1];
     s = parts[0];
 
     if (s == 'plane') {
         let coeffs = s.split(",");
-        console.assert(coeffs.length == 3, "parse error: expected exactly 3 coefficients");
+        if (coeffs.length !== 3) throw new ParseError("expected exactly 3 coefficients");
         return {tag: 'plane', a: coeffs[0], b: coeffs[1], c: coeffs[2], d: d};
     } else {
         return {tag: 'polyhedron', name: s, d: d};
@@ -129,15 +141,16 @@ function parseShape(s: string): Shape {
 }
 
 export function parseQuery(s: string): Puzzle {
+    // to do: use URLSearchParams
     let ret: Puzzle = {shell: [], cuts: []};
     if (s.length == 0)
         return ret;
-    console.assert(s.charAt(0) == '?', "parse error: expected ?");
+    if (s.charAt(0) !== '?') throw new ParseError("expected ?");
     s = s.substring(1);
     let kvs: [string,string][] = [];
     for (let kvstring of s.split('&')) {
         let kv = kvstring.split('=');
-        console.assert(kv.length == 2, "parse error: expected exactly one =");
+        if (kv.length !== 2) throw new ParseError("expected exactly one =");
         kvs.push([kv[0], kv[1]]);
     }
     for (let [k, v] of kvs) {
@@ -157,7 +170,7 @@ function generateShape(s: Shape): string {
     } else if (s.tag == 'plane') {
         return s.a + ',' + s.b + ',' + s.c + '$' + s.d;
     } else {
-        console.assert("error: tag must be 'polyhedron' or 'plane'");
+        throw new ParseError("tag must be 'polyhedron' or 'plane'");
         return '';
     }
 }

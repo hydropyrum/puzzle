@@ -234,11 +234,18 @@ canvas.addEventListener('touchend', function (event: TouchEvent) {
 
 /* URL and form controls */
 
-// Shell and cuts
+// model
+let recipe: parse.Puzzle = parse.parseQuery(window.location.search);
 
-const shells_list = document.getElementById("shells")!;
-const cuts_list = document.getElementById("cuts")!;
+// view as URL
+function set_url(recipe: parse.Puzzle): void {
+    window.history.replaceState({}, 'title', parse.generateQuery(recipe));
+    (document.getElementById('url')! as HTMLInputElement).value = window.location.href;
+}
 
+// view as form
+
+/* Make an <option> of a <select> as if the user had selected it */
 function select_option(select: HTMLSelectElement, value: string): void {
     for (let i=0; i<select.options.length; i++)
         if (select.options[i].value == value) {
@@ -248,22 +255,33 @@ function select_option(select: HTMLSelectElement, value: string): void {
         }
 }
 
-function add_item(list: HTMLElement, shape?: parse.Shape): void {
-    // Add new item to HTML
-    let item = list.firstElementChild!.cloneNode(true) as HTMLElement;
-    item.style.display = "block";
-    let select = item.getElementsByClassName("shape")[0] as HTMLSelectElement;
-    select.addEventListener('change', function () {
-        let normal = item.getElementsByClassName("normal")[0]!.parentElement!;
-        normal.style.display = select.value == "plane" ? "block" : "none";
-    }, false);
-    let button = item.getElementsByClassName("delete_cut")[0];
-    button.addEventListener('click', function () {
-        list.removeChild(item);
-    }, false);
-    list.appendChild(item);
-
-    if (shape) {
+class RecipeForm {
+    shells_list: HTMLElement;
+    cuts_list: HTMLElement;
+    constructor() {
+        this.shells_list = document.getElementById("shells")!;
+        this.cuts_list = document.getElementById("cuts")!;
+    }
+    
+    private static add_item(list: HTMLElement): HTMLElement {
+        // Add new item to HTML
+        let item = list.getElementsByClassName('prototype')[0].cloneNode(true) as HTMLElement;
+        item.classList.remove('prototype');
+        item.style.display = "block";
+        let select = item.getElementsByClassName("shape")[0] as HTMLSelectElement;
+        select.addEventListener('change', function () {
+            let normal = item.getElementsByClassName("normal")[0]!.parentElement!;
+            normal.style.display = select.value == "plane" ? "block" : "none";
+        }, false);
+        let button = item.getElementsByClassName("delete_cut")[0];
+        button.addEventListener('click', function () {
+            list.removeChild(item);
+        }, false);
+        list.appendChild(item);
+        return item;
+    }
+    
+    private static set_item(item: HTMLElement, shape: parse.Shape): void {
         let se = item.getElementsByClassName('shape')[0] as HTMLSelectElement;
         if (shape.tag == "polyhedron") {
             select_option(se, shape.name);
@@ -275,82 +293,124 @@ function add_item(list: HTMLElement, shape?: parse.Shape): void {
         let de = item.getElementsByClassName('scale')[0] as HTMLInputElement;
         de.value = shape.d;
     }
-}
-document.getElementById('add_shell')!.addEventListener('click', e => add_item(shells_list), false);
-document.getElementById('add_cut')!.addEventListener('click', e => add_item(cuts_list), false);
 
-function list_to_shapes(list: HTMLElement): parse.Shape[] {
-    let ret: parse.Shape[] = [];
-    for (let item of Array.from(list.children)) {
-        // skip first item, which is a dummy item
-        if (item === list.firstElementChild) continue;
+    private static get_items(list: HTMLElement): HTMLElement[] {
+        let items: HTMLElement[] = [];
+        for (let item of Array.from(list.children)) {
+            if (item.classList.contains('prototype')) continue;
+            if (!(item.classList.contains('shell') || item.classList.contains('cut'))) continue;
+            items.push(item as HTMLElement);
+        }
+        return items;
+    }
+    
+    private static item_to_shape(item: HTMLElement): parse.Shape|null {
         let se = item.getElementsByClassName('shape')[0] as HTMLSelectElement;
         let shape = se.options[se.selectedIndex].value;
         let de = item.getElementsByClassName('scale')[0] as HTMLInputElement;
-        let scale = de.value;
-        if (shape == "plane") {
-            let normal = item.getElementsByClassName('normal')[0] as HTMLInputElement;
-            let coeffs = normal.value.split(',');
-            ret.push({tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: scale});
-        } else {
-            ret.push({tag: "polyhedron", name: shape, d: scale});
+        let help = item.getElementsByClassName('help')[0] as HTMLElement;
+        help.style.display = "none";
+        try {
+            let scale = de.value;
+            parse.parseReal(scale);
+            if (shape == "plane") {
+                let normal = item.getElementsByClassName('normal')[0] as HTMLInputElement;
+                let coeffs = normal.value.split(',');
+                coeffs.map(parse.parseReal);
+                return {tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: scale};
+            } else {
+                return {tag: "polyhedron", name: shape, d: scale};
+            }
+        } catch (e) {
+            if (e instanceof parse.ParseError) {
+                help.style.display = "block";
+                help.innerHTML = e.message;
+                return null;
+            } else {
+                throw e;
+            }
         }
     }
-    return ret;
+    
+    add_shell(shape?: parse.Shape) {
+        let item = RecipeForm.add_item(this.shells_list);
+        if (shape !== undefined) RecipeForm.set_item(item, shape);
+    }
+    add_cut(shape?: parse.Shape) {
+        let item = RecipeForm.add_item(this.cuts_list);
+        if (shape !== undefined) RecipeForm.set_item(item, shape);
+    }
+    
+    get_recipe(): parse.Puzzle|null {
+        let p: parse.Puzzle = { shell: [], cuts: [] };
+        for (let item of RecipeForm.get_items(this.shells_list)) {
+            let s = RecipeForm.item_to_shape(item);
+            if (s === null) return null;
+            p.shell.push(s);
+        }
+        for (let item of RecipeForm.get_items(this.cuts_list)) {
+            let s = RecipeForm.item_to_shape(item);
+            if (s === null) return null;
+            p.cuts.push(s);
+        }
+        return p;
+    }
+
+    set_from_recipe(recipe: parse.Puzzle) {
+        for (let shape of recipe.shell)
+            this.add_shell(shape);
+        for (let shape of recipe.cuts)
+            this.add_cut(shape);
+    }
+};
+
+var recipeForm = new RecipeForm();
+recipeForm.set_from_recipe(recipe);
+
+function shapes_to_planes(shapes: parse.Shape[]): ExactPlane[] {
+    let planes: ExactPlane[] = [];
+    for (let s of shapes) {
+        switch (s.tag) {
+            case "plane":
+                planes.push(new ExactPlane(new ExactVector3(parse.parseReal(s.a),
+                                                            parse.parseReal(s.b),
+                                                            parse.parseReal(s.c)),
+                                           parse.parseReal(s.d)));
+                break;
+            case "polyhedron":
+                planes.push(...polyhedron(s.name, parse.parseReal(s.d)));
+                break;
+        }
+    }
+    return planes;
 }
 
-// Apply
-
 function apply_cuts(): void {
-    let p: parse.Puzzle = {
-        shell: list_to_shapes(shells_list),
-        cuts: list_to_shapes(cuts_list)
-    };
-    window.history.replaceState({}, 'title', parse.generateQuery(p));
-    (document.getElementById('url')! as HTMLInputElement).value = window.location.href;
+    let maybeRecipe = recipeForm.get_recipe();
+    if (maybeRecipe === null) return;
+    recipe = maybeRecipe;
 
-    let planes: ExactPlane[] = [];
-    for (let s of p.shell) {
-        if (s.tag == "plane") {
-            planes.push(new ExactPlane(new ExactVector3(parse.parseReal(s.a),
-                                                        parse.parseReal(s.b),
-                                                        parse.parseReal(s.c)),
-                                       parse.parseReal(s.d)));
-        } else if (s.tag == "polyhedron") {
-            planes = planes.concat(polyhedron(s.name, parse.parseReal(s.d)));
-        }
-    }
-    let shell = make_shell(planes);
+    set_url(recipe);
 
+    let shell = make_shell(shapes_to_planes(recipe.shell));
+    let cutplanes = shapes_to_planes(recipe.cuts);
+
+    console.time('pieces constructed in');
+    let newPuzzle = new Puzzle(make_cuts(cutplanes, [shell]));
+    console.timeEnd('pieces constructed in');
     // Find circumradius, which we will scale to 1
     let r = 0;
     for (let v of shell.vertices.map(v => v.toThree()))
         if (v.length() > r) r = v.length();
-
-    console.time('pieces constructed in');
-    let cutplanes = [];
-    for (let s of p.cuts) {
-        if (s.tag == "plane")
-            cutplanes.push(new ExactPlane(new ExactVector3(parse.parseReal(s.a),
-                                                           parse.parseReal(s.b),
-                                                           parse.parseReal(s.c)),
-                                          parse.parseReal(s.d)));
-        else if (s.tag == "polyhedron")
-            cutplanes.push(...polyhedron(s.name, parse.parseReal(s.d)));
-    }
-    let newPuzzle = new Puzzle(make_cuts(cutplanes, [shell]));
-    console.timeEnd('pieces constructed in');
     draw_puzzle(newPuzzle, scene, 1/r);
     render_requested = true;
 }
-document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
 
-let query = parse.parseQuery(window.location.search);
-for (let shape of query.shell)
-    add_item(shells_list, shape);
-for (let shape of query.cuts)
-    add_item(cuts_list, shape);
 apply_cuts();
+
+document.getElementById('add_shell')!.addEventListener('click', e => recipeForm.add_shell(), false);
+document.getElementById('add_cut')!.addEventListener('click', e => recipeForm.add_cut(), false);
+document.getElementById('apply_cuts')!.addEventListener('click', e => apply_cuts(), false);
 
 // Scramble
 
