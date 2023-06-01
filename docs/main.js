@@ -36280,10 +36280,17 @@
 	document.getElementById('apply_cuts').addEventListener('click', e => apply_cuts(), false);
 	// Scramble
 	var random_moves = 0;
+	var last_random_grip = null, last_random_dir = null;
 	function move_random() {
 	    console.assert(grips.length > 0, "no available grips");
 	    let ci = Math.floor(Math.random() * grips.length);
 	    let dir = Math.floor(Math.random() * 2) * 2 - 1;
+	    while (ci === last_random_grip && -dir === last_random_dir) {
+	        ci = Math.floor(Math.random() * grips.length);
+	        dir = Math.floor(Math.random() * 2) * 2 - 1;
+	    }
+	    last_random_grip = ci;
+	    last_random_dir = dir;
 	    begin_move(ci, dir);
 	    random_moves -= 1;
 	}
