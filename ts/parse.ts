@@ -158,10 +158,8 @@ function parseShape(s: string): Shape {
         throw new ParseError("expected $");
     let d = parts[1];
     s = parts[0];
-
-    if (s == 'plane') {
-        let coeffs = s.split(",");
-        if (coeffs.length !== 3) throw new ParseError("expected exactly 3 coefficients");
+    let coeffs = s.split(",");
+    if (coeffs.length === 3) {
         return {tag: 'plane', a: coeffs[0], b: coeffs[1], c: coeffs[2], d: d};
     } else {
         return {tag: 'polyhedron', name: s, d: d};
