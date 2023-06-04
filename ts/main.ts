@@ -111,7 +111,8 @@ function draw_arrow(cut: Cut, d: number): void {
     let arrow = new THREE.Mesh(arrow_geometry, arrow_material);
     arrow.scale.multiplyScalar(0.2);
     var rot = new THREE.Quaternion();
-    rot.setFromUnitVectors(new THREE.Vector3(0, 0, 1), puzzle.global_rot.apply(cut.plane.normal).toThree().normalize());
+    rot.setFromUnitVectors(new THREE.Vector3(0, 0, 1),
+                           cut.plane.normal.toThree().applyQuaternion(puzzle.global_rot));
     arrow.position.z = 1.25 + 0.25*d;
     arrow.position.applyQuaternion(rot);
     arrow.quaternion.copy(rot);
@@ -493,10 +494,9 @@ function begin_move(ci: number, dir: number): void {
         angle: angle
     };
     for (let i of cur_move!.pieces) {
-        let grot = puzzle.global_rot.toThree();
         let prot = puzzle.pieces[i].rot.toThree();
-        cur_move.from_quat.push(grot.clone().multiply(prot));
-        cur_move.step_quat.push(grot.clone().multiply(urot).multiply(prot));
+        cur_move.from_quat.push(puzzle.global_rot.clone().multiply(prot));
+        cur_move.step_quat.push(puzzle.global_rot.clone().multiply(urot).multiply(prot));
     }
     console.time('move performed in');
     make_move(puzzle, cut, rot);
@@ -509,8 +509,8 @@ function end_move(): void {
     //for (let p of cur_move!.pieces) {
     for (let p=0; p<puzzle.pieces.length; p++) {
         let q = puzzle.pieces[p].object!.quaternion;
-        let r = puzzle.global_rot.mul(puzzle.pieces[p].rot);
-        q.copy(r.toThree());
+        let r = puzzle.pieces[p].rot.toThree().premultiply(puzzle.global_rot);
+        q.copy(r);
     }
     cur_move = null;
     render_requested = true;

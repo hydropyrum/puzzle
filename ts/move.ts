@@ -6,11 +6,11 @@ import { AlgebraicNumber } from './exact';
 
 export class Puzzle {
     pieces: PolyGeometry[];
-    global_rot: ExactQuaternion;
+    global_rot: THREE.Quaternion;
     axes?: Axis[];
     constructor(pieces?: PolyGeometry[]) {
         this.pieces = pieces !== undefined ? pieces : [];
-        this.global_rot = ExactQuaternion.identity();
+        this.global_rot = new THREE.Quaternion().identity();
         this.axes = undefined;
     }
 };
@@ -305,7 +305,7 @@ export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void 
     let move_pieces = cut.front();
     let stay_pieces = cut.back();
     if (move_pieces.includes(0)) {
-        puzzle.global_rot = puzzle.global_rot.mul(rot);
+        puzzle.global_rot.multiply(rot.toThree()).normalize();
         rot = rot.conj();
         [move_pieces, stay_pieces] = [stay_pieces, move_pieces];
     }
