@@ -62,13 +62,13 @@ test('mul', () => {
                 .toBeCloseTo((a.n/a.d) * (b.n/b.d));
 });
 
-test('inverse', () => {
+test('inv', () => {
     for (let frac of fracs)
         if (frac.n != 0) {
-            expect(fraction(frac.n, frac.d).inverse().toNumber())
+            expect(fraction(frac.n, frac.d).inv().toNumber())
                 .toBeCloseTo(1/(frac.n/frac.d));
         } else {
-            expect(() => fraction(frac.n, frac.d).inverse())
+            expect(() => fraction(frac.n, frac.d).inv())
                 .toThrow("Division by zero");
         }
 });

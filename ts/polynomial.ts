@@ -88,16 +88,15 @@ export class Polynomial {
         let m = this.degree;
         let n = b.degree;
         if (n == -1) throw new RangeError("Division by zero");
-        let rem = this.coeffs.map(x => x.clone());
-        let quo: Fraction[] = [];
+        // c[0..k-1] is the remainder so far
+        // c[k..m] is the quotient so far
+        let c = this.coeffs.map(x => x.clone());
         for (let k=m; k>=n; k--) {
-            let q = rem[k].div(b.coeffs[n]);
-            quo.push(q);
-            for (let j=0; j<=n; j++)
-                rem[k-n+j].isub(q.mul(b.coeffs[j]));
+            c[k].idiv(b.coeffs[n]);
+            for (let i=0; i<n; i++)
+                c[k-n+i].isub(c[k].mul(b.coeffs[i]));
         }
-        quo = quo.reverse();
-        return [new Polynomial(quo), new Polynomial(rem)];
+        return [new Polynomial(c.slice(n,m+1)), new Polynomial(c.slice(0,n))];
     }
     
     div(b: Polynomial): Polynomial {
@@ -145,24 +144,44 @@ export class Polynomial {
     }
 
     count_roots(lower: Fraction, upper: Fraction): number {
-        /* Number of roots in interval [lower, upper] */
-        return (this.eval(lower).sign() == 0 ? 1 : 0) + this.sturm_sequence(lower) - this.sturm_sequence(upper);
+        /* Number of real roots in interval (lower, upper] */
+        return this.sturm_sequence(lower) - this.sturm_sequence(upper);
     }
-    
-    /* Find an isolating interval for the root of p nearest x. */
+        
+    /* Find an isolating interval for the real root nearest x.
+       If there is a tie, chooses the higher root. */
     isolate_root(x: number): [Fraction, Fraction] {
-        let denom = 1n;
-        while (true) {
-            let lnumer = BigInt(Math.floor(x * Number(denom)));
-            let unumer = lnumer + 1n;
-            let lower = fraction(lnumer, denom), upper = fraction(unumer, denom);
+        if (this.degree <= 0) throw new RangeError("can't isolate root of a constant polynomial");
+
+        // Convert x to Fraction
+        let d = 1;
+        while (!Number.isInteger(x*d) && Math.abs(d) !== Infinity) d *= 2;
+        let xfrac = fraction(x*d, d);
+        
+        // Bound distance to root
+        let bound = fraction(0);
+        for (let i=0; i<this.degree; i++)
+            if (bound.compare(this.coeffs[i].abs()) > 0)
+                bound = this.coeffs[i].abs();
+        bound.idiv(this.coeffs[this.degree].abs());
+        bound.iadd(fraction(1));
+
+        // Binary search for distance
+        let dmin = fraction(0);
+        let dmax = bound.add(xfrac.abs());
+        for (let i=0; i<100; i++) {
+            let dmid = dmin.add(dmax).div(fraction(2));
+            let lower = xfrac.sub(dmid);
+            let upper = xfrac.add(dmid);
             let c = this.count_roots(lower, upper);
             if (c == 1)
                 return [lower, upper];
             else if (c == 0)
-                throw new RangeError("no root in interval [" + String(lower) + "," + String(upper) + "]");
-            denom *= 2n;
+                dmin = dmid;
+            else /* if (c > 1) */
+                dmax = dmid;
         }
+        throw new Error(`can't isolate root nearest to ${x} (perhaps there was a tie)`);
     }
 }
 

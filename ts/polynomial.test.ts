@@ -107,7 +107,7 @@ test('count_roots', () => {
         for (let j=i; j<points.length; j++) {
             let true_count = 0;
             for (let r of roots)
-                if (points[i] <= r && r <= points[j])
+                if (points[i] < r && r <= points[j])
                     true_count += 1;
             expect(poly.count_roots(fraction(points[i]), fraction(points[j]))).toBe(true_count);
         }
@@ -115,7 +115,8 @@ test('count_roots', () => {
 
 test('isolate_root', () => {
     let roots = [-3, 0, 3];
-    let points = [-3.1, -3, -2.9, -0.1, 0, 0.1, 2.9, 3, 3.1];
+    let points = [-100, -3.1, -3, -2.9, -0.1, 0, 0.1, 2.9, 3, 3.1, 100];
+    let tie_points = [1.5];
     let factors = roots.map(x => polynomial([fraction(-x), fraction(1)]));
     let poly = factors.reduce((p, q) => p.mul(q));
     for (let x of points) {
@@ -124,4 +125,6 @@ test('isolate_root', () => {
         let [lower, upper] = poly.isolate_root(x);
         expect(roots.filter(r => lower.toNumber() <= r && r <= upper.toNumber())).toEqual([root]);
     }
+    for (let x of tie_points)
+        expect(() => poly.isolate_root(x)).toThrow();
 });

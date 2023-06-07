@@ -90,7 +90,7 @@ export class Fraction {
         }
         return this;
     }
-    inverse(): Fraction { return this.clone().iinv(); }
+    inv(): Fraction { return this.clone().iinv(); }
 
     idiv(y: Fraction): Fraction {
         if (y.n > 0n) {
