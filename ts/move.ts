@@ -7,11 +7,12 @@ import { AlgebraicNumber } from './exact';
 export class Puzzle {
     pieces: PolyGeometry[];
     global_rot: THREE.Quaternion;
-    axes?: Axis[];
+    axes: Axis[];
     constructor(pieces?: PolyGeometry[]) {
         this.pieces = pieces !== undefined ? pieces : [];
         this.global_rot = new THREE.Quaternion().identity();
-        this.axes = undefined;
+        this.axes = [];
+        make_axes(this);
     }
 };
 
@@ -70,7 +71,7 @@ export class Cut {
     }
 }
 
-function make_axis(puzzle: Puzzle, dir: ExactVector3, pieceNums: number[]) {
+function make_axis(puzzle: Puzzle, dir: ExactVector3, pieceNums: number[]): Axis {
     let ax: Axis = {dir: dir, points: []};
     
     // Make a list of pieces, sorted by their projection onto
@@ -108,7 +109,7 @@ function make_axis(puzzle: Puzzle, dir: ExactVector3, pieceNums: number[]) {
     return ax;
 }
 
-function find_axes(puzzle: Puzzle): void {
+function make_axes(puzzle: Puzzle): void {
     // Every face normal (removing duplicates) is a potential axis
     let dirs: {[key: string]: ExactVector3} = {};
     for (let piece of puzzle.pieces)
@@ -137,17 +138,14 @@ export function find_cuts(puzzle: Puzzle, ps?: number[]): Cut[] {
        Only considers infinite planes, and so could miss places where
        pieces could physically move.
     */
-    if (puzzle.axes === undefined)
-        find_axes(puzzle);
 
     if (ps === undefined) {
         ps = [];
         for (let i=0; i<puzzle.pieces.length; i++)
             ps.push(i);
     }
-    
     let cuts: Cut[] = [];
-    for (let ax of puzzle.axes!) {
+    for (let ax of puzzle.axes) {
         // Traverse the list to find the planes that are cuts
         let inside = 0; // running count of how many pieces are open
         for (let i=0; i<ax.points.length; i++) {
@@ -165,8 +163,9 @@ export function find_cuts(puzzle: Puzzle, ps?: number[]): Cut[] {
                     for (let p of ax.points[i+1].pieceNums)
                         if (ps.includes(p))
                             c++;
-                    if (c > 0)
+                    if (c > 0) {
                         cuts.push(new Cut(ax, i, +1, new ExactPlane(ax.dir, point.proj.neg())));
+                    }
                 }
             }
         }
@@ -175,9 +174,6 @@ export function find_cuts(puzzle: Puzzle, ps?: number[]): Cut[] {
 }
 
 export function find_stops(puzzle: Puzzle, cut: Cut): ExactQuaternion[] {
-    if (puzzle.axes === undefined)
-        throw new Error("Puzzle is missing axes");
-        
     let one = AlgebraicNumber.fromInteger(1);
     let c = cut.plane.normal;
     
@@ -185,6 +181,8 @@ export function find_stops(puzzle: Puzzle, cut: Cut): ExactQuaternion[] {
     let stay_pieces = cut.back();
 
     // Find cuts of moved pieces and not-moved pieces
+    // To do: Actually perform the split, so that we don't have to
+    // check for membership in move_pieces and stay_pieces.
     let move_cuts = find_cuts(puzzle, move_pieces);
     let stay_cuts = find_cuts(puzzle, stay_pieces);
 
@@ -221,18 +219,19 @@ export function find_stops(puzzle: Puzzle, cut: Cut): ExactQuaternion[] {
 
 function select_pieces(puzzle: Puzzle, sub: number[]): Axis[] {
     // Collect all the face normals of the selected pieces
-    let dirs: {[key: string]: ExactVector3} = {};
+    // to do: remove duplicate code with find_axes
+    let dirs_sub: {[key: string]: ExactVector3} = {};
     for (let p of sub)
         for (let face of puzzle.pieces[p].faces)
             if (face.interior) {
                 let dir = face.plane.canonicalize().normal;
-                setdefault(dirs, String(dir), dir);
+                setdefault(dirs_sub, String(dir), dir);
             }
     // For each axis in the direction of a face normal,
     // keep only the extents of selected pieces
     let axes_sub: Axis[] = [];
-    for (let ax of puzzle.axes!) {
-        if (!(String(ax.dir) in dirs)) continue;
+    for (let ax of puzzle.axes) {
+        if (!(String(ax.dir) in dirs_sub)) continue;
         let ax_sub: Axis = {dir: ax.dir, points: []};
         for (let point of ax.points) {
             let pieceNums_sub = [];
@@ -298,29 +297,34 @@ function merge_axes(puzzle: Puzzle,
 }
 
 export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void {
+    let move_pieces = cut.front();
+    let stay_pieces = cut.back();
+    
     // Piece 0 is immovable. This guarantees that the rotations are
     // the composition of a bounded number of rotations. This ensures
     // there is no coefficient explosion and might make it possible to
     // cache computations.
-    let move_pieces = cut.front();
-    let stay_pieces = cut.back();
+    
     if (move_pieces.includes(0)) {
         puzzle.global_rot.multiply(rot.toThree()).normalize();
         rot = rot.conj();
         [move_pieces, stay_pieces] = [stay_pieces, move_pieces];
     }
+    
+    // Split axes in two
+    let move_axes = select_pieces(puzzle, move_pieces);
+    let stay_axes = select_pieces(puzzle, stay_pieces);
+
+    // Rotate pieces
     for (let p of move_pieces) {
         let pg = puzzle.pieces[p];
         pg.rot = rot.mul(puzzle.pieces[p].rot);
         for (let i=0; i<pg.vertices.length; i++)
             pg.vertices[i] = rot.apply(pg.vertices[i]);
-        for (let face of pg.faces) {
+        for (let face of pg.faces)
             face.plane = new ExactPlane(rot.apply(face.plane.normal), face.plane.constant);
-        }
     }
-    // Split axes in two
-    let move_axes = select_pieces(puzzle, move_pieces);
-    let stay_axes = select_pieces(puzzle, stay_pieces);
+    
     // Rotate move_axes
     for (let ax of move_axes) {
         ax.dir = rot.apply(ax.dir);
@@ -333,6 +337,7 @@ export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void 
             }
         }
     }
+    
     // Merge two halves
     puzzle.axes = merge_axes(puzzle, move_axes, move_pieces, stay_axes, stay_pieces);
 }
