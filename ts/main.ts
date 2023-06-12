@@ -488,7 +488,7 @@ function begin_move(ci: number, dir: number): void {
         cut: cut,
         start_time: null,
         time: Math.abs(angle)/rad_per_sec*1000,
-        pieces: cut.front(),
+        pieces: cut.front,
         from_quat: [],
         step_quat: [],
         angle: angle

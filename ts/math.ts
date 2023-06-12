@@ -68,6 +68,9 @@ export class ExactPlane {
     toThree(): THREE.Plane {
         return new THREE.Plane(this.normal.toThree(), this.constant.toNumber()).normalize();
     }
+    toString(): string {
+        return `[${this.normal},${this.constant}]`;
+    }
 
     neg(): ExactPlane { return new ExactPlane(this.normal.neg(), this.constant.neg()); }
     side(v: ExactVector3) { return this.normal.dot(v).add(this.constant).sign(); }
@@ -184,5 +187,12 @@ export class ExactQuaternion {
         let vr = this.mul(vq).mul(this.inverse());
         console.assert(vr.w.isZero());
         return new ExactVector3(vr.x, vr.y, vr.z);
+    }
+
+    pseudoNormalize(): ExactQuaternion {
+        let x = this.x, y = this.y, z = this.z, w = this.w;
+        let n = w.abs().add(x.abs()).add(y.abs()).add(z.abs());
+        if (w.sign() < 0) n = n.neg();
+        return this.scale(n.inverse());
     }
 }
