@@ -107,7 +107,7 @@ test('count_roots', () => {
         for (let j=i; j<points.length; j++) {
             let true_count = 0;
             for (let r of roots)
-                if (points[i] < r && r <= points[j])
+                if (points[i] <= r && r <= points[j])
                     true_count += 1;
             expect(poly.count_roots(fraction(points[i]), fraction(points[j]))).toBe(true_count);
         }

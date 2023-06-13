@@ -6,12 +6,12 @@ export class AlgebraicNumberField {
     degree: number;
     poly: Polynomial; // minimal polynomial of θ
     lower: Fraction;  // lower bound on θ
-    approx: number;   // floating-point approximation of θ
+    approx: Fraction; // approximation of θ
     upper: Fraction;  // upper bound on θ
     powers: Polynomial[];
     powers_upper: Fraction[] = [];
     powers_lower: Fraction[] = [];
-    constructor(poly: Polynomial, approx: number) {
+    constructor(poly: Polynomial, approx: Fraction) {
         this.degree = poly.degree;
         this.poly = poly;
         this.approx = approx;
@@ -47,7 +47,7 @@ export class AlgebraicNumberField {
     }
 
     refine() {
-        let mid = this.lower.add(this.upper).div(fraction(2));
+        let mid = this.lower.middle(this.upper);
         let sl = this.poly.eval(this.lower).sign();
         let sm = this.poly.eval(mid).sign();
         let su = this.poly.eval(this.upper).sign();
@@ -70,10 +70,12 @@ export class AlgebraicNumberField {
 };
 
 export function algebraicNumberField(poly: Polynomial|number[],
-                                     approx: number) : AlgebraicNumberField {
+                                     approx: Fraction) : AlgebraicNumberField {
     if (poly instanceof Array<number>) poly = polynomial(poly);
     return new AlgebraicNumberField(poly, approx);
 }
+
+var Q = algebraicNumberField([-1, 1], fraction(1));
 
 export class AlgebraicNumber {
     field: AlgebraicNumberField;
@@ -85,10 +87,9 @@ export class AlgebraicNumber {
     }
 
     static fromInteger(x: number): AlgebraicNumber {
-        let K = algebraicNumberField([-1, 1], 1); // trivial
         if (!Number.isInteger(x))
             throw new RangeError('x must be an integer');
-        return K.fromVector([fraction(x)]);
+        return Q.fromVector([fraction(x)]);
     }
 
     toString(): string {
@@ -98,7 +99,7 @@ export class AlgebraicNumber {
     // alternatively, could initially refine a few times and use
     // midpoint of isolating interval
     toNumber(): number {
-        return this.poly.eval_approx(this.field.approx);
+        return this.poly.eval_approx(this.field.approx.toNumber());
     }
 
     static check_same_field(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumberField {
