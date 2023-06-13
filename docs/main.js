@@ -34406,7 +34406,7 @@
 	        }
 	        return this;
 	    }
-	    inverse() { return this.clone().iinv(); }
+	    inv() { return this.clone().iinv(); }
 	    idiv(y) {
 	        if (y.n > 0n) {
 	            this.n *= y.d;
@@ -34517,16 +34517,15 @@
 	        let n = b.degree;
 	        if (n == -1)
 	            throw new RangeError("Division by zero");
-	        let rem = this.coeffs.map(x => x.clone());
-	        let quo = [];
+	        // c[0..k-1] is the remainder so far
+	        // c[k..m] is the quotient so far
+	        let c = this.coeffs.map(x => x.clone());
 	        for (let k = m; k >= n; k--) {
-	            let q = rem[k].div(b.coeffs[n]);
-	            quo.push(q);
-	            for (let j = 0; j <= n; j++)
-	                rem[k - n + j].isub(q.mul(b.coeffs[j]));
+	            c[k].idiv(b.coeffs[n]);
+	            for (let i = 0; i < n; i++)
+	                c[k - n + i].isub(c[k].mul(b.coeffs[i]));
 	        }
-	        quo = quo.reverse();
-	        return [new Polynomial(quo), new Polynomial(rem)];
+	        return [new Polynomial(c.slice(n, m + 1)), new Polynomial(c.slice(0, n))];
 	    }
 	    div(b) {
 	        if (b.degree == 0) // special faster case
@@ -34571,23 +34570,42 @@
 	        return changes;
 	    }
 	    count_roots(lower, upper) {
-	        /* Number of roots in interval [lower, upper] */
-	        return (this.eval(lower).sign() == 0 ? 1 : 0) + this.sturm_sequence(lower) - this.sturm_sequence(upper);
+	        /* Number of real roots in interval (lower, upper] */
+	        return this.sturm_sequence(lower) - this.sturm_sequence(upper);
 	    }
-	    /* Find an isolating interval for the root of p nearest x. */
+	    /* Find an isolating interval for the real root nearest x.
+	       If there is a tie, chooses the higher root. */
 	    isolate_root(x) {
-	        let denom = 1n;
-	        while (true) {
-	            let lnumer = BigInt(Math.floor(x * Number(denom)));
-	            let unumer = lnumer + 1n;
-	            let lower = fraction(lnumer, denom), upper = fraction(unumer, denom);
+	        if (this.degree <= 0)
+	            throw new RangeError("can't isolate root of a constant polynomial");
+	        // Convert x to Fraction
+	        let d = 1;
+	        while (!Number.isInteger(x * d) && Math.abs(d) !== Infinity)
+	            d *= 2;
+	        let xfrac = fraction(x * d, d);
+	        // Bound distance to root
+	        let bound = fraction(0);
+	        for (let i = 0; i < this.degree; i++)
+	            if (bound.compare(this.coeffs[i].abs()) > 0)
+	                bound = this.coeffs[i].abs();
+	        bound.idiv(this.coeffs[this.degree].abs());
+	        bound.iadd(fraction(1));
+	        // Binary search for distance
+	        let dmin = fraction(0);
+	        let dmax = bound.add(xfrac.abs());
+	        for (let i = 0; i < 100; i++) {
+	            let dmid = dmin.add(dmax).div(fraction(2));
+	            let lower = xfrac.sub(dmid);
+	            let upper = xfrac.add(dmid);
 	            let c = this.count_roots(lower, upper);
 	            if (c == 1)
 	                return [lower, upper];
 	            else if (c == 0)
-	                throw new RangeError("no root in interval [" + String(lower) + "," + String(upper) + "]");
-	            denom *= 2n;
+	                dmin = dmid;
+	            else /* if (c > 1) */
+	                dmax = dmid;
 	        }
+	        throw new Error(`can't isolate root nearest to ${x} (perhaps there was a tie)`);
 	    }
 	}
 	function polynomial(coeffs) {
@@ -34912,6 +34930,13 @@
 	        let vr = this.mul(vq).mul(this.inverse());
 	        console.assert(vr.w.isZero());
 	        return new ExactVector3(vr.x, vr.y, vr.z);
+	    }
+	    pseudoNormalize() {
+	        let x = this.x, y = this.y, z = this.z, w = this.w;
+	        let n = w.abs().add(x.abs()).add(y.abs()).add(z.abs());
+	        if (w.sign() < 0)
+	            n = n.neg();
+	        return this.scale(n.inverse());
 	    }
 	}
 
@@ -35420,8 +35445,9 @@
 	class Puzzle {
 	    constructor(pieces) {
 	        this.pieces = pieces !== undefined ? pieces : [];
-	        this.global_rot = ExactQuaternion.identity();
-	        this.axes = undefined;
+	        this.global_rot = new Quaternion().identity();
+	        this.axes = [];
+	        make_axes(this);
 	    }
 	}
 	var PointType;
@@ -35498,7 +35524,7 @@
 	    });
 	    return ax;
 	}
-	function find_axes(puzzle) {
+	function make_axes(puzzle) {
 	    // Every face normal (removing duplicates) is a potential axis
 	    let dirs = {};
 	    for (let piece of puzzle.pieces)
@@ -35525,8 +35551,6 @@
 	       Only considers infinite planes, and so could miss places where
 	       pieces could physically move.
 	    */
-	    if (puzzle.axes === undefined)
-	        find_axes(puzzle);
 	    if (ps === undefined) {
 	        ps = [];
 	        for (let i = 0; i < puzzle.pieces.length; i++)
@@ -35551,8 +35575,9 @@
 	                    for (let p of ax.points[i + 1].pieceNums)
 	                        if (ps.includes(p))
 	                            c++;
-	                    if (c > 0)
+	                    if (c > 0) {
 	                        cuts.push(new Cut(ax, i, +1, new ExactPlane(ax.dir, point.proj.neg())));
+	                    }
 	                }
 	            }
 	        }
@@ -35560,13 +35585,13 @@
 	    return cuts;
 	}
 	function find_stops(puzzle, cut) {
-	    if (puzzle.axes === undefined)
-	        throw new Error("Puzzle is missing axes");
 	    AlgebraicNumber.fromInteger(1);
 	    let c = cut.plane.normal;
 	    let move_pieces = cut.front();
 	    let stay_pieces = cut.back();
 	    // Find cuts of moved pieces and not-moved pieces
+	    // To do: Actually perform the split, so that we don't have to
+	    // check for membership in move_pieces and stay_pieces.
 	    let move_cuts = find_cuts(puzzle, move_pieces);
 	    let stay_cuts = find_cuts(puzzle, stay_pieces);
 	    // Find all rotation angles that form a total cut
@@ -35597,18 +35622,19 @@
 	}
 	function select_pieces(puzzle, sub) {
 	    // Collect all the face normals of the selected pieces
-	    let dirs = {};
+	    // to do: remove duplicate code with find_axes
+	    let dirs_sub = {};
 	    for (let p of sub)
 	        for (let face of puzzle.pieces[p].faces)
 	            if (face.interior) {
 	                let dir = face.plane.canonicalize().normal;
-	                setdefault(dirs, String(dir), dir);
+	                setdefault(dirs_sub, String(dir), dir);
 	            }
 	    // For each axis in the direction of a face normal,
 	    // keep only the extents of selected pieces
 	    let axes_sub = [];
 	    for (let ax of puzzle.axes) {
-	        if (!(String(ax.dir) in dirs))
+	        if (!(String(ax.dir) in dirs_sub))
 	            continue;
 	        let ax_sub = { dir: ax.dir, points: [] };
 	        for (let point of ax.points) {
@@ -35674,29 +35700,29 @@
 	    return axes;
 	}
 	function make_move(puzzle, cut, rot) {
+	    let move_pieces = cut.front();
+	    let stay_pieces = cut.back();
 	    // Piece 0 is immovable. This guarantees that the rotations are
 	    // the composition of a bounded number of rotations. This ensures
 	    // there is no coefficient explosion and might make it possible to
 	    // cache computations.
-	    let move_pieces = cut.front();
-	    let stay_pieces = cut.back();
 	    if (move_pieces.includes(0)) {
-	        puzzle.global_rot = puzzle.global_rot.mul(rot);
+	        puzzle.global_rot.multiply(rot.toThree()).normalize();
 	        rot = rot.conj();
 	        [move_pieces, stay_pieces] = [stay_pieces, move_pieces];
-	    }
-	    for (let p of move_pieces) {
-	        let pg = puzzle.pieces[p];
-	        pg.rot = rot.mul(puzzle.pieces[p].rot);
-	        for (let i = 0; i < pg.vertices.length; i++)
-	            pg.vertices[i] = rot.apply(pg.vertices[i]);
-	        for (let face of pg.faces) {
-	            face.plane = new ExactPlane(rot.apply(face.plane.normal), face.plane.constant);
-	        }
 	    }
 	    // Split axes in two
 	    let move_axes = select_pieces(puzzle, move_pieces);
 	    let stay_axes = select_pieces(puzzle, stay_pieces);
+	    // Rotate pieces
+	    for (let p of move_pieces) {
+	        let pg = puzzle.pieces[p];
+	        pg.rot = rot.mul(puzzle.pieces[p].rot).pseudoNormalize();
+	        for (let i = 0; i < pg.vertices.length; i++)
+	            pg.vertices[i] = rot.apply(pg.vertices[i]);
+	        for (let face of pg.faces)
+	            face.plane = new ExactPlane(rot.apply(face.plane.normal), face.plane.constant);
+	    }
 	    // Rotate move_axes
 	    for (let ax of move_axes) {
 	        ax.dir = rot.apply(ax.dir);
@@ -35996,7 +36022,7 @@
 	    let arrow = new Mesh(arrow_geometry, arrow_material);
 	    arrow.scale.multiplyScalar(0.2);
 	    var rot = new Quaternion();
-	    rot.setFromUnitVectors(new Vector3(0, 0, 1), puzzle.global_rot.apply(cut.plane.normal).toThree().normalize());
+	    rot.setFromUnitVectors(new Vector3(0, 0, 1), cut.plane.normal.toThree().normalize().applyQuaternion(puzzle.global_rot));
 	    arrow.position.z = 1.25 + 0.25 * d;
 	    arrow.position.applyQuaternion(rot);
 	    arrow.quaternion.copy(rot);
@@ -36345,10 +36371,9 @@
 	        angle: angle
 	    };
 	    for (let i of cur_move.pieces) {
-	        let grot = puzzle.global_rot.toThree();
 	        let prot = puzzle.pieces[i].rot.toThree();
-	        cur_move.from_quat.push(grot.clone().multiply(prot));
-	        cur_move.step_quat.push(grot.clone().multiply(urot).multiply(prot));
+	        cur_move.from_quat.push(puzzle.global_rot.clone().multiply(prot));
+	        cur_move.step_quat.push(puzzle.global_rot.clone().multiply(urot).multiply(prot));
 	    }
 	    console.time('move performed in');
 	    make_move(puzzle, cut, rot);
@@ -36360,8 +36385,8 @@
 	    //for (let p of cur_move!.pieces) {
 	    for (let p = 0; p < puzzle.pieces.length; p++) {
 	        let q = puzzle.pieces[p].object.quaternion;
-	        let r = puzzle.global_rot.mul(puzzle.pieces[p].rot);
-	        q.copy(r.toThree());
+	        let r = puzzle.pieces[p].rot.toThree().premultiply(puzzle.global_rot);
+	        q.copy(r);
 	    }
 	    cur_move = null;
 	    render_requested = true;
