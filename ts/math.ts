@@ -185,4 +185,11 @@ export class ExactQuaternion {
         console.assert(vr.w.isZero());
         return new ExactVector3(vr.x, vr.y, vr.z);
     }
+
+    pseudoNormalize(): ExactQuaternion {
+        let x = this.x, y = this.y, z = this.z, w = this.w;
+        let n = w.abs().add(x.abs()).add(y.abs()).add(z.abs());
+        if (w.sign() < 0) n = n.neg();
+        return this.scale(n.inverse());
+    }
 }

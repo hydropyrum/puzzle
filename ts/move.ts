@@ -318,7 +318,7 @@ export function make_move(puzzle: Puzzle, cut: Cut, rot: ExactQuaternion): void 
     // Rotate pieces
     for (let p of move_pieces) {
         let pg = puzzle.pieces[p];
-        pg.rot = rot.mul(puzzle.pieces[p].rot);
+        pg.rot = rot.mul(puzzle.pieces[p].rot).pseudoNormalize();
         for (let i=0; i<pg.vertices.length; i++)
             pg.vertices[i] = rot.apply(pg.vertices[i]);
         for (let face of pg.faces)
