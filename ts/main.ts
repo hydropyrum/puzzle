@@ -133,7 +133,6 @@ function draw_arrows(): void {
 
     // compute new grips
     // make normals point away from origin; deep cuts go both ways
-    console.time('grips found in');
     grips = []
     for (let cut of find_cuts(puzzle)) {
         if (cut.plane.constant.sign() <= 0)
@@ -141,7 +140,6 @@ function draw_arrows(): void {
         if (cut.plane.constant.sign() >= 0)
             grips.push(cut.neg());
     }
-    console.timeEnd('grips found in');
 
     // draw new arrows, linking each to a cut
     grips.sort((a, b) => b.plane.constant.compare(a.plane.constant));
@@ -396,17 +394,16 @@ function apply_cuts(): void {
 
     set_url(recipe);
 
+    console.time('pieces constructed in');
     let shell = make_shell(shapes_to_planes(recipe.shell));
     let cutplanes = shapes_to_planes(recipe.cuts);
-
-    console.time('pieces constructed in');
     let newPuzzle = new Puzzle(make_cuts(cutplanes, [shell]));
-    console.timeEnd('pieces constructed in');
     // Find circumradius, which we will scale to 1
     let r = 0;
     for (let v of shell.vertices.map(v => v.toThree()))
         if (v.length() > r) r = v.length();
     draw_puzzle(newPuzzle, scene, 1/r);
+    console.timeEnd('pieces constructed in');
     render_requested = true;
 }
 
@@ -454,9 +451,8 @@ function begin_move(ci: number, dir: number): void {
     if (cur_move !== null)
         end_move();
 
-    console.time('stops found in');
+    console.time('move completed in');
     let rots = find_stops(puzzle, cut);
-    console.timeEnd('stops found in');
 
     let rot: ExactQuaternion;
     let angle: number;
@@ -498,10 +494,9 @@ function begin_move(ci: number, dir: number): void {
         cur_move.from_quat.push(puzzle.global_rot.clone().multiply(prot));
         cur_move.step_quat.push(puzzle.global_rot.clone().multiply(urot).multiply(prot));
     }
-    console.time('move performed in');
     make_move(puzzle, cut, rot);
-    console.timeEnd('move performed in');
     draw_arrows();
+    console.timeEnd('move completed in');
 }
 
 function end_move(): void {

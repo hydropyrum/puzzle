@@ -44,15 +44,22 @@ function get_side(puzzle: Puzzle, pieceNum: number, plane: ExactPlane): number {
     let d = plane.constant.neg();
     // Instead of rotating all vertices, rotate axis in opposite direction
     let axis = piece.rot.conj().apply(plane.normal);
-    let projs = piece.vertices.map(v => axis.dot(v));
-    projs.sort((a,b) => a.compare(b)); // to do: just find min and max
+    let xmin: AlgebraicNumber|null = null; // ∞
+    let xmax: AlgebraicNumber|null = null; // -∞
+    for (let v of piece.vertices) {
+        let x = axis.dot(v);
+        if (xmin === null || x.compare(xmin) < 0) xmin = x;
+        if (xmax === null || x.compare(xmax) > 0) xmax = x;
+    }
     let side = 0;
-    if (d.compare(projs[0]) <= 0)
-        side = +1;
-    else if (d.compare(projs[projs.length-1]) >= 0)
-        side = -1;
-    else
-        side = 0;
+    if (xmin !== null && xmax !== null) {
+        if (d.compare(xmin) <= 0)
+            side = +1;
+        else if (d.compare(xmax) >= 0)
+            side = -1;
+        else
+            side = 0;
+    } /* else assert(false); */
     puzzle.side_cache[key] = side;
     return side;
 }
