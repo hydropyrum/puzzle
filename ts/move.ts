@@ -7,6 +7,7 @@ import { AlgebraicNumber } from './exact';
 export class Puzzle {
     pieces: PolyGeometry[];
     global_rot: THREE.Quaternion;
+    extent_cache: {[key: string]: [AlgebraicNumber, AlgebraicNumber]} = {};
     side_cache: {[key: string]: number} = {};
     constructor(pieces?: PolyGeometry[]) {
         this.pieces = pieces !== undefined ? pieces : [];
@@ -37,30 +38,34 @@ function get_side(puzzle: Puzzle, pieceNum: number, plane: ExactPlane): number {
        sides. */
 
     let piece = puzzle.pieces[pieceNum];
-    let key = `${plane}/${pieceNum},${piece.rot}`;
-    if (key in puzzle.side_cache)
-        return puzzle.side_cache[key];
+    let side_key = `${plane}/${pieceNum},${piece.rot}`;
+    if (side_key in puzzle.side_cache)
+        return puzzle.side_cache[side_key];
     
-    let d = plane.constant.neg();
-    // Instead of rotating all vertices, rotate axis in opposite direction
-    let axis = piece.rot.conj().apply(plane.normal);
     let xmin: AlgebraicNumber|null = null; // ∞
     let xmax: AlgebraicNumber|null = null; // -∞
-    for (let v of piece.vertices) {
-        let x = axis.dot(v);
-        if (xmin === null || x.compare(xmin) < 0) xmin = x;
-        if (xmax === null || x.compare(xmax) > 0) xmax = x;
+    let extent_key = `${plane.normal}/${pieceNum},${piece.rot}`;
+    if (extent_key in puzzle.extent_cache)
+        [xmin, xmax] = puzzle.extent_cache[extent_key];
+    else {
+        // Instead of rotating all vertices, rotate axis in opposite direction
+        let axis = piece.rot.conj().apply(plane.normal);
+        for (let v of piece.vertices) {
+            let x = axis.dot(v);
+            if (xmin === null || x.compare(xmin) < 0) xmin = x;
+            if (xmax === null || x.compare(xmax) > 0) xmax = x;
+        }
+        puzzle.extent_cache[extent_key] = [xmin!, xmax!];
     }
     let side = 0;
-    if (xmin !== null && xmax !== null) {
-        if (d.compare(xmin) <= 0)
-            side = +1;
-        else if (d.compare(xmax) >= 0)
-            side = -1;
-        else
-            side = 0;
-    } /* else assert(false); */
-    puzzle.side_cache[key] = side;
+    let d = plane.constant.neg();
+    if (d.compare(xmin!) <= 0)
+        side = +1;
+    else if (d.compare(xmax!) >= 0)
+        side = -1;
+    else
+        side = 0;
+    puzzle.side_cache[side_key] = side;
     return side;
 }
 
