@@ -186,7 +186,7 @@ def process(data):
 
     poly_name = data["name"][0].lower() + data["name"][1:]
     print(f'export function {poly_name}(scale: AlgebraicNumber): ExactPlane[] {{')
-    print(f'    let K = algebraicNumberField({list(reversed(prim_poly.all_coeffs()))}, {float(prim_element)});')
+    print(f'    let K = algebraicNumberField({list(reversed(prim_poly.all_coeffs()))}, fraction({int(float(prim_element)*100)}, 100));')
     print( '    let cuts = [')
                 
     for fi, face in enumerate(data['faces']):

@@ -144,20 +144,15 @@ export class Polynomial {
     }
 
     count_roots(lower: Fraction, upper: Fraction): number {
-        /* Number of real roots in interval (lower, upper] */
-        return this.sturm_sequence(lower) - this.sturm_sequence(upper);
+        /* Number of real roots in interval [lower, upper] */
+        return (this.eval(lower).sign() == 0 ? 1 : 0) + this.sturm_sequence(lower) - this.sturm_sequence(upper);
     }
         
     /* Find an isolating interval for the real root nearest x.
        If there is a tie, chooses the higher root. */
-    isolate_root(x: number): [Fraction, Fraction] {
+    isolate_root(x: Fraction): [Fraction, Fraction] {
         if (this.degree <= 0) throw new RangeError("can't isolate root of a constant polynomial");
 
-        // Convert x to Fraction
-        let d = 1;
-        while (!Number.isInteger(x*d) && Math.abs(d) !== Infinity) d *= 2;
-        let xfrac = fraction(x*d, d);
-        
         // Bound distance to root
         let bound = fraction(0);
         for (let i=0; i<this.degree; i++)
@@ -168,11 +163,11 @@ export class Polynomial {
 
         // Binary search for distance
         let dmin = fraction(0);
-        let dmax = bound.add(xfrac.abs());
+        let dmax = bound.add(x.abs());
         for (let i=0; i<100; i++) {
-            let dmid = dmin.add(dmax).div(fraction(2));
-            let lower = xfrac.sub(dmid);
-            let upper = xfrac.add(dmid);
+            let dmid = dmin.middle(dmax);
+            let lower = x.sub(dmid);
+            let upper = x.add(dmid);
             let c = this.count_roots(lower, upper);
             if (c == 1)
                 return [lower, upper];

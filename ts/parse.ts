@@ -47,7 +47,7 @@ export interface Puzzle {
 */
 
 export function parseReal(s: string): AlgebraicNumber {
-    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847); // Q(sqrt(2), sqrt(5))
+    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100)); // Q(sqrt(2), sqrt(5))
     let tokens: (string|AlgebraicNumber)[] = [];
     let tokenRE = /\s*(?:([+\-*/()])|([A-Za-z_][A-Za-z_0-9]*)|(\d+)(\.\d+)?)\s*/y;
     while (tokenRE.lastIndex < s.length) {

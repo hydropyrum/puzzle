@@ -115,10 +115,24 @@ export class Fraction {
     }
     iabs(): Fraction { this.n = big_abs(this.n); return this; }
     abs(): Fraction { return this.clone().iabs(); }
+
+    /* Find a fraction between this and y that doesn't increase denominator too much */
+    middle(y: Fraction): Fraction {
+        let x = this;
+        let d = x.d * y.d / big_gcd(x.d, y.d);
+        let xn = x.n * d / x.d;
+        let yn = y.n * d / y.d;
+        if (xn > yn)
+            [xn, yn] = [yn, xn];
+        if (yn - xn >= 2n)
+            return new Fraction((xn+yn)/2n, d);
+        else
+            return new Fraction(xn+yn, 2n*d);
+    }
 }
 
 export function fraction(n: bigint|number, d: bigint|number = 1): Fraction {
     if (typeof n === 'number') n = BigInt(n);
     if (typeof d === 'number') d = BigInt(d);
-    return new Fraction(n, d);
+    return new Fraction(n as bigint, d);
 }
