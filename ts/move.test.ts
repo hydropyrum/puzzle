@@ -37,8 +37,7 @@ for (let cut of cuts) {
     pieces = newpieces;
 }
 
-let puzzle = new Puzzle();
-puzzle.pieces = pieces;
+let puzzle = new Puzzle(pieces);
 
 function planeEqual(p1: ExactPlane, p2: ExactPlane) {
     return (p1.normal.x.equals(p2.normal.x) &&
