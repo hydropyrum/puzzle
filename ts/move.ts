@@ -104,7 +104,7 @@ export function find_cuts(puzzle: Puzzle, pieceNums?: number[]): Cut[] {
                 break;
             }
         }
-        if (is_cut)
+        if (is_cut && front.length > 0 && back.length > 0)
             cuts.push(new Cut(plane, front, back));
     }
     return cuts;
