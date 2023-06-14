@@ -132,13 +132,15 @@ export class AlgebraicNumber {
         let coeffs = [];
         for (let i=0; i<K.poly.degree; i++) {
             if (i <= p.degree)
-                coeffs.push(p.coeffs[i]);
+                coeffs.push(p.coeffs[i].clone());
             else
                 coeffs.push(fraction(0));
         }
         for (let i=K.poly.degree; i<=p.degree; i++)
             for (let j=0; j<=K.powers[i].degree; j++)
-                coeffs[j] = coeffs[j].add(K.powers[i].coeffs[j].mul(p.coeffs[i]));
+                coeffs[j].iadd(K.powers[i].coeffs[j].mul(p.coeffs[i]), false);
+        for (let c of coeffs)
+            c.reduce();
         return new AlgebraicNumber(K, new Polynomial(coeffs));
     }
     inverse(): AlgebraicNumber {
@@ -178,13 +180,15 @@ export class AlgebraicNumber {
         for (let i=0; i<=p.degree; i++) {
             let s = p.coeffs[i].sign();
             if (s > 0) {
-                l.iadd(p.coeffs[i].mul(K.powers_lower[i]));
-                u.iadd(p.coeffs[i].mul(K.powers_upper[i]));
+                l.iadd(p.coeffs[i].mul(K.powers_lower[i]), false);
+                u.iadd(p.coeffs[i].mul(K.powers_upper[i]), false);
             } else if (s < 0) {
-                l.iadd(p.coeffs[i].mul(K.powers_upper[i]));
-                u.iadd(p.coeffs[i].mul(K.powers_lower[i]));
+                l.iadd(p.coeffs[i].mul(K.powers_upper[i]), false);
+                u.iadd(p.coeffs[i].mul(K.powers_lower[i]), false);
             }
         }
+        l.reduce();
+        u.reduce();
         return [l, u];
     }
 
