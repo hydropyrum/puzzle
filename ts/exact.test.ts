@@ -3,7 +3,7 @@ import { polynomial } from './polynomial';
 import { fraction } from './fraction';
 
 // ℚ(√2,√3)
-let K = algebraicNumberField([1, 0, -10, 0, 1], Math.sqrt(2)+Math.sqrt(3));
+let K = algebraicNumberField([1, 0, -10, 0, 1], fraction(3146264,1000000));
 
 let vals = [
     {c: [fraction(0), fraction(0), fraction(0), fraction(0)], a: 0},

@@ -122,9 +122,9 @@ test('isolate_root', () => {
     for (let x of points) {
         roots.sort((a,b) => Math.abs(a-x) - Math.abs(b-x));
         let root = roots[0];
-        let [lower, upper] = poly.isolate_root(x);
+        let [lower, upper] = poly.isolate_root(fraction(x*10,10));
         expect(roots.filter(r => lower.toNumber() <= r && r <= upper.toNumber())).toEqual([root]);
     }
     for (let x of tie_points)
-        expect(() => poly.isolate_root(x)).toThrow();
+        expect(() => poly.isolate_root(fraction(x*10,10))).toThrow();
 });
