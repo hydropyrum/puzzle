@@ -78,7 +78,8 @@ export class Polynomial {
         for (let k=0; k<=m+n; k++) {
             let ck = fraction(0);
             for (let i=Math.max(0,k-n); i<=Math.min(k,m); i++)
-                ck.iadd(this.coeffs[i].mul(b.coeffs[k-i]));
+                ck.iadd(this.coeffs[i].mul(b.coeffs[k-i]), false);
+            ck.reduce();
             coeffs.push(ck);
         }
         return new Polynomial(coeffs);

@@ -12,12 +12,10 @@ function big_sign(x: bigint): number {
 function big_gcd(x: bigint, y: bigint): bigint {
     x = big_abs(x);
     y = big_abs(y);
-    if (x < y) [x, y] = [y, x];
-    let r;
-    while (y != 0n) {
-        r = x % y;
-        [x, y] = [y, r];
-    }
+    if (x < y)
+        [x, y] = [y, x];
+    while (y !== 0n)
+        [x, y] = [y, x % y];
     return x;
 }
 
@@ -59,10 +57,11 @@ export class Fraction {
     ineg(): Fraction { this.n = -this.n; return this; }
     neg(): Fraction { return this.clone().ineg(); }
     
-    iadd(y: Fraction): Fraction {
+    iadd(y: Fraction, reduce: boolean = true): Fraction {
         this.n = this.n * y.d + this.d * y.n;
         this.d *= y.d;
-        return this.reduce();
+        if (reduce) this.reduce();
+        return this;
     }
     add(y: Fraction): Fraction { return this.clone().iadd(y); }
     
@@ -73,10 +72,11 @@ export class Fraction {
     }
     sub(y: Fraction): Fraction { return this.clone().isub(y); }
 
-    imul(y: Fraction): Fraction {
+    imul(y: Fraction, reduce: boolean = true): Fraction {
         this.n *= y.n;
         this.d *= y.d;
-        return this.reduce();
+        if (reduce) this.reduce();
+        return this;
     }
     mul(y: Fraction): Fraction { return this.clone().imul(y); }
 
