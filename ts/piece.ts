@@ -61,19 +61,23 @@ export function cube_polygeometry(d?: AlgebraicNumber): PolyGeometry {
         for (let y of [d.neg(), d])
             for (let x of [d.neg(), d])
                 g.vertices.push(new ExactVector3(x, y, z));
-    let zero = d.field.fromVector([]);
-    let dummy_plane = new ExactPlane(new ExactVector3(zero, zero, zero), zero); // to do: make not dumb
+    let one = d.field.fromVector([1]);
+    let make_plane = (x: number, y: number, z: number) => {
+        let u = g.vertices[y].sub(g.vertices[x]);
+        let v = g.vertices[z].sub(g.vertices[y]);
+        return new ExactPlane(u.cross(v), one);
+    };
     for (let i of [1, 2, 4]) {
         let j = i < 4 ? i * 2 : 1;
         let k = j < 4 ? j * 2 : 1;
         g.faces.push({vertices: [0, k, j+k, j],
-                      plane: dummy_plane,
+                      plane: make_plane(0, k, j+k),
                       color: new THREE.Color(),
-                      interior: false});
+                      interior: true});
         g.faces.push({vertices: [i, i+j, i+j+k, i+k],
-                      plane: dummy_plane,
+                      plane: make_plane(i, j, i+j+k),
                       color: new THREE.Color(),
-                      interior: false});
+                      interior: true});
     }
     return g;
 }
@@ -85,7 +89,7 @@ export function cube_polygeometry(d?: AlgebraicNumber): PolyGeometry {
    - geometry: the PolyGeometry to slice
    - plane: the plane along which to slice
    - color: what color to make any newly created faces
-   - interior: whether any newly created faces are interior faces
+   - interior: whether the newly created face on the back piece is interior
    
    Returns: [front, back] where either front or back might be empty.
    
@@ -93,7 +97,10 @@ export function cube_polygeometry(d?: AlgebraicNumber): PolyGeometry {
    - preserves colors of faces
    - creates new faces where the geometry is sliced */
 
-export function slice_polygeometry(geometry: PolyGeometry, plane: ExactPlane, color: THREE.Color, interior: boolean): [PolyGeometry, PolyGeometry] {
+export function slice_polygeometry(geometry: PolyGeometry,
+                                   plane: ExactPlane,
+                                   color: THREE.Color,
+                                   interior: boolean): [PolyGeometry, PolyGeometry] {
     let vertices = [];
     vertices.push(...geometry.vertices); // copy so we can append to it
     
@@ -164,7 +171,7 @@ export function slice_polygeometry(geometry: PolyGeometry, plane: ExactPlane, co
     }
 
     close_polyhedron(back, plane, color, interior);
-    close_polyhedron(front, plane.neg(), color, interior);
+    close_polyhedron(front, plane.neg(), color, true);
     
     return [front, back];
 }
