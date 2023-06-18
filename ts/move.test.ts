@@ -13,7 +13,7 @@ function exactPlane(a, b, c, d) {
     );
 }
 
-let shell = cube_polygeometry(fromNumber(2));
+let shell = cube_polygeometry(fromNumber(2), new THREE.Color(), false);
 let cuts = [
     {plane: exactPlane(0, 0, 1, 1), stops: [0, 90, 180, 270]},
     {plane: exactPlane(0, 0, 1, 0), stops: [0, 90, 180, 270]},

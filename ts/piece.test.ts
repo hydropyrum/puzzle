@@ -4,7 +4,7 @@ import { ExactPlane, ExactVector3 } from './math';
 import { PolyGeometry, cube_polygeometry, slice_polygeometry } from './piece';
 
 let fromNumber = AlgebraicNumber.fromInteger;
-let cube = cube_polygeometry(fromNumber(1));
+let cube = cube_polygeometry(fromNumber(1), new THREE.Color(), false);
 
 function exactPlane(a, b, c, d) {
     return new ExactPlane(

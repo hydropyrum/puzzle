@@ -53,9 +53,7 @@ export class PolyGeometry {
     }
 };
 
-export function cube_polygeometry(d?: AlgebraicNumber): PolyGeometry {
-    if (d === undefined)
-        d = AlgebraicNumber.fromInteger(1000);
+export function cube_polygeometry(d: AlgebraicNumber, color: THREE.Color, interior: boolean = false): PolyGeometry {
     let g = new PolyGeometry([], []);
     for (let z of [d.neg(), d])
         for (let y of [d.neg(), d])
@@ -72,12 +70,12 @@ export function cube_polygeometry(d?: AlgebraicNumber): PolyGeometry {
         let k = j < 4 ? j * 2 : 1;
         g.faces.push({vertices: [0, k, j+k, j],
                       plane: make_plane(0, k, j+k),
-                      color: new THREE.Color(),
-                      interior: true});
+                      color: color,
+                      interior: interior});
         g.faces.push({vertices: [i, i+j, i+j+k, i+k],
                       plane: make_plane(i, j, i+j+k),
-                      color: new THREE.Color(),
-                      interior: true});
+                      color: color,
+                      interior: interior});
     }
     return g;
 }
