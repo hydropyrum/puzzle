@@ -397,7 +397,6 @@ function apply_cuts(): void {
     console.time('pieces constructed in');
     let shell = make_shell(shapes_to_planes(recipe.shell));
     let cutplanes = shapes_to_planes(recipe.cuts);
-
     let newPuzzle = new Puzzle(make_cuts(cutplanes, [shell]));
     // Find circumradius, which we will scale to 1
     let r = 0;
@@ -485,7 +484,7 @@ function begin_move(ci: number, dir: number): void {
         cut: cut,
         start_time: null,
         time: Math.abs(angle)/rad_per_sec*1000,
-        pieces: cut.front(),
+        pieces: cut.front,
         from_quat: [],
         step_quat: [],
         angle: angle

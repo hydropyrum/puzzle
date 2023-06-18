@@ -68,6 +68,9 @@ export class ExactPlane {
     toThree(): THREE.Plane {
         return new THREE.Plane(this.normal.toThree(), this.constant.toNumber()).normalize();
     }
+    toString(): string {
+        return `[${this.normal},${this.constant}]`;
+    }
 
     neg(): ExactPlane { return new ExactPlane(this.normal.neg(), this.constant.neg()); }
     side(v: ExactVector3) { return this.normal.dot(v).add(this.constant).sign(); }
