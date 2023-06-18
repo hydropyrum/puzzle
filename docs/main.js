@@ -34337,11 +34337,8 @@
 	    y = big_abs(y);
 	    if (x < y)
 	        [x, y] = [y, x];
-	    let r;
-	    while (y != 0n) {
-	        r = x % y;
-	        [x, y] = [y, r];
-	    }
+	    while (y !== 0n)
+	        [x, y] = [y, x % y];
 	    return x;
 	}
 	class Fraction {
@@ -34376,10 +34373,12 @@
 	    }
 	    ineg() { this.n = -this.n; return this; }
 	    neg() { return this.clone().ineg(); }
-	    iadd(y) {
+	    iadd(y, reduce = true) {
 	        this.n = this.n * y.d + this.d * y.n;
 	        this.d *= y.d;
-	        return this.reduce();
+	        if (reduce)
+	            this.reduce();
+	        return this;
 	    }
 	    add(y) { return this.clone().iadd(y); }
 	    isub(y) {
@@ -34388,10 +34387,12 @@
 	        return this.reduce();
 	    }
 	    sub(y) { return this.clone().isub(y); }
-	    imul(y) {
+	    imul(y, reduce = true) {
 	        this.n *= y.n;
 	        this.d *= y.d;
-	        return this.reduce();
+	        if (reduce)
+	            this.reduce();
+	        return this;
 	    }
 	    mul(y) { return this.clone().imul(y); }
 	    iinv() {
@@ -34431,6 +34432,19 @@
 	    }
 	    iabs() { this.n = big_abs(this.n); return this; }
 	    abs() { return this.clone().iabs(); }
+	    /* Find a fraction between this and y that doesn't increase denominator too much */
+	    middle(y) {
+	        let x = this;
+	        let d = x.d * y.d / big_gcd(x.d, y.d);
+	        let xn = x.n * d / x.d;
+	        let yn = y.n * d / y.d;
+	        if (xn > yn)
+	            [xn, yn] = [yn, xn];
+	        if (yn - xn >= 2n)
+	            return new Fraction((xn + yn) / 2n, d);
+	        else
+	            return new Fraction(xn + yn, 2n * d);
+	    }
 	}
 	function fraction(n, d = 1) {
 	    if (typeof n === 'number')
@@ -34507,7 +34521,8 @@
 	        for (let k = 0; k <= m + n; k++) {
 	            let ck = fraction(0);
 	            for (let i = Math.max(0, k - n); i <= Math.min(k, m); i++)
-	                ck.iadd(this.coeffs[i].mul(b.coeffs[k - i]));
+	                ck.iadd(this.coeffs[i].mul(b.coeffs[k - i]), false);
+	            ck.reduce();
 	            coeffs.push(ck);
 	        }
 	        return new Polynomial(coeffs);
@@ -34570,19 +34585,14 @@
 	        return changes;
 	    }
 	    count_roots(lower, upper) {
-	        /* Number of real roots in interval (lower, upper] */
-	        return this.sturm_sequence(lower) - this.sturm_sequence(upper);
+	        /* Number of real roots in interval [lower, upper] */
+	        return (this.eval(lower).sign() == 0 ? 1 : 0) + this.sturm_sequence(lower) - this.sturm_sequence(upper);
 	    }
 	    /* Find an isolating interval for the real root nearest x.
 	       If there is a tie, chooses the higher root. */
 	    isolate_root(x) {
 	        if (this.degree <= 0)
 	            throw new RangeError("can't isolate root of a constant polynomial");
-	        // Convert x to Fraction
-	        let d = 1;
-	        while (!Number.isInteger(x * d) && Math.abs(d) !== Infinity)
-	            d *= 2;
-	        let xfrac = fraction(x * d, d);
 	        // Bound distance to root
 	        let bound = fraction(0);
 	        for (let i = 0; i < this.degree; i++)
@@ -34592,11 +34602,11 @@
 	        bound.iadd(fraction(1));
 	        // Binary search for distance
 	        let dmin = fraction(0);
-	        let dmax = bound.add(xfrac.abs());
+	        let dmax = bound.add(x.abs());
 	        for (let i = 0; i < 100; i++) {
-	            let dmid = dmin.add(dmax).div(fraction(2));
-	            let lower = xfrac.sub(dmid);
-	            let upper = xfrac.add(dmid);
+	            let dmid = dmin.middle(dmax);
+	            let lower = x.sub(dmid);
+	            let upper = x.add(dmid);
 	            let c = this.count_roots(lower, upper);
 	            if (c == 1)
 	                return [lower, upper];
@@ -34647,7 +34657,7 @@
 	        }
 	    }
 	    refine() {
-	        let mid = this.lower.add(this.upper).div(fraction(2));
+	        let mid = this.lower.middle(this.upper);
 	        let sl = this.poly.eval(this.lower).sign();
 	        let sm = this.poly.eval(mid).sign();
 	        let su = this.poly.eval(this.upper).sign();
@@ -34672,16 +34682,16 @@
 	        poly = polynomial(poly);
 	    return new AlgebraicNumberField(poly, approx);
 	}
+	var Q = algebraicNumberField([-1, 1], fraction(1));
 	class AlgebraicNumber {
 	    constructor(field, poly) {
 	        this.field = field;
 	        this.poly = poly;
 	    }
 	    static fromInteger(x) {
-	        let K = algebraicNumberField([-1, 1], 1); // trivial
 	        if (!Number.isInteger(x))
 	            throw new RangeError('x must be an integer');
-	        return K.fromVector([fraction(x)]);
+	        return Q.fromVector([fraction(x)]);
 	    }
 	    toString() {
 	        return this.poly.toString();
@@ -34689,7 +34699,7 @@
 	    // alternatively, could initially refine a few times and use
 	    // midpoint of isolating interval
 	    toNumber() {
-	        return this.poly.eval_approx(this.field.approx);
+	        return this.poly.eval_approx(this.field.approx.toNumber());
 	    }
 	    static check_same_field(a, b) {
 	        if (a.field === b.field)
@@ -34720,13 +34730,15 @@
 	        let coeffs = [];
 	        for (let i = 0; i < K.poly.degree; i++) {
 	            if (i <= p.degree)
-	                coeffs.push(p.coeffs[i]);
+	                coeffs.push(p.coeffs[i].clone());
 	            else
 	                coeffs.push(fraction(0));
 	        }
 	        for (let i = K.poly.degree; i <= p.degree; i++)
 	            for (let j = 0; j <= K.powers[i].degree; j++)
-	                coeffs[j] = coeffs[j].add(K.powers[i].coeffs[j].mul(p.coeffs[i]));
+	                coeffs[j].iadd(K.powers[i].coeffs[j].mul(p.coeffs[i]), false);
+	        for (let c of coeffs)
+	            c.reduce();
 	        return new AlgebraicNumber(K, new Polynomial(coeffs));
 	    }
 	    inverse() {
@@ -34761,14 +34773,16 @@
 	        for (let i = 0; i <= p.degree; i++) {
 	            let s = p.coeffs[i].sign();
 	            if (s > 0) {
-	                l.iadd(p.coeffs[i].mul(K.powers_lower[i]));
-	                u.iadd(p.coeffs[i].mul(K.powers_upper[i]));
+	                l.iadd(p.coeffs[i].mul(K.powers_lower[i]), false);
+	                u.iadd(p.coeffs[i].mul(K.powers_upper[i]), false);
 	            }
 	            else if (s < 0) {
-	                l.iadd(p.coeffs[i].mul(K.powers_upper[i]));
-	                u.iadd(p.coeffs[i].mul(K.powers_lower[i]));
+	                l.iadd(p.coeffs[i].mul(K.powers_upper[i]), false);
+	                u.iadd(p.coeffs[i].mul(K.powers_lower[i]), false);
 	            }
 	        }
+	        l.reduce();
+	        u.reduce();
 	        return [l, u];
 	    }
 	    sign() {
@@ -34840,6 +34854,9 @@
 	    }
 	    toThree() {
 	        return new Plane(this.normal.toThree(), this.constant.toNumber()).normalize();
+	    }
+	    toString() {
+	        return `[${this.normal},${this.constant}]`;
 	    }
 	    neg() { return new ExactPlane(this.normal.neg(), this.constant.neg()); }
 	    side(v) { return this.normal.dot(v).add(this.constant).sign(); }
@@ -34986,27 +35003,29 @@
 	        return g;
 	    }
 	}
-	function cube_polygeometry(d) {
-	    if (d === undefined)
-	        d = AlgebraicNumber.fromInteger(1000);
+	function cube_polygeometry(d, color, interior = false) {
 	    let g = new PolyGeometry([], []);
 	    for (let z of [d.neg(), d])
 	        for (let y of [d.neg(), d])
 	            for (let x of [d.neg(), d])
 	                g.vertices.push(new ExactVector3(x, y, z));
-	    let zero = d.field.fromVector([]);
-	    let dummy_plane = new ExactPlane(new ExactVector3(zero, zero, zero), zero); // to do: make not dumb
+	    let one = d.field.fromVector([1]);
+	    let make_plane = (x, y, z) => {
+	        let u = g.vertices[y].sub(g.vertices[x]);
+	        let v = g.vertices[z].sub(g.vertices[y]);
+	        return new ExactPlane(u.cross(v), one);
+	    };
 	    for (let i of [1, 2, 4]) {
 	        let j = i < 4 ? i * 2 : 1;
 	        let k = j < 4 ? j * 2 : 1;
 	        g.faces.push({ vertices: [0, k, j + k, j],
-	            plane: dummy_plane,
-	            color: new Color(),
-	            interior: false });
+	            plane: make_plane(0, k, j + k),
+	            color: color,
+	            interior: interior });
 	        g.faces.push({ vertices: [i, i + j, i + j + k, i + k],
-	            plane: dummy_plane,
-	            color: new Color(),
-	            interior: false });
+	            plane: make_plane(i, j, i + j + k),
+	            color: color,
+	            interior: interior });
 	    }
 	    return g;
 	}
@@ -35017,7 +35036,7 @@
 	   - geometry: the PolyGeometry to slice
 	   - plane: the plane along which to slice
 	   - color: what color to make any newly created faces
-	   - interior: whether any newly created faces are interior faces
+	   - interior: whether the newly created face on the back piece is interior
 	   
 	   Returns: [front, back] where either front or back might be empty.
 	   
@@ -35095,7 +35114,7 @@
 	        }
 	    }
 	    close_polyhedron(back, plane, color, interior);
-	    close_polyhedron(front, plane.neg(), color, interior);
+	    close_polyhedron(front, plane.neg(), color, true);
 	    return [front, back];
 	}
 	/* close_polyhedron
@@ -35153,7 +35172,7 @@
 	}
 
 	function tetrahedron(scale) {
-	    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847);
+	    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100));
 	    let cuts = [
 	        // [1/2, 1/2, 1/2] · x + -sqrt(2)/8 scale = 0
 	        new ExactPlane(new ExactVector3(K.fromVector([fraction(1, 2)]), K.fromVector([fraction(1, 2)]), K.fromVector([fraction(1, 2)])), K.fromVector([0, fraction(11, 48), 0, fraction(-1, 48)]).mul(scale)),
@@ -35167,7 +35186,7 @@
 	    return cuts;
 	}
 	function octahedron(scale) {
-	    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847);
+	    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100));
 	    let cuts = [
 	        // [1/2, 1/2, 1/2] · x + -sqrt(2)/4 scale = 0
 	        new ExactPlane(new ExactVector3(K.fromVector([fraction(1, 2)]), K.fromVector([fraction(1, 2)]), K.fromVector([fraction(1, 2)])), K.fromVector([0, fraction(11, 24), 0, fraction(-1, 24)]).mul(scale)),
@@ -35189,7 +35208,7 @@
 	    return cuts;
 	}
 	function cube(scale) {
-	    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847);
+	    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100));
 	    let cuts = [
 	        // [0, 1, 0] · x + -1/2 scale = 0
 	        new ExactPlane(new ExactVector3(K.fromVector([0]), K.fromVector([1]), K.fromVector([0])), K.fromVector([fraction(-1, 2)]).mul(scale)),
@@ -35207,7 +35226,7 @@
 	    return cuts;
 	}
 	function icosahedron(scale) {
-	    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847);
+	    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100));
 	    let cuts = [
 	        // [0, 1/4 - sqrt(5)/4, 1/4 + sqrt(5)/4] · x + -3/8 - sqrt(5)/8 scale = 0
 	        new ExactPlane(new ExactVector3(K.fromVector([0]), K.fromVector([fraction(1, 4), fraction(-17, 24), 0, fraction(1, 24)]), K.fromVector([fraction(1, 4), fraction(17, 24), 0, fraction(-1, 24)])), K.fromVector([fraction(-3, 8), fraction(-17, 48), 0, fraction(1, 48)]).mul(scale)),
@@ -35253,7 +35272,7 @@
 	    return cuts;
 	}
 	function dodecahedron(scale) {
-	    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847);
+	    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100));
 	    let cuts = [
 	        // [1/2, 0, 1/4 + sqrt(5)/4] · x + -sqrt(5)/4 - 1/2 scale = 0
 	        new ExactPlane(new ExactVector3(K.fromVector([fraction(1, 2)]), K.fromVector([0]), K.fromVector([fraction(1, 4), fraction(17, 24), 0, fraction(-1, 24)])), K.fromVector([fraction(-1, 2), fraction(-17, 24), 0, fraction(1, 24)]).mul(scale)),
@@ -35283,7 +35302,7 @@
 	    return cuts;
 	}
 	function rhombicDodecahedron(scale) {
-	    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847);
+	    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100));
 	    let cuts = [
 	        // [9/16, 0, 9/16] · x + -27*sqrt(2)/64 scale = 0
 	        new ExactPlane(new ExactVector3(K.fromVector([fraction(9, 16)]), K.fromVector([0]), K.fromVector([fraction(9, 16)])), K.fromVector([0, fraction(99, 128), 0, fraction(-9, 128)]).mul(scale)),
@@ -35313,7 +35332,7 @@
 	    return cuts;
 	}
 	function rhombicTriacontahedron(scale) {
-	    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847);
+	    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100));
 	    let cuts = [
 	        // [0, 0, 5/16 + 5*sqrt(5)/16] · x + -25/32 - 5*sqrt(5)/16 scale = 0
 	        new ExactPlane(new ExactVector3(K.fromVector([0]), K.fromVector([0]), K.fromVector([fraction(5, 16), fraction(85, 96), 0, fraction(-5, 96)])), K.fromVector([fraction(-25, 32), fraction(-85, 96), 0, fraction(5, 96)]).mul(scale)),
@@ -35396,16 +35415,13 @@
 	function make_shell(faces) {
 	    /* Find intersection of backs of faces and return as a Geometry.
 	       Only works for convex polyhedra. */
-	    console.time('shell constructed in');
-	    let g = cube_polygeometry();
+	    let g = cube_polygeometry(AlgebraicNumber.fromInteger(1000), cut_color, true);
 	    let front;
 	    for (let i = 0; i < faces.length; i++)
 	        [front, g] = slice_polygeometry(g, faces[i], get_color(i), false);
-	    console.timeEnd('shell constructed in');
 	    return g;
 	}
 	function make_cuts(cuts, pieces) {
-	    let count = 0;
 	    let planes = {};
 	    for (let p of cuts)
 	        setdefault(planes, String(p.normal), []).push(p);
@@ -35415,7 +35431,6 @@
 	        for (let cut of ps) {
 	            let frontpieces = [];
 	            for (let piece of pieces) {
-	                count += 1;
 	                let [frontpiece, backpiece] = slice_polygeometry(piece, cut, cut_color, true);
 	                if (frontpiece.faces.length > 0 && !frontpiece.faces.every(f => f.interior))
 	                    frontpieces.push(frontpiece);
@@ -35426,7 +35441,6 @@
 	        }
 	        pieces.push(...backpieces);
 	    }
-	    console.log('slices performed:', count);
 	    return pieces;
 	}
 	function polyhedron(name, d) {
@@ -35444,160 +35458,104 @@
 
 	class Puzzle {
 	    constructor(pieces) {
+	        this.extent_cache = {};
+	        this.side_cache = {};
 	        this.pieces = pieces !== undefined ? pieces : [];
 	        this.global_rot = new Quaternion().identity();
-	        this.axes = [];
-	        make_axes(this);
 	    }
 	}
-	var PointType;
-	(function (PointType) {
-	    PointType[PointType["Begin"] = 1] = "Begin";
-	    PointType[PointType["End"] = -1] = "End";
-	})(PointType || (PointType = {}));
 	class Cut {
-	    constructor(axis, pos, dir, plane) {
-	        this.axis = axis;
-	        this.pos = pos; // front side starts at this.axis.points[pos]+1
-	        this.dir = dir;
+	    constructor(plane, front, back) {
 	        this.plane = plane;
+	        this.front = front;
+	        this.back = back;
 	    }
 	    neg() {
-	        return new Cut(this.axis, this.pos, -this.dir, this.plane.neg());
-	    }
-	    get_pieces(start, stop) {
-	        let ret = [];
-	        for (let i = start; i < stop; i++) {
-	            let point = this.axis.points[i];
-	            if (point.type === PointType.Begin)
-	                ret.push(...point.pieceNums);
-	        }
-	        return ret;
-	    }
-	    ;
-	    front() {
-	        if (this.dir > 0)
-	            return this.get_pieces(this.pos + 1, this.axis.points.length);
-	        else
-	            return this.get_pieces(0, this.pos);
-	    }
-	    back() {
-	        if (this.dir > 0)
-	            return this.get_pieces(0, this.pos);
-	        else
-	            return this.get_pieces(this.pos + 1, this.axis.points.length);
+	        return new Cut(this.plane.neg(), this.back, this.front);
 	    }
 	}
-	function make_axis(puzzle, dir, pieceNums) {
-	    let ax = { dir: dir, points: [] };
-	    // Make a list of pieces, sorted by their projection onto
-	    // ax. Each element of this list is a triple [proj,
-	    // type, pieces], where proj is the projection, type is +1 for
-	    // begin piece and -1 for end piece, and pieces is a list of
-	    // piece indices.
-	    // Find the minimum and maximum projection of each piece onto ax
-	    let begin = {};
-	    let end = {};
-	    for (let p of pieceNums) {
-	        let xmin = null; // ∞
-	        let xmax = null; // -∞
-	        for (let v of puzzle.pieces[p].vertices) {
-	            let x = ax.dir.dot(v);
+	function get_side(puzzle, pieceNum, plane) {
+	    /* Given a piece and a plane, find which side of the plane the
+	       piece lies on, or both sides. Returns +1 if the piece is on the
+	       front side of the plane, -1 if on the back side, 0 if on both
+	       sides. */
+	    let piece = puzzle.pieces[pieceNum];
+	    let side_key = `${plane}/${pieceNum},${piece.rot}`;
+	    if (side_key in puzzle.side_cache)
+	        return puzzle.side_cache[side_key];
+	    let xmin = null; // ∞
+	    let xmax = null; // -∞
+	    let extent_key = `${plane.normal}/${pieceNum},${piece.rot}`;
+	    if (extent_key in puzzle.extent_cache)
+	        [xmin, xmax] = puzzle.extent_cache[extent_key];
+	    else {
+	        // Instead of rotating all vertices, rotate axis in opposite direction
+	        let axis = piece.rot.conj().apply(plane.normal);
+	        for (let v of piece.vertices) {
+	            let x = axis.dot(v);
 	            if (xmin === null || x.compare(xmin) < 0)
 	                xmin = x;
 	            if (xmax === null || x.compare(xmax) > 0)
 	                xmax = x;
 	        }
-	        if (xmin !== null && xmax !== null) {
-	            setdefault(begin, String(xmin), [xmin, []])[1].push(p);
-	            setdefault(end, String(xmax), [xmax, []])[1].push(p);
-	        } /* else assert(false); */
+	        puzzle.extent_cache[extent_key] = [xmin, xmax];
 	    }
-	    // Assemble them into a sorted list
-	    for (let e of Object.values(begin))
-	        ax.points.push({ proj: e[0], type: PointType.Begin, pieceNums: e[1] });
-	    for (let e of Object.values(end))
-	        ax.points.push({ proj: e[0], type: PointType.End, pieceNums: e[1] });
-	    ax.points.sort(function (x, y) {
-	        let d = x.proj.compare(y.proj);
-	        return d == 0 ? x.type - y.type : d;
-	    });
-	    return ax;
+	    let side = 0;
+	    let d = plane.constant.neg();
+	    if (d.compare(xmin) <= 0)
+	        side = +1;
+	    else if (d.compare(xmax) >= 0)
+	        side = -1;
+	    else
+	        side = 0;
+	    puzzle.side_cache[side_key] = side;
+	    return side;
 	}
-	function make_axes(puzzle) {
-	    // Every face normal (removing duplicates) is a potential axis
-	    let dirs = {};
+	function find_cuts(puzzle, pieceNums) {
+	    /* Given a list of (indexes of) pieces, find all planes that touch
+	       but don't intersect them. */
+	    if (pieceNums === undefined) {
+	        pieceNums = [];
+	        for (let i = 0; i < puzzle.pieces.length; i++)
+	            pieceNums.push(i);
+	    }
+	    // Every exterior face normal is a potential axis
+	    let planes = {};
 	    for (let piece of puzzle.pieces)
 	        for (let face of piece.faces)
 	            if (face.interior) {
-	                let dir = face.plane.canonicalize().normal;
-	                setdefault(dirs, String(dir), dir);
+	                let normal = piece.rot.apply(face.plane.normal);
+	                let plane = new ExactPlane(normal, face.plane.constant).canonicalize();
+	                setdefault(planes, String(plane), plane);
 	            }
-	    let pieceNums = [];
-	    for (let i = 0; i < puzzle.pieces.length; i++)
-	        pieceNums.push(i);
-	    puzzle.axes = [];
-	    for (let dir of Object.values(dirs))
-	        puzzle.axes.push(make_axis(puzzle, dir, pieceNums));
-	}
-	function find_cuts(puzzle, ps) {
-	    /* Given a list of (indexes of) pieces, find all planes that touch
-	       but don't cut them. The return value is a list of objects; each
-	       has three fields:
-	       - plane: ExactPlane
-	       - front: function (taking no arguments) that returns a list of pieces in front of the plane
-	       - back: function (taking no arguments) that returns a list of pieces behind the plane
-
-	       Only considers infinite planes, and so could miss places where
-	       pieces could physically move.
-	    */
-	    if (ps === undefined) {
-	        ps = [];
-	        for (let i = 0; i < puzzle.pieces.length; i++)
-	            ps.push(i);
-	    }
 	    let cuts = [];
-	    for (let ax of puzzle.axes) {
-	        // Traverse the list to find the planes that are cuts
-	        let inside = 0; // running count of how many pieces are open
-	        for (let i = 0; i < ax.points.length; i++) {
-	            let point = ax.points[i];
-	            let c = 0;
-	            for (let p of point.pieceNums)
-	                if (ps.includes(p))
-	                    c++;
-	            if (point.type === PointType.Begin)
-	                inside += c;
-	            else if (point.type === PointType.End) {
-	                inside -= c;
-	                if (inside === 0 && c > 0 && i + 1 < ax.points.length && ax.points[i + 1].type === PointType.Begin && point.proj.equals(ax.points[i + 1].proj)) {
-	                    let c = 0;
-	                    for (let p of ax.points[i + 1].pieceNums)
-	                        if (ps.includes(p))
-	                            c++;
-	                    if (c > 0) {
-	                        cuts.push(new Cut(ax, i, +1, new ExactPlane(ax.dir, point.proj.neg())));
-	                    }
-	                }
+	    for (let plane of Object.values(planes)) {
+	        let is_cut = true;
+	        let front = [], back = [];
+	        for (let p of pieceNums) {
+	            let side = get_side(puzzle, p, plane);
+	            if (side < 0)
+	                back.push(p);
+	            else if (side > 0)
+	                front.push(p);
+	            else { /* if (side === 0) */
+	                is_cut = false;
+	                break;
 	            }
 	        }
+	        if (is_cut && front.length > 0 && back.length > 0)
+	            cuts.push(new Cut(plane, front, back));
 	    }
 	    return cuts;
 	}
 	function find_stops(puzzle, cut) {
-	    AlgebraicNumber.fromInteger(1);
 	    let c = cut.plane.normal;
-	    let move_pieces = cut.front();
-	    let stay_pieces = cut.back();
-	    // Find cuts of moved pieces and not-moved pieces
-	    // To do: Actually perform the split, so that we don't have to
-	    // check for membership in move_pieces and stay_pieces.
-	    let move_cuts = find_cuts(puzzle, move_pieces);
-	    let stay_cuts = find_cuts(puzzle, stay_pieces);
+	    let front_cuts = find_cuts(puzzle, cut.front);
+	    let back_cuts = find_cuts(puzzle, cut.back);
 	    // Find all rotation angles that form a total cut
 	    let stops = {}; // set of rotations
-	    for (let half1 of move_cuts)
-	        for (let half2 of stay_cuts) {
+	    for (let half1 of front_cuts)
+	        for (let half2 of back_cuts) {
 	            let p1 = half1.plane.normal, p2 = half2.plane.normal;
 	            let d1 = half1.plane.constant, d2 = half2.plane.constant;
 	            let h1 = c.dot(p1), h2 = c.dot(p2);
@@ -35620,123 +35578,18 @@
 	    ret.sort((a, b) => a[0].compare(b[0]));
 	    return ret.map(x => x[1]);
 	}
-	function select_pieces(puzzle, sub) {
-	    // Collect all the face normals of the selected pieces
-	    // to do: remove duplicate code with find_axes
-	    let dirs_sub = {};
-	    for (let p of sub)
-	        for (let face of puzzle.pieces[p].faces)
-	            if (face.interior) {
-	                let dir = face.plane.canonicalize().normal;
-	                setdefault(dirs_sub, String(dir), dir);
-	            }
-	    // For each axis in the direction of a face normal,
-	    // keep only the extents of selected pieces
-	    let axes_sub = [];
-	    for (let ax of puzzle.axes) {
-	        if (!(String(ax.dir) in dirs_sub))
-	            continue;
-	        let ax_sub = { dir: ax.dir, points: [] };
-	        for (let point of ax.points) {
-	            let pieceNums_sub = [];
-	            for (let p of point.pieceNums)
-	                if (sub.includes(p))
-	                    pieceNums_sub.push(p);
-	            if (pieceNums_sub.length > 0)
-	                ax_sub.points.push({ proj: point.proj, type: point.type, pieceNums: pieceNums_sub });
-	        }
-	        axes_sub.push(ax_sub);
-	    }
-	    return axes_sub;
-	}
-	function merge_axis(ax1, ax2) {
-	    // assert(ax1.dir.equals(ax2.dir));
-	    let ax = { dir: ax1.dir, points: [] };
-	    let i1 = 0, i2 = 0;
-	    while (i1 < ax1.points.length && i2 < ax2.points.length) {
-	        let c = ax1.points[i1].proj.compare(ax2.points[i2].proj);
-	        if (c < 0)
-	            ax.points.push(ax1.points[i1++]);
-	        else if (c > 0)
-	            ax.points.push(ax2.points[i2++]);
-	        else if (ax1.points[i1].type < ax2.points[i2].type)
-	            ax.points.push(ax1.points[i1++]);
-	        else if (ax1.points[i1].type > ax2.points[i2].type)
-	            ax.points.push(ax2.points[i2++]);
-	        else {
-	            ax.points.push({
-	                proj: ax1.points[i1].proj,
-	                type: ax1.points[i1].type,
-	                pieceNums: ax1.points[i1].pieceNums.concat(ax2.points[i2].pieceNums)
-	            });
-	            i1++;
-	            i2++;
-	        }
-	    }
-	    while (i1 < ax1.points.length)
-	        ax.points.push(ax1.points[i1++]);
-	    while (i2 < ax2.points.length)
-	        ax.points.push(ax2.points[i2++]);
-	    return ax;
-	}
-	function merge_axes(puzzle, axes1, pieceNums1, axes2, pieceNums2) {
-	    let axes = [];
-	    let axes1_index = {};
-	    for (let ax of axes1)
-	        axes1_index[String(ax.dir)] = ax;
-	    let axes2_index = {};
-	    for (let ax of axes2)
-	        axes2_index[String(ax.dir)] = ax;
-	    for (let ax1 of axes1) {
-	        let vh = String(ax1.dir);
-	        if (vh in axes2_index)
-	            axes.push(merge_axis(ax1, axes2_index[vh]));
-	        else
-	            axes.push(merge_axis(ax1, make_axis(puzzle, ax1.dir, pieceNums2)));
-	    }
-	    for (let ax2 of axes2)
-	        if (!(String(ax2.dir) in axes1_index))
-	            axes.push(merge_axis(make_axis(puzzle, ax2.dir, pieceNums1), ax2));
-	    return axes;
-	}
 	function make_move(puzzle, cut, rot) {
-	    let move_pieces = cut.front();
-	    let stay_pieces = cut.back();
-	    // Piece 0 is immovable. This guarantees that the rotations are
-	    // the composition of a bounded number of rotations. This ensures
-	    // there is no coefficient explosion and might make it possible to
-	    // cache computations.
-	    if (move_pieces.includes(0)) {
+	    // Piece 0 is immovable
+	    if (cut.front.includes(0)) {
 	        puzzle.global_rot.multiply(rot.toThree()).normalize();
 	        rot = rot.conj();
-	        [move_pieces, stay_pieces] = [stay_pieces, move_pieces];
+	        cut = cut.neg();
 	    }
-	    // Split axes in two
-	    let move_axes = select_pieces(puzzle, move_pieces);
-	    let stay_axes = select_pieces(puzzle, stay_pieces);
 	    // Rotate pieces
-	    for (let p of move_pieces) {
+	    for (let p of cut.front) {
 	        let pg = puzzle.pieces[p];
 	        pg.rot = rot.mul(puzzle.pieces[p].rot).pseudoNormalize();
-	        for (let i = 0; i < pg.vertices.length; i++)
-	            pg.vertices[i] = rot.apply(pg.vertices[i]);
-	        for (let face of pg.faces)
-	            face.plane = new ExactPlane(rot.apply(face.plane.normal), face.plane.constant);
 	    }
-	    // Rotate move_axes
-	    for (let ax of move_axes) {
-	        ax.dir = rot.apply(ax.dir);
-	        if (ax.dir.pseudoSign() < 0) {
-	            ax.dir = ax.dir.neg();
-	            ax.points.reverse();
-	            for (let point of ax.points) {
-	                point.proj = point.proj.neg();
-	                point.type = -point.type; // Begin <-> End
-	            }
-	        }
-	    }
-	    // Merge two halves
-	    puzzle.axes = merge_axes(puzzle, move_axes, move_pieces, stay_axes, stay_pieces);
 	}
 
 	/* Parse expressions and URLs */
@@ -35761,7 +35614,7 @@
 	  F -> <constant>
 	*/
 	function parseReal(s) {
-	    let K = algebraicNumberField([9, 0, -14, 0, 1], 3.6502815398728847); // Q(sqrt(2), sqrt(5))
+	    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100)); // Q(sqrt(2), sqrt(5))
 	    let tokens = [];
 	    let tokenRE = /\s*(?:([+\-*/()])|([A-Za-z_][A-Za-z_0-9]*)|(\d+)(\.\d+)?)\s*/y;
 	    while (tokenRE.lastIndex < s.length) {
@@ -36041,7 +35894,6 @@
 	    arrows = [];
 	    // compute new grips
 	    // make normals point away from origin; deep cuts go both ways
-	    console.time('grips found in');
 	    grips = [];
 	    for (let cut of find_cuts(puzzle)) {
 	        if (cut.plane.constant.sign() <= 0)
@@ -36049,7 +35901,6 @@
 	        if (cut.plane.constant.sign() >= 0)
 	            grips.push(cut.neg());
 	    }
-	    console.timeEnd('grips found in');
 	    // draw new arrows, linking each to a cut
 	    grips.sort((a, b) => b.plane.constant.compare(a.plane.constant));
 	    let count = {};
@@ -36285,17 +36136,17 @@
 	        return;
 	    recipe = maybeRecipe;
 	    set_url(recipe);
+	    console.time('pieces constructed in');
 	    let shell = make_shell(shapes_to_planes(recipe.shell));
 	    let cutplanes = shapes_to_planes(recipe.cuts);
-	    console.time('pieces constructed in');
 	    let newPuzzle = new Puzzle(make_cuts(cutplanes, [shell]));
-	    console.timeEnd('pieces constructed in');
 	    // Find circumradius, which we will scale to 1
 	    let r = 0;
 	    for (let v of shell.vertices.map(v => v.toThree()))
 	        if (v.length() > r)
 	            r = v.length();
 	    draw_puzzle(newPuzzle, scene, 1 / r);
+	    console.timeEnd('pieces constructed in');
 	    render_requested = true;
 	}
 	apply_cuts();
@@ -36327,9 +36178,8 @@
 	    let cut = grips[ci];
 	    if (cur_move !== null)
 	        end_move();
-	    console.time('stops found in');
+	    console.time('move completed in');
 	    let rots = find_stops(puzzle, cut);
-	    console.timeEnd('stops found in');
 	    let rot;
 	    let angle;
 	    if (rots.length == 0) {
@@ -36365,7 +36215,7 @@
 	        cut: cut,
 	        start_time: null,
 	        time: Math.abs(angle) / rad_per_sec * 1000,
-	        pieces: cut.front(),
+	        pieces: cut.front,
 	        from_quat: [],
 	        step_quat: [],
 	        angle: angle
@@ -36375,10 +36225,9 @@
 	        cur_move.from_quat.push(puzzle.global_rot.clone().multiply(prot));
 	        cur_move.step_quat.push(puzzle.global_rot.clone().multiply(urot).multiply(prot));
 	    }
-	    console.time('move performed in');
 	    make_move(puzzle, cut, rot);
-	    console.timeEnd('move performed in');
 	    draw_arrows();
+	    console.timeEnd('move completed in');
 	}
 	function end_move() {
 	    // Snap to final angle
