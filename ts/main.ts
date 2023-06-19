@@ -287,10 +287,10 @@ class RecipeForm {
         } else if (shape.tag == "plane") {
             select_option(se, "plane");
             let ne = item.getElementsByClassName('normal')[0] as HTMLInputElement;
-            ne.value = shape.a + ',' + shape.b + ',' + shape.c;
+            ne.value = parse.generateExpr(shape.a) + ',' + parse.generateExpr(shape.b) + ',' + parse.generateExpr(shape.c);
         }
         let de = item.getElementsByClassName('scale')[0] as HTMLInputElement;
-        de.value = shape.d;
+        de.value = parse.generateExpr(shape.d);
     }
 
     private static get_items(list: HTMLElement): HTMLElement[] {
@@ -310,17 +310,17 @@ class RecipeForm {
         let help = item.getElementsByClassName('help')[0] as HTMLElement;
         help.style.display = "none";
         try {
-            let scale = de.value;
+            let scale = parse.parseExpr(de.value);
             if (shape == "plane") {
                 let normal = item.getElementsByClassName('normal')[0] as HTMLInputElement;
-                let coeffs = normal.value.split(',');
+                let coeffs = normal.value.split(',').map(parse.parseExpr);
                 if (coeffs.length != 3)
                     throw new parse.ParseError('normal vector should be of the form <i>x</i>,<i>y</i>,<i>z</i>');
-                coeffs.map(x => parse.evalExpr(parse.parseReal(x)));
-                parse.evalExpr(parse.parseReal(scale));
+                coeffs.map(parse.evalExpr);
+                parse.evalExpr(scale);
                 return {tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: scale};
             } else {
-                parse.evalExpr(parse.parseReal(scale));
+                parse.evalExpr(scale);
                 return {tag: "polyhedron", name: shape, d: scale};
             }
         } catch (e) {
@@ -374,13 +374,13 @@ function shapes_to_planes(shapes: parse.Shape[]): ExactPlane[] {
     for (let s of shapes) {
         switch (s.tag) {
             case "plane":
-                planes.push(new ExactPlane(new ExactVector3(parse.evalExpr(parse.parseReal(s.a)),
-                                                            parse.evalExpr(parse.parseReal(s.b)),
-                                                            parse.evalExpr(parse.parseReal(s.c))),
-                                           parse.evalExpr(parse.parseReal(s.d))));
+                planes.push(new ExactPlane(new ExactVector3(parse.evalExpr(s.a),
+                                                            parse.evalExpr(s.b),
+                                                            parse.evalExpr(s.c)),
+                                           parse.evalExpr(s.d)));
                 break;
             case "polyhedron":
-                planes.push(...polyhedron(s.name, parse.evalExpr(parse.parseReal(s.d))));
+                planes.push(...polyhedron(s.name, parse.evalExpr(s.d)));
                 break;
         }
     }

@@ -10,18 +10,24 @@ export class ParseError extends Error {
     }
 };
 
+export interface Expr {
+    op: string;
+    args: Expr[];
+    val?: Fraction;
+}
+
 export interface Polyhedron {
     tag: "polyhedron";
     name: string;
-    d: string;
+    d: Expr;
 };
 
 export interface Plane {
     tag: "plane";
-    a: string;
-    b: string;
-    c: string;
-    d: string;
+    a: Expr;
+    b: Expr;
+    c: Expr;
+    d: Expr;
 };
 
 export type Shape = Polyhedron|Plane;
@@ -30,12 +36,6 @@ export interface Puzzle {
     shell: Shape[];
     cuts: Shape[];
 };
-
-export interface Expr {
-    op: string;
-    args: Expr[];
-    val?: Fraction;
-}
 
 /* Grammar:
 
@@ -79,7 +79,7 @@ export function evalExpr(x: Expr): AlgebraicNumber {
     return visit(x);
 }
 
-export function parseReal(s: string): Expr {
+export function parseExpr(s: string): Expr {
     let tokens: (string|Fraction)[] = [];
     let tokenRE = /\s*(?:([+\-*/()])|([A-Za-z_][A-Za-z_0-9]*)|(\d+)(\.\d+)?)\s*/y;
     while (tokenRE.lastIndex < s.length) {
@@ -108,7 +108,7 @@ export function parseReal(s: string): Expr {
     let i = 0;
     let n = tokens.length;
     
-    function parseExpr(): Expr {
+    function parseStart(): Expr {
         let x = parseTerm();
         while (i < n && (tokens[i] == '+' || tokens[i] == '-')) {
             let op = tokens[i] as string;
@@ -138,7 +138,7 @@ export function parseReal(s: string): Expr {
             return {op: 'neg', args: [x]};
         } else if (token == '(') {
             i++;
-            let x = parseExpr();
+            let x = parseStart();
             parseToken(')');
             return x;
         } else if (token instanceof Fraction) {
@@ -149,7 +149,7 @@ export function parseReal(s: string): Expr {
             i++;
             if (i < n && tokens[i] === '(') { // function call
                 i++;
-                let x = parseExpr();
+                let x = parseStart();
                 parseToken(')');
                 return {op: id, args: [x]};
             } else {
@@ -168,7 +168,7 @@ export function parseReal(s: string): Expr {
             return tok;
         }
     }
-    let x = parseExpr();
+    let x = parseStart();
     if (i < n) throw new ParseError(`Expected end of string, but found <code>${tokens[i]}</code>`);
     return x;
 }
@@ -177,9 +177,9 @@ function parseShape(s: string): Shape {
     let parts = s.split("$");
     if (parts.length !== 2)
         throw new ParseError("expected $");
-    let d = parts[1];
+    let d = parseExpr(parts[1]);
     s = parts[0];
-    let coeffs = s.split(",");
+    let coeffs = s.split(",").map(parseExpr);
     if (coeffs.length === 3) {
         return {tag: 'plane', a: coeffs[0], b: coeffs[1], c: coeffs[2], d: d};
     } else {
@@ -211,11 +211,30 @@ export function parseQuery(s: string): Puzzle {
     return ret;
 }
 
+export function generateExpr(x: Expr): string {
+    let args = x.args.map(generateExpr);
+    switch (x.op) {
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+            return `${args[0]}${x.op}${args[1]}`;
+        case 'neg':
+            return `-${args[0]}`;
+        case 'num':
+            return String(x.val);
+        case 'sqrt':
+            return `sqrt(${args[0]})`;
+        default:
+            throw new ParseError(`generateExpr: invalid operation '${x.op}'`);
+    }
+}
+
 function generateShape(s: Shape): string {
     if (s.tag == 'polyhedron') {
-        return s.name + '$' + s.d;
+        return s.name + '$' + generateExpr(s.d);
     } else if (s.tag == 'plane') {
-        return s.a + ',' + s.b + ',' + s.c + '$' + s.d;
+        return generateExpr(s.a) + ',' + generateExpr(s.b) + ',' + generateExpr(s.c) + '$' + generateExpr(s.d);
     } else {
         throw new ParseError("tag must be 'polyhedron' or 'plane'");
         return '';
