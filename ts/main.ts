@@ -316,11 +316,11 @@ class RecipeForm {
                 let coeffs = normal.value.split(',');
                 if (coeffs.length != 3)
                     throw new parse.ParseError('normal vector should be of the form <i>x</i>,<i>y</i>,<i>z</i>');
-                coeffs.map(parse.parseReal);
-                parse.parseReal(scale);
+                coeffs.map(x => parse.evalExpr(parse.parseReal(x)));
+                parse.evalExpr(parse.parseReal(scale));
                 return {tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: scale};
             } else {
-                parse.parseReal(scale);
+                parse.evalExpr(parse.parseReal(scale));
                 return {tag: "polyhedron", name: shape, d: scale};
             }
         } catch (e) {
@@ -374,13 +374,13 @@ function shapes_to_planes(shapes: parse.Shape[]): ExactPlane[] {
     for (let s of shapes) {
         switch (s.tag) {
             case "plane":
-                planes.push(new ExactPlane(new ExactVector3(parse.parseReal(s.a),
-                                                            parse.parseReal(s.b),
-                                                            parse.parseReal(s.c)),
-                                           parse.parseReal(s.d)));
+                planes.push(new ExactPlane(new ExactVector3(parse.evalExpr(parse.parseReal(s.a)),
+                                                            parse.evalExpr(parse.parseReal(s.b)),
+                                                            parse.evalExpr(parse.parseReal(s.c))),
+                                           parse.evalExpr(parse.parseReal(s.d))));
                 break;
             case "polyhedron":
-                planes.push(...polyhedron(s.name, parse.parseReal(s.d)));
+                planes.push(...polyhedron(s.name, parse.evalExpr(parse.parseReal(s.d))));
                 break;
         }
     }

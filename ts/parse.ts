@@ -1,7 +1,7 @@
 /* Parse expressions and URLs */
 
 import { algebraicNumberField, AlgebraicNumber } from './exact';
-import { fraction } from './fraction';
+import { fraction, Fraction } from './fraction';
 
 export class ParseError extends Error {
     constructor(message: string) {
@@ -31,6 +31,12 @@ export interface Puzzle {
     cuts: Shape[];
 };
 
+export interface Expr {
+    op: string;
+    args: Expr[];
+    val?: Fraction;
+}
+
 /* Grammar:
 
   E -> E + T
@@ -46,9 +52,35 @@ export interface Puzzle {
   F -> <constant>
 */
 
-export function parseReal(s: string): AlgebraicNumber {
-    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100)); // Q(sqrt(2), sqrt(5))
-    let tokens: (string|AlgebraicNumber)[] = [];
+export function evalExpr(x: Expr): AlgebraicNumber {
+    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100)); // Q(sqrt(2), sqrt(5));
+    function visit(x: Expr): AlgebraicNumber {
+        let args = x.args.map(visit);
+        switch (x.op) {
+            case '+': return args[0].add(args[1]);
+            case '-': return args[0].sub(args[1]);
+            case '*': return args[0].mul(args[1]);
+            case '/': return args[0].div(args[1]);
+            case 'neg': return args[0].neg();
+            case 'num': return K.fromVector([x.val!]);
+            case 'sqrt':
+                if (x.args.length !== 1)
+                    throw new ParseError('sqrt must have an argument');
+                if (x.args[0].op === 'num') {
+                    if (x.args[0].val!.equals(fraction(2)))
+                        return K.fromVector([0, fraction(-11,6), 0, fraction(1,6)]);
+                    else if (x.args[0].val!.equals(fraction(5)))
+                        return K.fromVector([0, fraction(17,6), 0, fraction(-1,6)]);
+                }
+                throw new ParseError('can only take sqrt of 2 or 5')
+            default: throw new ParseError(`unknown operation '${x.op}'`);
+        }
+    }
+    return visit(x);
+}
+
+export function parseReal(s: string): Expr {
+    let tokens: (string|Fraction)[] = [];
     let tokenRE = /\s*(?:([+\-*/()])|([A-Za-z_][A-Za-z_0-9]*)|(\d+)(\.\d+)?)\s*/y;
     while (tokenRE.lastIndex < s.length) {
         let pos = tokenRE.lastIndex;
@@ -68,7 +100,7 @@ export function parseReal(s: string): AlgebraicNumber {
                 if (m[4].length > 1)
                     n += parseInt(m[4].substring(1));
             }
-            tokens.push(K.fromVector([fraction(n,d)]));
+            tokens.push(fraction(n,d));
         } else
             throw new ParseError(`Unexpected character <code>${s[pos]}</code> (this shouldn't happen)`);
     }
@@ -76,44 +108,42 @@ export function parseReal(s: string): AlgebraicNumber {
     let i = 0;
     let n = tokens.length;
     
-    function parseExpr(): AlgebraicNumber {
+    function parseExpr(): Expr {
         let x = parseTerm();
         while (i < n && (tokens[i] == '+' || tokens[i] == '-')) {
-            let op = tokens[i];
+            let op = tokens[i] as string;
             i++;
             let y = parseTerm();
-            if (op == '+') x = x.add(y);
-            else if (op == '-') x = x.sub(y);
+            x = {op: op, args: [x, y]};
         }
         return x;
     }
-    function parseTerm(): AlgebraicNumber {
+    function parseTerm(): Expr {
         let x = parseFactor();
         while (i < n && (tokens[i] == '*' || tokens[i] == '/')) {
-            let op = tokens[i];
+            let op = tokens[i] as string;
             i++;
             let y = parseFactor();
-            if (op == '*') x = x.mul(y);
-            else if (op == '/') x = x.div(y);
+            x = {op: op, args: [x, y]};
         }
         return x;
     }
-    function parseFactor(): AlgebraicNumber {
+    function parseFactor(): Expr {
         if (i == n)
             throw new ParseError('Unexpected end of expression');
         let token = tokens[i];
         if (token == '-') {
             i++;
             let x = parseFactor();
-            return x.neg();
+            return {op: 'neg', args: [x]};
         } else if (token == '(') {
             i++;
             let x = parseExpr();
             parseToken(')');
             return x;
-        } else if (token instanceof AlgebraicNumber) {
+        } else if (token instanceof Fraction) {
             i++;
-            return token;
+            return {op: 'num', args: [], val: token};
         } else if (typeof token === 'string' && token[0] === '$') {
             let id = token.substring(1);
             i++;
@@ -121,18 +151,9 @@ export function parseReal(s: string): AlgebraicNumber {
                 i++;
                 let x = parseExpr();
                 parseToken(')');
-                if (id === 'sqrt') {
-                    if (x.equals(K.fromVector([2])))
-                        return K.fromVector([0, fraction(-11,6), 0, fraction(1,6)]);
-                    else if (x.equals(K.fromVector([5])))
-                        return K.fromVector([0, fraction(17,6), 0, fraction(-1,6)]);
-                    else
-                        throw new ParseError(`I don't know how to take the sqrt of ${x.toNumber()} (only 2 or 5)`);
-                } else {
-                    throw new ParseError(`Unknown function <code>${id}</code> (the only allowed function is <code>sqrt</code>)`);
-                }
+                return {op: id, args: [x]};
             } else {
-                throw new ParseError(`Unknown constant <code>${id}</code> (actually, I don't know any constants)`);
+                return {op: id, args: []};
             }
         } else
             throw new ParseError(`Unexpected <code>${tokens[i]}</code>`);
