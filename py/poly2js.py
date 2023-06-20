@@ -124,8 +124,9 @@ def parse_coord(toks, i):
         i += 1
         return x, i
 
-def parse(name, text):
+def parse(code, name, text):
     data = {
+        'code': code,
         'name': name,
         'fullname': None,
         'faces': [],
@@ -186,10 +187,9 @@ def process(data):
             if isinstance(val, sympy.Expr):
                 sub[name] = val
 
-    poly_name = data["name"][0].lower() + data["name"][1:]
-    print(f'export function {poly_name}(scale: parse.Expr): parse.Plane[] {{')
+    print(f'    case "{data["code"]}": // {data["fullname"]}')
     scale = sympy.Symbol('scale')
-    print( '    return [')
+    print( '      return [')
                 
     for fi, face in enumerate(data['faces']):
         vertices = [sympy.Matrix(list(data['vertices'][i])) for i in face]
@@ -210,7 +210,6 @@ def process(data):
         else:
             print('')
     print( '    ];')
-    print( '}')
     print( '')
 
 if __name__ == "__main__":
@@ -218,28 +217,45 @@ if __name__ == "__main__":
     print("import { fraction } from './fraction';")
     print("import * as parse from './parse';")
     print("")
+    print('export function polyhedron(code: string, scale: parse.Expr): parse.Plane[] {')
+    print('  switch(code) {')
 
-    for name in ['Tetrahedron',
-                 'Octahedron',
-                 'Cube',
-                 'Icosahedron',
-                 'Dodecahedron',
-                 #'TriakisTetrahedron',
-                 'RhombicDodecahedron',
-                 #'TetrakisHexahedron',
-                 #'TriakisOctahedron',
-                 #'DeltoidalIcositetrahedron',
-                 #'RpentagonalIcositetrahedron',
-                 #'LpentagonalIcositetrahedron',
-                 'RhombicTriacontahedron',
-                 #'DisdyakisDodecahedron',
-                 #'PentakisDodecahedron',
-                 #'TriakisIcosahedron',
-                 #'DeltoidalHexecontahedron',
-                 #'LpentagonalHexecontahedron',
-                 #'RpentagonalHexecontahedron',
-                 #'DisdyakisTriacontahedron'
-                 ]:
+    shapes = {
+        # Platonic
+        'T': 'Tetrahedron',
+        'C': 'Cube',
+        'O': 'Octahedron',
+        'D': 'Dodecahedron',
+        'I': 'Icosahedron',
+        # Catalan
+        'kT': 'TriakisTetrahedron',
+        'jC': 'RhombicDodecahedron',
+        'kC': 'TetrakisHexahedron',
+        'kO': 'TriakisOctahedron',
+        'oC': 'DeltoidalIcositetrahedron',
+        #'gC': 'RpentagonalIcositetrahedron',
+        'jD': 'RhombicTriacontahedron',
+        'mC': 'DisdyakisDodecahedron',
+        'kD': 'PentakisDodecahedron',
+        'kI': 'TriakisIcosahedron',
+        'oD': 'DeltoidalHexecontahedron',
+        #'gD': 'RpentagonalHexecontahedron',
+        'mD': 'DisdyakisTriacontahedron',
+        # Prisms and antiprisms
+        'P3': 'TriangularPrism',
+        'P6': 'HexagonalPrism',
+        #'A4': 'SquareAntiprism',
+        #'A6': 'HexagonalAntiprism',
+        # Dipyramids and trapezohedra
+        'dP3': 'TriangularDipyramid',
+        'dP6': 'HexagonalDipyramid',
+        #'dA4': 'TetragonalTrapezohedron',
+        #'dA6': 'HexagonalTrapezohedron',
+    }
+    for code, name in shapes.items():
         text = download(name)
-        data = parse(name, text)
+        data = parse(code, name, text)
         process(data)
+    print("    default: throw new Error(`unknown polyhedron: '${code}'`)");
+    print('  }')
+    print('}')

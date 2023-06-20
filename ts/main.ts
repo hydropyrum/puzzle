@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TrackballControls } from './TrackballControls';
-import { make_shell, make_cuts, polyhedron } from './make';
+import { make_shell, make_cuts } from './make';
+import { polyhedron } from './polyhedra';
 import { Puzzle, Cut, find_cuts, find_stops, make_move } from './move';
 import { PolyGeometry } from './piece';
 import { ExactPlane, ExactVector3, ExactQuaternion } from './math';

@@ -60,16 +60,3 @@ export function make_cuts(cuts: ExactPlane[], pieces: PolyGeometry[]): PolyGeome
     
     return pieces;
 }
-
-export function polyhedron(name: string, d: parse.Expr): parse.Plane[] {
-    switch (name) {
-        case "T":  return polyhedra.tetrahedron(d);
-        case "C":  return polyhedra.cube(d);
-        case "O":  return polyhedra.octahedron(d);
-        case "D":  return polyhedra.dodecahedron(d);
-        case "I":  return polyhedra.icosahedron(d);
-        case "jC": return polyhedra.rhombicDodecahedron(d);
-        case "jD": return polyhedra.rhombicTriacontahedron(d);
-    }
-    return [];
-}
