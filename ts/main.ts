@@ -4,7 +4,8 @@ import { make_shell, make_cuts, polyhedron } from './make';
 import { Puzzle, Cut, find_cuts, find_stops, make_move } from './move';
 import { PolyGeometry } from './piece';
 import { ExactPlane, ExactVector3, ExactQuaternion } from './math';
-import { AlgebraicNumber } from './exact';
+import { AlgebraicNumberField, AlgebraicNumber } from './exact';
+import { makeFields } from './fields';
 import { setdefault } from './util';
 import * as parse from './parse';
 
@@ -316,11 +317,8 @@ class RecipeForm {
                 let coeffs = normal.value.split(',').map(parse.parseExpr);
                 if (coeffs.length != 3)
                     throw new parse.ParseError('normal vector should be of the form <i>x</i>,<i>y</i>,<i>z</i>');
-                coeffs.map(parse.evalExpr);
-                parse.evalExpr(scale);
                 return {tag: "plane", a: coeffs[0], b: coeffs[1], c: coeffs[2], d: scale};
             } else {
-                parse.evalExpr(scale);
                 return {tag: "polyhedron", name: shape, d: scale};
             }
         } catch (e) {
@@ -369,22 +367,27 @@ class RecipeForm {
 var recipeForm = new RecipeForm();
 recipeForm.set_from_recipe(recipe);
 
-function shapes_to_planes(shapes: parse.Shape[]): ExactPlane[] {
-    let planes: ExactPlane[] = [];
+function shapes_to_planes(shapes: parse.Shape[], field: AlgebraicNumberField, values: {[key: string]: AlgebraicNumber}): ExactPlane[] {
+    let pplanes: parse.Plane[] = [];
     for (let s of shapes) {
         switch (s.tag) {
             case "plane":
-                planes.push(new ExactPlane(new ExactVector3(parse.evalExpr(s.a),
-                                                            parse.evalExpr(s.b),
-                                                            parse.evalExpr(s.c)),
-                                           parse.evalExpr(s.d)));
+                pplanes.push(s);
                 break;
             case "polyhedron":
-                planes.push(...polyhedron(s.name, parse.evalExpr(s.d)));
+                pplanes.push(...polyhedron(s.name, s.d));
                 break;
         }
     }
-    return planes;
+    
+    let eplanes: ExactPlane[] = [];
+    for (let pp of pplanes) {
+        eplanes.push(new ExactPlane(new ExactVector3(parse.evalExpr(pp.a, field, values),
+                                                     parse.evalExpr(pp.b, field, values),
+                                                     parse.evalExpr(pp.c, field, values)),
+                                    parse.evalExpr(pp.d, field, values)));
+    }
+    return eplanes;
 }
 
 function apply_cuts(): void {
@@ -395,14 +398,31 @@ function apply_cuts(): void {
     set_url(recipe);
 
     console.time('pieces constructed in');
-    let shell = make_shell(shapes_to_planes(recipe.shell));
-    let cutplanes = shapes_to_planes(recipe.cuts);
-    let newPuzzle = new Puzzle(make_cuts(cutplanes, [shell]));
-    // Find circumradius, which we will scale to 1
-    let r = 0;
-    for (let v of shell.vertices.map(v => v.toThree()))
-        if (v.length() > r) r = v.length();
-    draw_puzzle(newPuzzle, scene, 1/r);
+    let shell: PolyGeometry|undefined;
+    let cutplanes: ExactPlane[]|undefined;
+    for (let fv of makeFields()) {
+        try {
+            shell = make_shell(shapes_to_planes(recipe.shell, fv.field, fv.values));
+            cutplanes = shapes_to_planes(recipe.cuts, fv.field, fv.values);
+            break;
+        } catch (e) {
+            if (e instanceof parse.ParseError) {
+                // do nothing
+            } else {
+                throw e;
+            }
+        }
+    }
+    if (shell !== undefined && cutplanes !== undefined) {
+        let newPuzzle = new Puzzle(make_cuts(cutplanes, [shell]));
+        // Find circumradius, which we will scale to 1
+        let r = 0;
+        for (let v of shell.vertices.map(v => v.toThree()))
+            if (v.length() > r) r = v.length();
+        draw_puzzle(newPuzzle, scene, 1/r);
+    } else {
+        throw new Error("couldn't find a field");
+    }
     console.timeEnd('pieces constructed in');
     render_requested = true;
 }

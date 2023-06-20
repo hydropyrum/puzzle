@@ -1,6 +1,6 @@
 /* Parse expressions and URLs */
 
-import { algebraicNumberField, AlgebraicNumber } from './exact';
+import { AlgebraicNumberField, AlgebraicNumber } from './exact';
 import { fraction, Fraction } from './fraction';
 
 export class ParseError extends Error {
@@ -52,8 +52,7 @@ export interface Puzzle {
   F -> <constant>
 */
 
-export function evalExpr(x: Expr): AlgebraicNumber {
-    let K = algebraicNumberField([9, 0, -14, 0, 1], fraction(365, 100)); // Q(sqrt(2), sqrt(5));
+export function evalExpr(x: Expr, field: AlgebraicNumberField, values: {[key: string]: AlgebraicNumber}): AlgebraicNumber {
     function visit(x: Expr): AlgebraicNumber {
         let args = x.args.map(visit);
         switch (x.op) {
@@ -62,17 +61,15 @@ export function evalExpr(x: Expr): AlgebraicNumber {
             case '*': return args[0].mul(args[1]);
             case '/': return args[0].div(args[1]);
             case 'neg': return args[0].neg();
-            case 'num': return K.fromVector([x.val!]);
+            case 'num': return field.fromVector([x.val!]);
             case 'sqrt':
                 if (x.args.length !== 1)
                     throw new ParseError('sqrt must have an argument');
-                if (x.args[0].op === 'num') {
-                    if (x.args[0].val!.equals(fraction(2)))
-                        return K.fromVector([0, fraction(-11,6), 0, fraction(1,6)]);
-                    else if (x.args[0].val!.equals(fraction(5)))
-                        return K.fromVector([0, fraction(17,6), 0, fraction(-1,6)]);
-                }
-                throw new ParseError('can only take sqrt of 2 or 5')
+                let s = generateExpr(x);
+                if (s in values)
+                    return values[s];
+                else
+                    throw new ParseError(`I can't compute ${s}`);
             default: throw new ParseError(`unknown operation '${x.op}'`);
         }
     }
@@ -211,20 +208,25 @@ export function parseQuery(s: string): Puzzle {
     return ret;
 }
 
-export function generateExpr(x: Expr): string {
-    let args = x.args.map(generateExpr);
+export function generateExpr(x: Expr, prec: number = 10): string {
+    let s: string;
     switch (x.op) {
         case '+':
         case '-':
+            s = `${generateExpr(x.args[0], 4)}${x.op}${generateExpr(x.args[1], 3)}`;
+            if (prec < 4) s = `(${s})`;
+            return s;
         case '*':
         case '/':
-            return `${args[0]}${x.op}${args[1]}`;
+            s = `${generateExpr(x.args[0], 2)}${x.op}${generateExpr(x.args[1], 1)}`;
+            if (prec < 2) s = `(${s})`;
+            return s;
         case 'neg':
-            return `-${args[0]}`;
+            return `-${generateExpr(x.args[0], 0)}`;
         case 'num':
             return String(x.val);
         case 'sqrt':
-            return `sqrt(${args[0]})`;
+            return `sqrt(${generateExpr(x.args[0])})`;
         default:
             throw new ParseError(`generateExpr: invalid operation '${x.op}'`);
     }

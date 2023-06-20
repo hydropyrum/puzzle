@@ -6,6 +6,7 @@ import { ExactPlane } from './math';
 import { setdefault } from './util';
 import * as polyhedra from './polyhedra';
 import { AlgebraicNumber } from './exact';
+import * as parse from './parse';
 
 function get_color(i: number): THREE.Color {
     /* Generate colors. The first six colors are the original Rubik's
@@ -60,7 +61,7 @@ export function make_cuts(cuts: ExactPlane[], pieces: PolyGeometry[]): PolyGeome
     return pieces;
 }
 
-export function polyhedron(name: string, d: AlgebraicNumber): ExactPlane[] {
+export function polyhedron(name: string, d: parse.Expr): parse.Plane[] {
     switch (name) {
         case "T":  return polyhedra.tetrahedron(d);
         case "C":  return polyhedra.cube(d);

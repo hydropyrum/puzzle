@@ -14,8 +14,10 @@ export class AlgebraicNumberField {
     constructor(poly: Polynomial, approx: Fraction) {
         this.degree = poly.degree;
         this.poly = poly;
-        this.approx = approx;
         [this.lower, this.upper] = poly.isolate_root(approx);
+        while (this.upper.sub(this.lower).compare(fraction(1,100)) > 0)
+            this.refine();
+        this.approx = this.lower.middle(this.upper);
 
         // Precompute powers of poly up to 2*degree to speed up multiplication (Cohen)
         this.powers = [];

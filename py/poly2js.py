@@ -163,19 +163,21 @@ def parse(name, text):
     return data
 
 def process(data):
-    generators = [sympy.sqrt(2), sympy.sqrt(5)]
-    (prim_poly, prim_coeffs) = sympy.primitive_element(generators, polys=True)
-    prim_element = sum(g*p for g, p in zip(generators, prim_coeffs))
-
     def translate_number(x):
-        coeffs = list(reversed(sympy.to_number_field(x, prim_element).coeffs()))
-        coeff_strings = []
-        for c in coeffs:
-            if c.denominator == 1:
-                coeff_strings.append(str(c))
-            else:
-                coeff_strings.append(f'fraction({c.numerator},{c.denominator})')
-        return 'K.fromVector(['+', '.join(coeff_strings)+'])'
+        if isinstance(x, sympy.Rational):
+            return f'{{op: "num", args: [], val: fraction({x.numerator}, {x.denominator})}}'
+        elif isinstance(x, sympy.Pow) and x.args[1] == sympy.Rational(1, 2):
+            return f'{{op: "sqrt", args: [{translate_number(x.args[0])}]}}'
+        elif isinstance(x, sympy.Pow) and isinstance(x.args[1], sympy.Integer):
+            return f'{{op: "*", args: [{translate_number(x.args[0])}, {translate_number(sympy.Pow(x.args[0], x.args[1]-1))}]}}'
+        elif isinstance(x, sympy.Mul):
+            return f'{{op: "*", args: [{translate_number(x.args[0])}, {translate_number(sympy.Mul(*x.args[1:]))}]}}'
+        elif isinstance(x, sympy.Add):
+            return f'{{op: "+", args: [{translate_number(x.args[0])}, {translate_number(sympy.Add(*x.args[1:]))}]}}'
+        elif isinstance(x, sympy.Symbol):
+            return str(x)
+        else:
+            raise TypeError(type(x))
     
     sub = {}
     for name in data['consts']:
@@ -185,9 +187,9 @@ def process(data):
                 sub[name] = val
 
     poly_name = data["name"][0].lower() + data["name"][1:]
-    print(f'export function {poly_name}(scale: AlgebraicNumber): ExactPlane[] {{')
-    print(f'    let K = algebraicNumberField({list(reversed(prim_poly.all_coeffs()))}, fraction({int(float(prim_element)*100)}, 100));')
-    print( '    let cuts = [')
+    print(f'export function {poly_name}(scale: parse.Expr): parse.Plane[] {{')
+    scale = sympy.Symbol('scale')
+    print( '    return [')
                 
     for fi, face in enumerate(data['faces']):
         vertices = [sympy.Matrix(list(data['vertices'][i])) for i in face]
@@ -196,27 +198,25 @@ def process(data):
         # bug: need to ensure that all face normals are computed from pairs
         # of vectors with the same angle
         normal = sympy.simplify(normal.subs(sub))
-        constant = sympy.simplify(constant.subs(sub))
+        constant = sympy.simplify(constant.subs(sub)*scale)
         
-        print(f'        // [{normal[0]}, {normal[1]}, {normal[2]}] · x + {constant} scale = 0')
+        print(f'        // [{normal[0]}, {normal[1]}, {normal[2]}] · x + {constant} = 0')
         
         normal = [translate_number(x) for x in normal]
         constant = translate_number(constant)
-        print(f'        new ExactPlane(new ExactVector3({normal[0]}, {normal[1]}, {normal[2]}), {constant}.mul(scale))', end='')
+        print(f'        {{tag: "plane", a: {normal[0]}, b: {normal[1]}, c: {normal[2]}, d: {constant}}}', end='')
         if fi < len(data['faces'])-1:
             print(',')
         else:
             print('')
     print( '    ];')
-    print( '    return cuts;')
     print( '}')
     print( '')
 
 if __name__ == "__main__":
     
     print("import { fraction } from './fraction';")
-    print("import { algebraicNumberField, AlgebraicNumber } from './exact';")
-    print("import { ExactVector3, ExactPlane } from './math';")
+    print("import * as parse from './parse';")
     print("")
 
     for name in ['Tetrahedron',
