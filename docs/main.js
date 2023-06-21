@@ -34630,7 +34630,7 @@
 	        this.degree = poly.degree;
 	        this.poly = poly;
 	        [this.lower, this.upper] = poly.isolate_root(approx);
-	        while (this.upper.sub(this.lower).compare(fraction(1, 100)) > 0)
+	        while (this.upper.sub(this.lower).compare(fraction(1, 1000)) > 0)
 	            this.refine();
 	        this.approx = this.lower.middle(this.upper);
 	        // Precompute powers of poly up to 2*degree to speed up multiplication (Cohen)
