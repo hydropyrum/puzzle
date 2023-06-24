@@ -425,6 +425,7 @@ function apply_cuts(): void {
         throw new Error("couldn't find a field");
     }
     console.timeEnd('pieces constructed in');
+    console.log('pieces with at least one exterior face:', puzzle.pieces.length);
     render_requested = true;
 }
 
