@@ -66,14 +66,15 @@ export class AlgebraicNumberField {
         this.precompute_interval_powers();
     }
 
-    fromVector(coeffs: (number|Fraction)[]): AlgebraicNumber {
+    fromVector(coeffs: (number|bigint|Fraction)[]): AlgebraicNumber {
         return new AlgebraicNumber(this, polynomial(coeffs));
     }
 };
 
-export function algebraicNumberField(poly: Polynomial|number[],
-                                     approx: Fraction) : AlgebraicNumberField {
-    if (poly instanceof Array<number>) poly = polynomial(poly);
+export function algebraicNumberField(poly: Polynomial|(Fraction|number|bigint)[],
+                                     approx: Fraction|number|bigint) : AlgebraicNumberField {
+    if (!(poly instanceof Polynomial)) poly = polynomial(poly);
+    if (!(approx instanceof Fraction)) approx = fraction(approx);
     return new AlgebraicNumberField(poly, approx);
 }
 

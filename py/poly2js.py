@@ -243,13 +243,17 @@ if __name__ == "__main__":
         'mD': 'DisdyakisTriacontahedron',
         # Prisms and antiprisms
         'P3': 'TriangularPrism',
+        #'P5': 'PentagonalPrism',
         'P6': 'HexagonalPrism',
         #'A4': 'SquareAntiprism',
+        'A5': 'PentagonalAntiprism',
         #'A6': 'HexagonalAntiprism',
         # Dipyramids and trapezohedra
         'dP3': 'TriangularDipyramid',
+        #'dP5': 'PentagonalDipyramid',
         'dP6': 'HexagonalDipyramid',
         #'dA4': 'TetragonalTrapezohedron',
+        'dA5': 'PentagonalTrapezohedron',
         #'dA6': 'HexagonalTrapezohedron',
     }
     for code, name in shapes.items():
