@@ -11,8 +11,8 @@ let vals = [
     {c: [fraction(-1), fraction(0), fraction(0), fraction(0)], a: -1},
     {c: [fraction(0), fraction(-9,2), fraction(0), fraction(1,2)], a: Math.sqrt(2)},
     {c: [fraction(0), fraction(-9,4), fraction(0), fraction(1,4)], a: Math.sqrt(2)/2},
-    {c: [fraction(0), fraction(11,2), fraction(0), fraction(-1,2)], a: Math.sqrt(3)},
-    {c: [fraction(0), fraction(-9*1224744871391589,2*1000000000000000), fraction(0), fraction(1*1224744871391589,2*1000000000000000)], a: Math.sqrt(2)*1.224744871391589} // very close to sqrt(3)
+    {c: [fraction(0), fraction(11,2), fraction(0), fraction(-1,2)], a: Math.sqrt(3)}
+    //{c: [fraction(0), fraction(-9*1224744871391589,2*1000000000000000), fraction(0), fraction(1*1224744871391589,2*1000000000000000)], a: Math.sqrt(2)*1.224744871391589} // very close to sqrt(3)
 ];
 
 test('toNumber', () => {

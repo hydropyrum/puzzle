@@ -5,7 +5,8 @@ import requests
 
 def download(name):
     url = f'http://dmccooey.com/polyhedra/{name}.txt'
-    r = requests.get(url)
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    r = requests.get(url, headers=headers)
     r.raise_for_status()
     return r.text
 
@@ -16,7 +17,7 @@ float_re = r'-?\d+\.\d+'
 int_re = r'-?\d+'
 
 def parse_def(s):
-    toks = re.findall(r'\s*([CV]\d+|[a-z]+|[+-]|'+float_re+'|'+int_re+'|\S)', s)
+    toks = re.findall(r'\s*([CV]\d+|[a-z]+|[+-]|'+float_re+'|'+int_re+r'|\S)', s)
     i = 0
     lhs = toks[i]
     defs = []

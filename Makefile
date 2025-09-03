@@ -4,6 +4,9 @@ BIN=./node_modules/.bin
 
 all: build/main.js build/dummy
 
+test:
+	$(BIN)/jest
+
 ts/polyhedra.ts: py/poly2js.py
 	python3 py/poly2js.py > $@
 
