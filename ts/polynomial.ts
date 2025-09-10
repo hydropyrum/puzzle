@@ -1,15 +1,28 @@
-import { Fraction, fraction } from './fraction';
+import { RingElement, Ring } from './ring';
+import { Fraction, fraction, QQ } from './fraction';
 
-export class Polynomial {
-    coeffs: Fraction[]; // coeffs[i] is coefficient on x^i
+export class Polynomial<E extends RingElement<E>> implements RingElement<Polynomial<E>> {
+    coeff_ring: Ring<E>;
+    coeffs: E[]; // coeffs[i] is coefficient on x^i
     degree: number;
 
-    constructor(coeffs: Fraction[]) {
-        // drop leading zero coefficients
-        while (coeffs.length > 0 && coeffs[coeffs.length-1].sign() == 0)
-            coeffs.pop();
+    constructor(coeff_ring: Ring<E>, coeffs: E[]) {
+        this.coeff_ring = coeff_ring;
         this.coeffs = coeffs;
-        this.degree = coeffs.length-1;
+        this.degree = this.coeffs.length-1;
+        this.trim();
+    }
+
+    trim(): Polynomial<E> {
+        while (this.coeffs.length > 0 && this.coeffs[this.coeffs.length-1].equals(this.coeff_ring.zero())) {
+            this.coeffs.pop();
+            this.degree--;
+        }
+        return this;
+    }
+
+    clone(): Polynomial<E> {
+        return new Polynomial(this.coeff_ring, this.coeffs.map(c => c.clone()));
     }
 
     toString(): string {
@@ -26,7 +39,7 @@ export class Polynomial {
             else if (sign > 0 && i < this.degree)
                 s += " + "
 
-            if (!abs.equals(fraction(1)) || i == 0)
+            if (!abs.equals(this.coeff_ring.one()) || i == 0)
                 s += String(abs);
 
             if (i >= 1)
@@ -40,9 +53,9 @@ export class Polynomial {
         return s;
     }
 
-    eval(arg: Fraction): Fraction {
+    eval(arg: E): E {
         // Horner's rule
-        let sum = fraction(0);
+        let sum = this.coeff_ring.zero();
         for (let i=this.degree; i>=0; i--)
             sum = sum.imul(arg).iadd(this.coeffs[i]);
         return sum;
@@ -55,38 +68,42 @@ export class Polynomial {
         return sum;
     }
 
-    add(b: Polynomial): Polynomial {
-        let a = this;
-        let coeffs: Fraction[] = [];
-        for (let i=0; i<Math.max(a.coeffs.length, b.coeffs.length); i++) {
-            if (i < a.coeffs.length && i < b.coeffs.length)
-                coeffs.push(a.coeffs[i].add(b.coeffs[i]));
-            else if (i < a.coeffs.length)
-                coeffs.push(a.coeffs[i]);
-            else /* if (i < b.coeffs.length) */
-                coeffs.push(b.coeffs[i]);
+    iadd(b: Polynomial<E>): Polynomial<E> {
+        for (let i=0; i<b.coeffs.length; i++) {
+            if (i < this.coeffs.length)
+                this.coeffs[i].iadd(b.coeffs[i]);
+            else {
+                this.coeffs.push(b.coeffs[i]);
+                this.degree++;
+            }
         }
-        return new Polynomial(coeffs);
+        this.trim();
+        return this;
     }
+    add(b: Polynomial<E>): Polynomial<E> { return this.clone().iadd(b); }
 
-    neg(): Polynomial { return new Polynomial(this.coeffs.map(c => c.neg())); }
-    sub(b: Polynomial): Polynomial { return this.add(b.neg()); }
+    neg(): Polynomial<E> {
+        return new Polynomial<E>(this.coeff_ring, this.coeffs.map(c => c.neg()));
+    }
+    isub(b: Polynomial<E>): Polynomial<E> { return this.iadd(b.neg()); }
+    sub(b: Polynomial<E>): Polynomial<E> { return this.add(b.neg()); }
         
-    mul(b: Polynomial): Polynomial {
-        let coeffs: Fraction[] = [];
+    mul(b: Polynomial<E>): Polynomial<E> {
         let m = this.degree;
         let n = b.degree;
+        let coeffs: E[] = [];
         for (let k=0; k<=m+n; k++) {
-            let ck = fraction(0);
+            let ck = this.coeff_ring.zero();
             for (let i=Math.max(0,k-n); i<=Math.min(k,m); i++)
-                ck.iadd(this.coeffs[i].mul(b.coeffs[k-i]), false);
-            ck.reduce();
+                ck.iadd(this.coeffs[i].mul(b.coeffs[k-i]) /*, false*/ );
+            //ck.reduce(); // to do: restore
             coeffs.push(ck);
         }
-        return new Polynomial(coeffs);
+        return new Polynomial<E>(this.coeff_ring, coeffs);
     }
+    imul(b: Polynomial<E>): Polynomial<E> { this.coeffs = this.mul(b).coeffs; return this; }
 
-    divmod(b: Polynomial): [Polynomial, Polynomial] {
+    divmod(b: Polynomial<E>): [Polynomial<E>, Polynomial<E>] {
         let m = this.degree;
         let n = b.degree;
         if (n == -1) throw new RangeError("Division by zero");
@@ -98,39 +115,48 @@ export class Polynomial {
             for (let i=0; i<n; i++)
                 c[k-n+i].isub(c[k].mul(b.coeffs[i]));
         }
-        return [new Polynomial(c.slice(n,m+1)), new Polynomial(c.slice(0,n))];
+        return [new Polynomial<E>(this.coeff_ring, c.slice(n,m+1)),
+                new Polynomial<E>(this.coeff_ring, c.slice(0,n))];
     }
     
-    div(b: Polynomial): Polynomial {
+    div(b: Polynomial<E>): Polynomial<E> {
         if (b.degree == 0) // special faster case
-            return new Polynomial(this.coeffs.map(x => x.div(b.coeffs[0])));
+            return new Polynomial<E>(this.coeff_ring, this.coeffs.map(x => x.div(b.coeffs[0])));
         else {
             let [q, r] = this.divmod(b);
+            if (r.degree > -1)
+                throw RangeError("not divisible");
             return q;
         }
     }
-    mod(b: Polynomial): Polynomial {
+    idiv(b: Polynomial<E>): Polynomial<E> { this.coeffs = this.div(b).coeffs; return this; }
+
+    inv(): Polynomial<E> {
+        throw RangeError("not implemented");
+    }
+    
+    mod(b: Polynomial<E>): Polynomial<E> {
         let [q, r] = this.divmod(b);
         return r;
     }
 
-    equals(b: Polynomial): boolean {
+    equals(b: Polynomial<E>): boolean {
         if (this.degree != b.degree) return false;
         for (let i=0; i<=this.degree; i++)
             if (!this.coeffs[i].equals(b.coeffs[i])) return false;
         return true;
     }
 
-    derivative(): Polynomial {
-        let coeffs: Fraction[] = [];
+    derivative(): Polynomial<E> {
+        let coeffs: E[] = [];
         for (let i=1; i<=this.degree; i++)
-            coeffs.push(fraction(i).mul(this.coeffs[i]));
-        return new Polynomial(coeffs);
+            coeffs.push(this.coeff_ring.fromInt(i).imul(this.coeffs[i]));
+        return new Polynomial<E>(this.coeff_ring, coeffs);
     }
 
-    sturm_sequence(arg: Fraction): number {
+    sturm_sequence(arg: E): number {
         /* Number of sign changes in Sturm sequence at arg. */
-        let p0: Polynomial = this, p1 = this.derivative();
+        let p0: Polynomial<E> = this, p1 = this.derivative();
         let prev_sign = p0.eval(arg).sign();
         let changes = 0;
         while (p1.degree >= 0) {
@@ -145,29 +171,29 @@ export class Polynomial {
         return changes;
     }
 
-    count_roots(lower: Fraction, upper: Fraction): number {
+    count_roots(lower: E, upper: E): number {
         /* Number of real roots in interval [lower, upper] */
         return (this.eval(lower).sign() == 0 ? 1 : 0) + this.sturm_sequence(lower) - this.sturm_sequence(upper);
     }
         
     /* Find an isolating interval for the real root nearest x.
        If there is a tie, chooses the higher root. */
-    isolate_root(x: Fraction): [Fraction, Fraction] {
+    isolate_root(x: E): [E, E] {
         if (this.degree <= 0) throw new RangeError("can't isolate root of a constant polynomial");
 
         // Bound distance to root
-        let bound = fraction(0);
+        let bound = this.coeff_ring.zero();
         for (let i=0; i<this.degree; i++)
             if (bound.compare(this.coeffs[i].abs()) > 0)
                 bound = this.coeffs[i].abs();
         bound.idiv(this.coeffs[this.degree].abs());
-        bound.iadd(fraction(1));
+        bound.iadd(this.coeff_ring.one());
 
         // Binary search for distance
-        let dmin = fraction(0);
+        let dmin = this.coeff_ring.zero();
         let dmax = bound.add(x.abs());
         for (let i=0; i<100; i++) {
-            let dmid = dmin.middle(dmax);
+            let dmid = dmin.add(dmax).idiv(this.coeff_ring.fromInt(2)); // to do: restore middle
             let lower = x.sub(dmid);
             let upper = x.add(dmid);
             let c = this.count_roots(lower, upper);
@@ -180,10 +206,34 @@ export class Polynomial {
         }
         throw new Error(`can't isolate root nearest to ${x} (perhaps there was a tie)`);
     }
+
+    /* These methods don't make sense for Polynomials */
+    toNumber(): number {
+        if (this.degree == -1) return 0;
+        else if (this.degree == 0) return Number(this.coeffs[0]);
+        else throw RangeError("can't convert to number");
+    }
+    sign(): number { return +1; }
+    abs(): Polynomial<E> { return this.clone(); }
+    compare(y: Polynomial<E>): number { return 0; }
 }
 
-export function polynomial(coeffs: (Fraction|number|bigint)[]): Polynomial {
-    return new Polynomial(
-        coeffs.map(x => x instanceof Fraction ? x : fraction(x))
-    );
+export function polynomial(coeffs: (Fraction|bigint|number)[]): Polynomial<Fraction> {
+    return new Polynomial(QQ, coeffs.map(c => c instanceof Fraction ? c : fraction(c)));
 }
+
+class Polynomials<E extends RingElement<E>> implements Ring<Polynomial<E>> {
+    coeff_ring: Ring<E>;
+    constructor(coeff_ring: Ring<E>) { this.coeff_ring = coeff_ring; }
+    zero(): Polynomial<E> {
+        return new Polynomial<E>(this.coeff_ring, []);
+    }
+    one(): Polynomial<E> {
+        return new Polynomial<E>(this.coeff_ring, [this.coeff_ring.one()]);
+    }
+    fromInt(n: number): Polynomial<E> {
+        return new Polynomial<E>(this.coeff_ring, [this.coeff_ring.fromInt(n)]);
+    }
+}
+
+export const QQ_x = new Polynomials(QQ);

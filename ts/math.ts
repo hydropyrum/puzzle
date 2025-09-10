@@ -32,24 +32,24 @@ export class ExactVector3 {
         return this.x.equals(other.x) && this.y.equals(other.y) && this.z.equals(other.z);
     }
 
-    add (other: ExactVector3): ExactVector3 {
+    add(other: ExactVector3): ExactVector3 {
         return new ExactVector3(this.x.add(other.x), this.y.add(other.y), this.z.add(other.z));
     }
-    sub (other: ExactVector3): ExactVector3 {
+    sub(other: ExactVector3): ExactVector3 {
         return new ExactVector3(this.x.sub(other.x), this.y.sub(other.y), this.z.sub(other.z));
     }
     neg(): ExactVector3 {
         return new ExactVector3(this.x.neg(), this.y.neg(), this.z.neg());
     }
-    scale (other: AlgebraicNumber): ExactVector3 {
+    scale(other: AlgebraicNumber): ExactVector3 {
         return new ExactVector3(this.x.mul(other), this.y.mul(other), this.z.mul(other));
     }
 
-    dot (other: ExactVector3): AlgebraicNumber {
+    dot(other: ExactVector3): AlgebraicNumber {
         return this.x.mul(other.x).add(this.y.mul(other.y)).add(this.z.mul(other.z));
     }
 
-    cross (other: ExactVector3): ExactVector3 {
+    cross(other: ExactVector3): ExactVector3 {
         return new ExactVector3(
             this.y.mul(other.z).sub(this.z.mul(other.y)),
             this.z.mul(other.x).sub(this.x.mul(other.z)),

@@ -4,14 +4,14 @@ import { Fraction, fraction } from './fraction';
 /* ℚ(θ) where θ is a root of a polynomial with rational coefficients. */
 export class AlgebraicNumberField {
     degree: number;
-    poly: Polynomial; // minimal polynomial of θ
+    poly: Polynomial<Fraction>; // minimal polynomial of θ
     lower: Fraction;  // lower bound on θ
     approx: Fraction; // approximation of θ
     upper: Fraction;  // upper bound on θ
-    powers: Polynomial[];
+    powers: Polynomial<Fraction>[];
     powers_upper: Fraction[] = [];
     powers_lower: Fraction[] = [];
-    constructor(poly: Polynomial, approx: Fraction) {
+    constructor(poly: Polynomial<Fraction>, approx: Fraction) {
         this.degree = poly.degree;
         this.poly = poly;
         [this.lower, this.upper] = poly.isolate_root(approx);
@@ -71,9 +71,9 @@ export class AlgebraicNumberField {
     }
 };
 
-export function algebraicNumberField(poly: Polynomial|(Fraction|number|bigint)[],
+export function algebraicNumberField(poly: Polynomial<Fraction>|(Fraction|number|bigint)[],
                                      approx: Fraction|number|bigint) : AlgebraicNumberField {
-    if (!(poly instanceof Polynomial)) poly = polynomial(poly);
+    if (!(poly instanceof Polynomial<Fraction>)) poly = polynomial(poly);
     if (!(approx instanceof Fraction)) approx = fraction(approx);
     return new AlgebraicNumberField(poly, approx);
 }
@@ -82,9 +82,9 @@ var Q = algebraicNumberField([-1, 1], fraction(1));
 
 export class AlgebraicNumber {
     field: AlgebraicNumberField;
-    poly: Polynomial;
+    poly: Polynomial<Fraction>;
 
-    constructor(field: AlgebraicNumberField, poly: Polynomial) {
+    constructor(field: AlgebraicNumberField, poly: Polynomial<Fraction>) {
         this.field = field;
         this.poly = poly;
     }
@@ -144,7 +144,7 @@ export class AlgebraicNumber {
                 coeffs[j].iadd(K.powers[i].coeffs[j].mul(p.coeffs[i]), false);
         for (let c of coeffs)
             c.reduce();
-        return new AlgebraicNumber(K, new Polynomial(coeffs));
+        return new AlgebraicNumber(K, polynomial(coeffs));
     }
     inverse(): AlgebraicNumber {
         // Inverse of a modulo b=this.poly

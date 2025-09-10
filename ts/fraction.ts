@@ -1,3 +1,5 @@
+import { RingElement, Ring } from './ring';
+
 function big_abs(x: bigint): bigint {
     return x < 0n ? -x : x;
 }
@@ -19,7 +21,7 @@ function big_gcd(x: bigint, y: bigint): bigint {
     return x;
 }
 
-export class Fraction {
+export class Fraction implements RingElement<Fraction> {
     n: bigint;
     d: bigint;
     constructor(n: bigint, d: bigint, reduce: boolean = true) {
@@ -136,3 +138,11 @@ export function fraction(n: bigint|number, d: bigint|number = 1): Fraction {
     if (typeof d === 'number') d = BigInt(d);
     return new Fraction(n as bigint, d);
 }
+
+class Fractions implements Ring<Fraction> {
+    zero(): Fraction { return new Fraction(0n, 1n); }
+    one(): Fraction { return new Fraction(1n, 1n); }
+    fromInt(n: number): Fraction { return new Fraction(BigInt(n), 1n); }
+}
+
+export const QQ = new Fractions();
