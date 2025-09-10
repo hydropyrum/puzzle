@@ -29,12 +29,13 @@ export class Polynomial {
             if (!abs.equals(fraction(1)) || i == 0)
                 s += String(abs);
 
-            if (i == 1)
+            if (i >= 1)
                 s += "x";
-            if (i > 1 && i < 10)
-                s += "x^" + String(i);
-            else if (i >= 10)
-                s += "x^{" + String(i) + "}";
+            if (i > 1) {
+                let si = String(i);
+                for (let j=0; j<si.length; j++)
+                    s += '⁰¹²³⁴⁵⁶⁷⁸⁹'[Number(si[j])];
+            }
         }
         return s;
     }
