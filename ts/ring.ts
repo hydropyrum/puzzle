@@ -1,3 +1,5 @@
+import { extended_gcd, sign, abs } from './bigutils';
+
 export interface RingElement<E> {
     clone(): E;
     equals(y: E): boolean;
@@ -10,6 +12,8 @@ export interface RingElement<E> {
     neg(): E;
     imul(y: E): E;
     mul(y: E): E;
+    // If ring is Euclidean (otherwise may throw)
+    divmod(y: E): [E, E];
     // If ring is a field (otherwise may throw)
     idiv(y: E): E;
     div(y: E): E;
@@ -42,28 +46,31 @@ export class Integer implements RingElement<Integer> {
     imul(y: Integer): Integer { this.n *= y.n; return this; }
     mul(y: Integer): Integer { return this.clone().imul(y); }
 
+    divmod(y: Integer): [Integer, Integer] {
+        if (y.n <= 0n) throw new RangeError();
+        if (this.n >= 0n)
+            return [new Integer(this.n/y.n), new Integer(this.n%y.n)];
+        else
+            return [new Integer(this.n/y.n - 1n), new Integer(this.n%y.n + y.n)];
+    }
+
     inv(): Integer {
         if (this.n == 1n || this.n == -1n)
             return this.clone();
         else
-            throw RangeError("multiplicative inverse does not exist");
+            throw new RangeError("multiplicative inverse does not exist");
     }
     idiv(y: Integer): Integer {
         if (this.n % y.n == 0n)
             this.n /= y.n;
         else
-            throw RangeError("not divisible by y");
+            throw new RangeError("not divisible by y");
         return this;
     }
     div(y: Integer): Integer { return this.clone().idiv(y); }
     
-    // to do: deduplicate with big_sign and big_abs in fraction.ts
-    sign(): number {
-        if (this.n == 0n) return 0;
-        else if (this.n < 0n) return -1;
-        else /* if (this.n > 0n) */ return +1;
-    }
-    abs(): Integer { return this.n < 0n ? this.neg() : this; }
+    sign(): number { return sign(this.n); }
+    abs(): Integer { return new Integer(abs(this.n)); }
     compare(y: Integer): number {
         if (this.n == y.n) return 0;
         else if (this.n < y.n) return -1;
@@ -73,7 +80,7 @@ export class Integer implements RingElement<Integer> {
 
 export class Integers implements Ring<Integer> {
     zero(): Integer { return new Integer(0n); }
-    one(): Integer { return new Integer(0n); }
+    one(): Integer { return new Integer(1n); }
     fromInt(n: number): Integer { return new Integer(BigInt(n)); }
 }
 
@@ -120,6 +127,8 @@ export class IntegerMod implements RingElement<IntegerMod> {
     }
     mul(y: IntegerMod): IntegerMod { return this.clone().imul(y); }
 
+    divmod(y: IntegerMod): [IntegerMod, IntegerMod] { throw new TypeError(); }
+
     idiv(y: IntegerMod): IntegerMod {
         this.check(y);
         let [r, s, t] = extended_gcd(y.n, this.m);
@@ -149,20 +158,27 @@ export class IntegersMod implements Ring<IntegerMod> {
     m: bigint;
     constructor(m: bigint) { this.m = m; }
     zero(): IntegerMod { return new IntegerMod(0n, this.m); }
-    one(): IntegerMod { return new IntegerMod(0n, this.m); }
+    one(): IntegerMod { return new IntegerMod(1n, this.m); }
     fromInt(n: number): IntegerMod { return new IntegerMod(BigInt(n), this.m); }
 }
 
-export function extended_gcd(a: bigint, b: bigint) {
-    /* Extended Euclid: Find r, s, t such that r = as + bt */
-    let [r0, r1] = [a, b];
-    let [s0, s1] = [1n, 0n];
-    let [t0, t1] = [0n, 1n];
-    while (r1 != 0n) {
-        let [q, r2] = [r0/r1, r0%r1];
-        [r0, r1] = [r1, r2];
-        [s0, s1] = [s1, s0 - q*s1];
-        [t0, t1] = [t1, t0 - q*t1];
+export function power<E extends RingElement<E>>(K: Ring<E>, g: E, n: bigint) {
+    /* Compute g**n by repeated squaring. Cohen, Algorithm 1.2.1. */
+    if (n < 0) throw RangeError();
+    // k = 0
+    let y = K.one();
+    let z = g;
+    let m = n;
+    while (m > 0n) {
+        // invariant: g^n = (g^(m * 2^k)) * y, z = g^(2^k)
+        if (m % 2n == 1n) {
+            y = y.mul(z);
+            m--;
+        } else {
+            z = z.mul(z);
+            // k += 1
+            m /= 2n;
+        }
     }
-    return [r0, s0, t0];
+    return y;
 }

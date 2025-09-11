@@ -1,25 +1,5 @@
 import { RingElement, Ring } from './ring';
-
-function big_abs(x: bigint): bigint {
-    return x < 0n ? -x : x;
-}
-
-function big_sign(x: bigint): number {
-    if (x == 0n) return 0;
-    else if (x < 0n) return -1;
-    else /* if (x > 0n) */ return +1;
-}
-
-/* Find GCD using Euclid's algorithm. */
-function big_gcd(x: bigint, y: bigint): bigint {
-    x = big_abs(x);
-    y = big_abs(y);
-    if (x < y)
-        [x, y] = [y, x];
-    while (y !== 0n)
-        [x, y] = [y, x % y];
-    return x;
-}
+import { gcd, sign, abs } from './bigutils';
 
 export class Fraction implements RingElement<Fraction> {
     n: bigint;
@@ -37,7 +17,7 @@ export class Fraction implements RingElement<Fraction> {
     }
 
     reduce(): Fraction {
-        let g = big_gcd(this.n, this.d);
+        let g = gcd(this.n, this.d);
         this.n /= g;
         this.d /= g;
         return this;
@@ -82,6 +62,8 @@ export class Fraction implements RingElement<Fraction> {
     }
     mul(y: Fraction): Fraction { return this.clone().imul(y); }
 
+    divmod(y: Fraction): [Fraction, Fraction] { throw new TypeError(); }
+    
     iinv(): Fraction {
         if (this.n > 0n) {
             [this.n, this.d] = [this.d, this.n];
@@ -111,17 +93,17 @@ export class Fraction implements RingElement<Fraction> {
     equals(y: Fraction): boolean {
         return this.n * y.d == this.d * y.n;
     }
-    sign(): number { return big_sign(this.n); }
+    sign(): number { return sign(this.n); }
     compare(y: Fraction): number {
-        return big_sign(this.n * y.d - y.n * this.d);
+        return sign(this.n * y.d - y.n * this.d);
     }
-    iabs(): Fraction { this.n = big_abs(this.n); return this; }
+    iabs(): Fraction { this.n = abs(this.n); return this; }
     abs(): Fraction { return this.clone().iabs(); }
 
     /* Find a fraction between this and y that doesn't increase denominator too much */
     middle(y: Fraction): Fraction {
         let x = this;
-        let d = x.d * y.d / big_gcd(x.d, y.d);
+        let d = x.d * y.d / gcd(x.d, y.d);
         let xn = x.n * d / x.d;
         let yn = y.n * d / y.d;
         if (xn > yn)

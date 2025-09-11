@@ -53,6 +53,11 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
         return s;
     }
 
+    lc(): E { return this.coeffs[this.degree]; }
+    monic(): Polynomial<E> {
+        return new Polynomial(this.coeff_ring, this.coeffs.map(c => c.div(this.lc())));
+    }
+
     eval(arg: E): E {
         // Horner's rule
         let sum = this.coeff_ring.zero();
@@ -222,7 +227,7 @@ export function polynomial(coeffs: (Fraction|bigint|number)[]): Polynomial<Fract
     return new Polynomial(QQ, coeffs.map(c => c instanceof Fraction ? c : fraction(c)));
 }
 
-class Polynomials<E extends RingElement<E>> implements Ring<Polynomial<E>> {
+export class Polynomials<E extends RingElement<E>> implements Ring<Polynomial<E>> {
     coeff_ring: Ring<E>;
     constructor(coeff_ring: Ring<E>) { this.coeff_ring = coeff_ring; }
     zero(): Polynomial<E> {
