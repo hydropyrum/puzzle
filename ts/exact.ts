@@ -232,9 +232,4 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber> {
         else
             return this;
     }
-
-    euclidean(): bigint { throw new TypeError(); }
-    divmod(y: AlgebraicNumber): [AlgebraicNumber, AlgebraicNumber] { throw new TypeError(); }
-    floordiv(y: AlgebraicNumber): AlgebraicNumber { throw new TypeError(); }
-    mod(y: AlgebraicNumber): AlgebraicNumber { throw new TypeError(); }
 }

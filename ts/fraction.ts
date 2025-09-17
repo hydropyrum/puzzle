@@ -62,11 +62,6 @@ export class Fraction implements RingElement<Fraction> {
     }
     mul(y: Fraction): Fraction { return this.clone().imul(y); }
 
-    euclidean(): bigint { throw new TypeError(); }
-    divmod(y: Fraction): [Fraction, Fraction] { throw new TypeError(); }
-    floordiv(y: Fraction): Fraction { throw new TypeError(); }
-    mod(y: Fraction): Fraction { throw new TypeError(); }
-    
     iinv(): Fraction {
         if (this.n > 0n) {
             [this.n, this.d] = [this.d, this.n];

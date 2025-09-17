@@ -1,7 +1,7 @@
-import { RingElement, Ring, ZZ, DivisionError } from './ring';
+import { RingElement, Ring, ZZ, Euclidean, DivisionError } from './ring';
 import { Fraction, fraction, QQ } from './fraction';
 
-export class Polynomial<E extends RingElement<E>> implements RingElement<Polynomial<E>> {
+export class Polynomial<E extends RingElement<E>> implements RingElement<Polynomial<E>>, Euclidean<Polynomial<E>> {
     coeff_ring: Ring<E>;
     coeffs: E[]; // coeffs[i] is coefficient on x^i
     degree: number;

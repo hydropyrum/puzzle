@@ -31,9 +31,9 @@ test('TestIntegerMod', () => {
 });
 
 test('power', () => {
-    expect(power(ZZ, int(2n), 0n)).toStrictEqual(int(1n));
-    expect(power(ZZ, int(2n), 1n)).toStrictEqual(int(2n));
-    expect(power(ZZ, int(2n), 10n)).toStrictEqual(int(1024n));
+    expect(power(ZZ, int(2n), 0n, int(100n))).toStrictEqual(int(1n));
+    expect(power(ZZ, int(2n), 1n, int(100n))).toStrictEqual(int(2n));
+    expect(power(ZZ, int(2n), 10n, int(100n))).toStrictEqual(int(24n));
 });
 
 test('gcd', () => {

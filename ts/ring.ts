@@ -20,11 +20,6 @@ export interface RingElement<E> {
     neg(): E;
     imul(y: E): E;
     mul(y: E): E;
-    // If ring is Euclidean (otherwise may throw)
-    euclidean(): bigint;
-    divmod(y: E): [E, E];
-    floordiv(y: E): E;
-    mod(y: E): E;
     // If ring is a field (otherwise may throw)
     idiv(y: E): E;
     div(y: E): E;
@@ -35,13 +30,20 @@ export interface RingElement<E> {
     abs(): E;
 }
 
+export interface Euclidean<E> {
+    euclidean(): bigint;
+    divmod(y: E): [E, E];
+    floordiv(y: E): E;
+    mod(y: E): E;
+}
+
 export interface Ring<E> {
     zero(): E;
     one(): E;
     fromInt(n: number): E;
 }
 
-export class Integer implements RingElement<Integer> {
+export class Integer implements RingElement<Integer>, Euclidean<Integer> {
     n: bigint;
     constructor(n: bigint) { this.n = n; }
     clone(): Integer { return new Integer(this.n); }
@@ -108,13 +110,13 @@ export class IntegerMod implements RingElement<IntegerMod> {
     constructor(n: bigint, m: bigint) {
         this.n = n;
         this.m = m;
-        this.normalize();
+        this.reduce();
     }
     clone(): IntegerMod { return new IntegerMod(this.n, this.m); }
     private check(y: IntegerMod) {
         if (this.m != y.m) throw new TypeError("Numbers have different moduli");
     }
-    private normalize() { this.n = ((this.n % this.m) + this.m) % this.m; }
+    private reduce() { this.n = ((this.n % this.m) + this.m) % this.m; }
     
     equals(y: IntegerMod): boolean { this.check(y); return this.n == y.n; }
     toString(): string { return String(this.n); }
@@ -123,14 +125,14 @@ export class IntegerMod implements RingElement<IntegerMod> {
     iadd(y: IntegerMod): IntegerMod {
         this.check(y);
         this.n += y.n;
-        this.normalize();
+        this.reduce();
         return this;
     }
     add(y: IntegerMod): IntegerMod { return this.clone().iadd(y); }
     isub(y: IntegerMod): IntegerMod {
         this.check(y);
         this.n -= y.n;
-        this.normalize();
+        this.reduce();
         return this;
     }
     sub(y: IntegerMod): IntegerMod { return this.clone().isub(y); }
@@ -138,22 +140,17 @@ export class IntegerMod implements RingElement<IntegerMod> {
     imul(y: IntegerMod): IntegerMod {
         this.check(y);
         this.n *= y.n;
-        this.normalize();
+        this.reduce();
         return this;
     }
     mul(y: IntegerMod): IntegerMod { return this.clone().imul(y); }
-
-    euclidean(): bigint { throw new TypeError(); }
-    divmod(y: IntegerMod): [IntegerMod, IntegerMod] { throw new TypeError(); }
-    floordiv(y: IntegerMod): IntegerMod { throw new TypeError(); }
-    mod(y: IntegerMod): IntegerMod { throw new TypeError(); }
 
     idiv(y: IntegerMod): IntegerMod {
         this.check(y);
         let [r, s, t] = bigint_extended_gcd(y.n, this.m);
         if (this.n % r == 0n) {
             this.n = s * (this.n / r);
-            this.normalize();
+            this.reduce();
             return this;
         } else
             throw new DivisionError("Not divisible");
@@ -181,7 +178,7 @@ export class IntegersMod implements Ring<IntegerMod> {
     fromInt(n: number): IntegerMod { return new IntegerMod(BigInt(n), this.m); }
 }
 
-export function power<E extends RingElement<E>>(K: Ring<E>, g: E, n: bigint, q?: E) {
+export function power<E extends RingElement<E> & Euclidean<E>>(K: Ring<E>, g: E, n: bigint, q: E) {
     /* Compute g**n by repeated squaring. Cohen, Algorithm 1.2.1. */
     if (n < 0) throw new RangeError();
     // k = 0
@@ -191,12 +188,10 @@ export function power<E extends RingElement<E>>(K: Ring<E>, g: E, n: bigint, q?:
     while (m > 0n) {
         // invariant: g^n = (g^(m * 2^k)) * y, z = g^(2^k)
         if (m % 2n == 1n) {
-            y = y.mul(z);
-            if (q !== undefined) [,y] = y.divmod(q);
+            y = y.mul(z).mod(q);
             m--;
         } else {
-            z = z.mul(z);
-            if (q !== undefined) [,z] = z.divmod(q);
+            z = z.mul(z).mod(q);
             // k += 1
             m /= 2n;
         }
@@ -211,7 +206,7 @@ export function product<E extends RingElement<E>>(K: Ring<E>, xs: E[]) {
     return prod;
 }
 
-export function gcd<E extends RingElement<E>>(K: Ring<E>, x: E, y: E): E {
+export function gcd<E extends RingElement<E> & Euclidean<E>>(K: Ring<E>, x: E, y: E): E {
     if (x.euclidean() < y.euclidean())
         [x, y] = [y, x];
     while (!y.equals(K.zero()))
@@ -219,7 +214,7 @@ export function gcd<E extends RingElement<E>>(K: Ring<E>, x: E, y: E): E {
     return x;
 }
 
-export function extended_gcd<E extends RingElement<E>>(K: Ring<E>, x: E, y: E): [E, E, E] {
+export function extended_gcd<E extends RingElement<E> & Euclidean<E>>(K: Ring<E>, x: E, y: E): [E, E, E] {
     /* Returns r, s, and t such that r = xs+yt. */
     let swap = false;
     if (x.euclidean() < y.euclidean()) {
