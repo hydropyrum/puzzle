@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { AlgebraicNumber } from './exact';
+import { AlgebraicNumber, QQ } from './exact';
 import { ExactPlane, ExactVector3, ExactQuaternion } from './math';
 import { cube_polygeometry, slice_polygeometry } from './piece';
 import { Puzzle, find_cuts, find_stops } from './move';
 
-let fromNumber = AlgebraicNumber.fromInteger;
+let fromNumber = (n) => QQ.fromInt(n);
 
 function exactPlane(a, b, c, d) {
     return new ExactPlane(

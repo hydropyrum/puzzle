@@ -1,8 +1,9 @@
+import { RingElement, Ring } from './ring';
 import { Polynomial, polynomial } from './polynomial';
 import { Fraction, fraction } from './fraction';
 
 /* ℚ(θ) where θ is a root of a polynomial with rational coefficients. */
-export class AlgebraicNumberField {
+export class AlgebraicNumberField implements Ring<AlgebraicNumber> {
     degree: number;
     poly: Polynomial<Fraction>; // minimal polynomial of θ
     lower: Fraction;  // lower bound on θ
@@ -33,6 +34,10 @@ export class AlgebraicNumberField {
     toString(): string {
         return this.poly.toString();
     }
+
+    zero() { return new AlgebraicNumber(this, polynomial([])); }
+    one() { return new AlgebraicNumber(this, polynomial([1n])); }
+    fromInt(n: number) { return new AlgebraicNumber(this, polynomial([n])); }
 
     precompute_interval_powers() {
         this.powers_lower = [fraction(1)];
@@ -78,9 +83,9 @@ export function algebraicNumberField(poly: Polynomial<Fraction>|(Fraction|number
     return new AlgebraicNumberField(poly, approx);
 }
 
-var Q = algebraicNumberField([-1, 1], fraction(1));
+export var QQ = algebraicNumberField([-1, 1], fraction(1));
 
-export class AlgebraicNumber {
+export class AlgebraicNumber implements RingElement<AlgebraicNumber> {
     field: AlgebraicNumberField;
     poly: Polynomial<Fraction>;
 
@@ -89,10 +94,8 @@ export class AlgebraicNumber {
         this.poly = poly;
     }
 
-    static fromInteger(x: number): AlgebraicNumber {
-        if (!Number.isInteger(x))
-            throw new RangeError('x must be an integer');
-        return Q.fromVector([fraction(x)]);
+    clone(): AlgebraicNumber {
+        return new AlgebraicNumber(this.field, this.poly.clone());
     }
 
     toString(): string {
@@ -117,12 +120,22 @@ export class AlgebraicNumber {
         throw RangeError("AlgebraicNumbers must have same field (" + a.field.toString() + " != " + b.field.toString() + ")");
     }
 
+    iadd(b: AlgebraicNumber): AlgebraicNumber {
+        this.field = AlgebraicNumber.check_same_field(this, b);
+        this.poly.iadd(b.poly);
+        return this;
+    }
     add(b: AlgebraicNumber): AlgebraicNumber {
         let K = AlgebraicNumber.check_same_field(this, b);
         return new AlgebraicNumber(K, this.poly.add(b.poly));
     }
     neg(): AlgebraicNumber {
         return new AlgebraicNumber(this.field, this.poly.neg());
+    }
+    isub(b: AlgebraicNumber): AlgebraicNumber {
+        this.field = AlgebraicNumber.check_same_field(this, b);
+        this.poly.isub(b.poly);
+        return this;
     }
     sub(b: AlgebraicNumber): AlgebraicNumber {
         let K = AlgebraicNumber.check_same_field(this, b);
@@ -146,7 +159,12 @@ export class AlgebraicNumber {
             c.reduce();
         return new AlgebraicNumber(K, polynomial(coeffs));
     }
-    inverse(): AlgebraicNumber {
+    imul(b: AlgebraicNumber): AlgebraicNumber {
+        let c = this.mul(b);
+        [this.field, this.poly] = [c.field, c.poly];
+        return this;
+    }
+    inv(): AlgebraicNumber {
         // Inverse of a modulo b=this.poly
         // Extended Euclidean algorithm to find ra+sb=1
         let K = this.field;
@@ -165,7 +183,8 @@ export class AlgebraicNumber {
         return new AlgebraicNumber(K, t0.div(r0));
     }
     
-    div(b: AlgebraicNumber): AlgebraicNumber { return this.mul(b.inverse()); }
+    div(b: AlgebraicNumber): AlgebraicNumber { return this.mul(b.inv()); }
+    idiv(b: AlgebraicNumber): AlgebraicNumber { return this.idiv(b.inv()); }
     
     equals(b: AlgebraicNumber): boolean {
         let K = AlgebraicNumber.check_same_field(this, b);
@@ -213,4 +232,9 @@ export class AlgebraicNumber {
         else
             return this;
     }
+
+    euclidean(): bigint { throw new TypeError(); }
+    divmod(y: AlgebraicNumber): [AlgebraicNumber, AlgebraicNumber] { throw new TypeError(); }
+    floordiv(y: AlgebraicNumber): AlgebraicNumber { throw new TypeError(); }
+    mod(y: AlgebraicNumber): AlgebraicNumber { throw new TypeError(); }
 }

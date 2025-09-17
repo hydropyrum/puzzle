@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { AlgebraicNumber } from './exact';
+import { AlgebraicNumber, QQ } from './exact';
 import { ExactPlane, ExactVector3 } from './math';
 import { PolyGeometry, cube_polygeometry, slice_polygeometry } from './piece';
 
-let fromNumber = AlgebraicNumber.fromInteger;
+let fromNumber = (n) => QQ.fromInt(n);
 let cube = cube_polygeometry(fromNumber(1), new THREE.Color(), false);
 
 function exactPlane(a, b, c, d) {

@@ -49,13 +49,13 @@ test('mul', () => {
         for (let b of vals)
             expect(K.fromVector(a.c).mul(K.fromVector(b.c)).toNumber()).toBeCloseTo(a.a * b.a);
 });
-test('inverse', () => {
+test('inv', () => {
     for (let a of vals) {
         let p = K.fromVector(a.c);
         if (!p.isZero())
-            expect(p.inverse().toNumber()).toBeCloseTo(1/a.a);
+            expect(p.inv().toNumber()).toBeCloseTo(1/a.a);
         else
-            expect(() => p.inverse()).toThrow("Division by zero");
+            expect(() => p.inv()).toThrow("Division by zero");
     }
 });
 test('divide', () => {

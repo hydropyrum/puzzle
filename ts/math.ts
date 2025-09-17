@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { AlgebraicNumber } from './exact';
+import { AlgebraicNumber, QQ } from './exact';
 
 export class ExactVector3 {
     x: AlgebraicNumber;
@@ -107,8 +107,8 @@ export class ExactQuaternion {
     }
 
     static identity(): ExactQuaternion {
-        let zero = AlgebraicNumber.fromInteger(0);
-        let one = AlgebraicNumber.fromInteger(1);
+        let zero = QQ.fromInt(0);
+        let one = QQ.fromInt(1);
         return new ExactQuaternion(zero, zero, zero, one);
     }
 
@@ -122,7 +122,7 @@ export class ExactQuaternion {
             if (xy.sign() > 0)
                 return ExactQuaternion.identity(); // 0 degrees
             else
-                return new ExactQuaternion(k.x, k.y, k.z, AlgebraicNumber.fromInteger(0)); // 180 degrees
+                return new ExactQuaternion(k.x, k.y, k.z, QQ.fromInt(0)); // 180 degrees
         } else {
             return new ExactQuaternion(k.x, k.y, k.z, kxy.div(x.dot(x).sub(xy)));
         }
@@ -153,7 +153,7 @@ export class ExactQuaternion {
     }
 
     pseudoAngle(): AlgebraicNumber {
-        let one = AlgebraicNumber.fromInteger(1);
+        let one = QQ.fromInt(1);
         let w = this.w;
         return one.sub(w.mul(w.abs()).div(this.normSquared()));
     }
@@ -177,14 +177,14 @@ export class ExactQuaternion {
         return new ExactQuaternion(this.x.neg(), this.y.neg(), this.z.neg(), this.w);
     }
 
-    inverse(): ExactQuaternion {
-        return this.conj().scale(this.normSquared().inverse());
+    inv(): ExactQuaternion {
+        return this.conj().scale(this.normSquared().inv());
     }
 
     apply(v: ExactVector3): ExactVector3 {
-        let zero = AlgebraicNumber.fromInteger(0);
+        let zero = QQ.fromInt(0);
         let vq = new ExactQuaternion(v.x, v.y, v.z, zero);
-        let vr = this.mul(vq).mul(this.inverse());
+        let vr = this.mul(vq).mul(this.inv());
         console.assert(vr.w.isZero());
         return new ExactVector3(vr.x, vr.y, vr.z);
     }
@@ -193,6 +193,6 @@ export class ExactQuaternion {
         let x = this.x, y = this.y, z = this.z, w = this.w;
         let n = w.abs().add(x.abs()).add(y.abs()).add(z.abs());
         if (w.sign() < 0) n = n.neg();
-        return this.scale(n.inverse());
+        return this.scale(n.inv());
     }
 }

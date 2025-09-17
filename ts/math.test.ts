@@ -1,8 +1,8 @@
 import { ExactVector3, ExactPlane, ExactQuaternion } from './math';
-import { AlgebraicNumber } from './exact';
+import { AlgebraicNumber, QQ } from './exact';
 import * as THREE from 'three';
 
-let fromNumber = AlgebraicNumber.fromInteger;
+let fromNumber = (n) => QQ.fromInt(n);
 let planes = [
     new ExactPlane(new ExactVector3(fromNumber(1), fromNumber(1), fromNumber(1)), fromNumber(0)),
     new ExactPlane(new ExactVector3(fromNumber(1), fromNumber(1), fromNumber(1)), fromNumber(3)),
@@ -60,11 +60,11 @@ test('ExactQuaternion.identity', () => {
     }
 });
 
-test('ExactQuaternion.inverse', () => {
+test('ExactQuaternion.inv', () => {
     let id = ExactQuaternion.identity();
     for (let q of quats) {
-        expect(q.mul(q.inverse()).equals(id)).toBe(true);
-        expect(q.inverse().mul(q).equals(id)).toBe(true);
+        expect(q.mul(q.inv()).equals(id)).toBe(true);
+        expect(q.inv().mul(q).equals(id)).toBe(true);
     }
 });
 
