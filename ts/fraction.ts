@@ -62,7 +62,10 @@ export class Fraction implements RingElement<Fraction> {
     }
     mul(y: Fraction): Fraction { return this.clone().imul(y); }
 
+    euclidean(): bigint { throw new TypeError(); }
     divmod(y: Fraction): [Fraction, Fraction] { throw new TypeError(); }
+    floordiv(y: Fraction): Fraction { throw new TypeError(); }
+    mod(y: Fraction): Fraction { throw new TypeError(); }
     
     iinv(): Fraction {
         if (this.n > 0n) {
@@ -86,6 +89,7 @@ export class Fraction implements RingElement<Fraction> {
         } else /* if (y.n == 0n) */ {
             throw new RangeError("Division by zero");
         }
+        this.reduce();
         return this;
     }
     div(y: Fraction): Fraction { return this.clone().idiv(y); }

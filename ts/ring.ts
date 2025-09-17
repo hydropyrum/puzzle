@@ -1,4 +1,12 @@
-import { extended_gcd, sign, abs } from './bigutils';
+import { extended_gcd as bigint_extended_gcd, sign, abs } from './bigutils';
+
+export class DivisionError extends Error {
+    constructor(message: string, public errorCode?: number) {
+        super(message);
+        this.name = "DivisionError";
+        Object.setPrototypeOf(this, DivisionError.prototype);
+    }
+}
 
 export interface RingElement<E> {
     clone(): E;
@@ -13,7 +21,10 @@ export interface RingElement<E> {
     imul(y: E): E;
     mul(y: E): E;
     // If ring is Euclidean (otherwise may throw)
+    euclidean(): bigint;
     divmod(y: E): [E, E];
+    floordiv(y: E): E;
+    mod(y: E): E;
     // If ring is a field (otherwise may throw)
     idiv(y: E): E;
     div(y: E): E;
@@ -46,25 +57,30 @@ export class Integer implements RingElement<Integer> {
     imul(y: Integer): Integer { this.n *= y.n; return this; }
     mul(y: Integer): Integer { return this.clone().imul(y); }
 
+    euclidean(): bigint { return abs(this.n); }
     divmod(y: Integer): [Integer, Integer] {
-        if (y.n <= 0n) throw new RangeError();
-        if (this.n >= 0n)
-            return [new Integer(this.n/y.n), new Integer(this.n%y.n)];
-        else
-            return [new Integer(this.n/y.n - 1n), new Integer(this.n%y.n + y.n)];
+        if (y.n <= 0n) throw new DivisionError('Division by zero');
+        let [q, r] = [this.n/y.n, this.n%y.n];
+        if (r < 0) {
+            q -= 1n;
+            r += y.n;
+        }
+        return [new Integer(q), new Integer(r)];
     }
+    floordiv(y: Integer): Integer { let [q, r] = this.divmod(y); return q; }
+    mod(y: Integer): Integer { let [q, r] = this.divmod(y); return r; }
 
     inv(): Integer {
         if (this.n == 1n || this.n == -1n)
             return this.clone();
         else
-            throw new RangeError("multiplicative inverse does not exist");
+            throw new DivisionError("Multiplicative inverse does not exist");
     }
     idiv(y: Integer): Integer {
         if (this.n % y.n == 0n)
             this.n /= y.n;
         else
-            throw new RangeError("not divisible by y");
+            throw new DivisionError("Not divisible");
         return this;
     }
     div(y: Integer): Integer { return this.clone().idiv(y); }
@@ -96,7 +112,7 @@ export class IntegerMod implements RingElement<IntegerMod> {
     }
     clone(): IntegerMod { return new IntegerMod(this.n, this.m); }
     private check(y: IntegerMod) {
-        if (this.m != y.m) throw RangeError("numbers have different moduli");
+        if (this.m != y.m) throw new TypeError("Numbers have different moduli");
     }
     private normalize() { this.n = ((this.n % this.m) + this.m) % this.m; }
     
@@ -127,31 +143,34 @@ export class IntegerMod implements RingElement<IntegerMod> {
     }
     mul(y: IntegerMod): IntegerMod { return this.clone().imul(y); }
 
+    euclidean(): bigint { throw new TypeError(); }
     divmod(y: IntegerMod): [IntegerMod, IntegerMod] { throw new TypeError(); }
+    floordiv(y: IntegerMod): IntegerMod { throw new TypeError(); }
+    mod(y: IntegerMod): IntegerMod { throw new TypeError(); }
 
     idiv(y: IntegerMod): IntegerMod {
         this.check(y);
-        let [r, s, t] = extended_gcd(y.n, this.m);
+        let [r, s, t] = bigint_extended_gcd(y.n, this.m);
         if (this.n % r == 0n) {
             this.n = s * (this.n / r);
             this.normalize();
             return this;
         } else
-            throw new RangeError("Division by zero");
+            throw new DivisionError("Not divisible");
     }
     div(y: IntegerMod): IntegerMod { return this.clone().idiv(y); }
     inv(): IntegerMod {
-        let [r, s, t] = extended_gcd(this.n, this.m);
+        let [r, s, t] = bigint_extended_gcd(this.n, this.m);
         if (r == 1n) {
             return new IntegerMod(s, this.m)
         } else
-            throw new RangeError("Division by zero");
+            throw new DivisionError("Multiplicative inverse does not exist");
     }
 
     // These don't make sense mod m
-    sign(): number { throw TypeError('unsupported operation') }
-    abs(): IntegerMod { throw TypeError('unsupported operation') }
-    compare(y: IntegerMod): number { throw TypeError('unsupported operation') }
+    sign(): number { return this.n == 0n ? 0 : 1; }
+    abs(): IntegerMod { return this.clone(); }
+    compare(y: IntegerMod): number { throw new TypeError('Unsupported operation') }
 }
 
 export class IntegersMod implements Ring<IntegerMod> {
@@ -162,9 +181,9 @@ export class IntegersMod implements Ring<IntegerMod> {
     fromInt(n: number): IntegerMod { return new IntegerMod(BigInt(n), this.m); }
 }
 
-export function power<E extends RingElement<E>>(K: Ring<E>, g: E, n: bigint) {
+export function power<E extends RingElement<E>>(K: Ring<E>, g: E, n: bigint, q?: E) {
     /* Compute g**n by repeated squaring. Cohen, Algorithm 1.2.1. */
-    if (n < 0) throw RangeError();
+    if (n < 0) throw new RangeError();
     // k = 0
     let y = K.one();
     let z = g;
@@ -173,12 +192,54 @@ export function power<E extends RingElement<E>>(K: Ring<E>, g: E, n: bigint) {
         // invariant: g^n = (g^(m * 2^k)) * y, z = g^(2^k)
         if (m % 2n == 1n) {
             y = y.mul(z);
+            if (q !== undefined) [,y] = y.divmod(q);
             m--;
         } else {
             z = z.mul(z);
+            if (q !== undefined) [,z] = z.divmod(q);
             // k += 1
             m /= 2n;
         }
     }
     return y;
+}
+
+export function product<E extends RingElement<E>>(K: Ring<E>, xs: E[]) {
+    let prod = K.one();
+    for (let x of xs)
+        prod = prod.mul(x);
+    return prod;
+}
+
+export function gcd<E extends RingElement<E>>(K: Ring<E>, x: E, y: E): E {
+    if (x.euclidean() < y.euclidean())
+        [x, y] = [y, x];
+    while (!y.equals(K.zero()))
+        [x, [,y]] = [y, x.divmod(y)];
+    return x;
+}
+
+export function extended_gcd<E extends RingElement<E>>(K: Ring<E>, x: E, y: E): [E, E, E] {
+    /* Returns r, s, and t such that r = xs+yt. */
+    let swap = false;
+    if (x.euclidean() < y.euclidean()) {
+        [x, y] = [y, x];
+        swap = true;
+    }
+    
+    let [r0, r1] = [x, y];
+    let [s0, s1] = [K.one(), K.zero()];
+    let [t0, t1] = [K.zero(), K.one()];
+
+    // Invariant: x*s + y*t == r
+    while (!r1.equals(K.zero())) {
+        let [q, r2] = r0.divmod(r1);
+        [r0, r1] = [r1, r2];
+        [s0, s1] = [s1, s0.sub(q.mul(s1))];
+        [t0, t1] = [t1, t0.sub(q.mul(t1))];
+    }
+
+    if (swap)
+        [s0, t0] = [t0, s0];
+    return [r0, s0, t0];
 }

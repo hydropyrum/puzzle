@@ -1,4 +1,4 @@
-import { RingElement, Ring } from './ring';
+import { RingElement, Ring, ZZ, DivisionError } from './ring';
 import { Fraction, fraction, QQ } from './fraction';
 
 export class Polynomial<E extends RingElement<E>> implements RingElement<Polynomial<E>> {
@@ -53,9 +53,13 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
         return s;
     }
 
+    map<E1 extends RingElement<E1>>(K1: Ring<E1>, f: (c: E) => E1): Polynomial<E1> {
+        return new Polynomial<E1>(K1, this.coeffs.map(f));
+    }
+
     lc(): E { return this.coeffs[this.degree]; }
     monic(): Polynomial<E> {
-        return new Polynomial(this.coeff_ring, this.coeffs.map(c => c.div(this.lc())));
+        return this.map(this.coeff_ring, c => c.div(this.lc()));
     }
 
     eval(arg: E): E {
@@ -108,10 +112,16 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
     }
     imul(b: Polynomial<E>): Polynomial<E> { this.coeffs = this.mul(b).coeffs; return this; }
 
+    ismul(b: E): Polynomial<E> { for (let c of this.coeffs) c.imul(b); this.trim(); return this; }
+    smul(b: E): Polynomial<E> { return this.clone().ismul(b); }
+    isdiv(b: E): Polynomial<E> { for (let c of this.coeffs) c.idiv(b); this.trim(); return this; }
+    sdiv(b: E): Polynomial<E> { return this.clone().isdiv(b); }
+
+    euclidean(): bigint { return BigInt(this.degree); }
     divmod(b: Polynomial<E>): [Polynomial<E>, Polynomial<E>] {
         let m = this.degree;
         let n = b.degree;
-        if (n == -1) throw new RangeError("Division by zero");
+        if (n == -1) throw new DivisionError("Division by zero");
         // c[0..k-1] is the remainder so far
         // c[k..m] is the quotient so far
         let c = this.coeffs.map(x => x.clone());
@@ -123,6 +133,8 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
         return [new Polynomial<E>(this.coeff_ring, c.slice(n,m+1)),
                 new Polynomial<E>(this.coeff_ring, c.slice(0,n))];
     }
+    floordiv(y: Polynomial<E>): Polynomial<E> { let [q, r] = this.divmod(y); return q; }
+    mod(y: Polynomial<E>): Polynomial<E> { let [q, r] = this.divmod(y); return r; }
     
     div(b: Polynomial<E>): Polynomial<E> {
         if (b.degree == 0) // special faster case
@@ -130,21 +142,16 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
         else {
             let [q, r] = this.divmod(b);
             if (r.degree > -1)
-                throw RangeError("not divisible");
+                throw new DivisionError("not divisible");
             return q;
         }
     }
     idiv(b: Polynomial<E>): Polynomial<E> { this.coeffs = this.div(b).coeffs; return this; }
 
     inv(): Polynomial<E> {
-        throw RangeError("not implemented");
+        throw Error("not implemented");
     }
     
-    mod(b: Polynomial<E>): Polynomial<E> {
-        let [q, r] = this.divmod(b);
-        return r;
-    }
-
     equals(b: Polynomial<E>): boolean {
         if (this.degree != b.degree) return false;
         for (let i=0; i<=this.degree; i++)
@@ -216,7 +223,7 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
     toNumber(): number {
         if (this.degree == -1) return 0;
         else if (this.degree == 0) return Number(this.coeffs[0]);
-        else throw RangeError("can't convert to number");
+        else throw new RangeError("can't convert to number");
     }
     sign(): number { return +1; }
     abs(): Polynomial<E> { return this.clone(); }
@@ -241,4 +248,5 @@ export class Polynomials<E extends RingElement<E>> implements Ring<Polynomial<E>
     }
 }
 
+export const ZZ_x = new Polynomials(ZZ);
 export const QQ_x = new Polynomials(QQ);

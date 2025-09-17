@@ -1,5 +1,5 @@
 JSFILES=TrackballControls
-TSFILES=make move util main piece parse polyhedra fraction polynomial exact math fields
+TSFILES=make move util main piece parse polyhedra fraction polynomial exact math fields ring factoring
 BIN=./node_modules/.bin
 
 all: build/main.js build/dummy

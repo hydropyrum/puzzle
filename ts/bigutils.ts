@@ -72,3 +72,15 @@ export function extended_gcd(a: bigint, b: bigint) {
     }
     return [r0, s0, t0];
 }
+
+export function random(n: bigint) {
+    /* Generate random integer in [0, n). */
+    let r = 0n;
+    let m = n;
+    while (m > 0n) {
+        r *= 2n;
+        if (Math.random() > 0.5) r++;
+        m /= 2n;
+    }
+    return r % n;
+}
