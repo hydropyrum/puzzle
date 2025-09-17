@@ -1,5 +1,5 @@
-import { RingElement, Ring } from './ring';
-import { Polynomial, polynomial } from './polynomial';
+import { RingElement, Ring, Ordered } from './ring';
+import { Polynomial, polynomial, isolate_root } from './polynomial';
 import { Fraction, fraction } from './fraction';
 
 /* ℚ(θ) where θ is a root of a polynomial with rational coefficients. */
@@ -15,7 +15,7 @@ export class AlgebraicNumberField implements Ring<AlgebraicNumber> {
     constructor(poly: Polynomial<Fraction>, approx: Fraction) {
         this.degree = poly.degree;
         this.poly = poly;
-        [this.lower, this.upper] = poly.isolate_root(approx);
+        [this.lower, this.upper] = isolate_root(poly, approx);
         while (this.upper.sub(this.lower).compare(fraction(1,1000)) > 0)
             this.refine();
         this.approx = this.lower.middle(this.upper);
@@ -85,7 +85,7 @@ export function algebraicNumberField(poly: Polynomial<Fraction>|(Fraction|number
 
 export var QQ = algebraicNumberField([-1, 1], fraction(1));
 
-export class AlgebraicNumber implements RingElement<AlgebraicNumber> {
+export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<AlgebraicNumber> {
     field: AlgebraicNumberField;
     poly: Polynomial<Fraction>;
 
@@ -93,6 +93,12 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber> {
         this.field = field;
         this.poly = poly;
     }
+
+    equals(b: AlgebraicNumber): boolean {
+        let K = AlgebraicNumber.check_same_field(this, b);
+        return this.poly.equals(b.poly);
+    }
+    isZero(): boolean { return this.poly.degree == -1; }
 
     clone(): AlgebraicNumber {
         return new AlgebraicNumber(this.field, this.poly.clone());
@@ -102,12 +108,6 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber> {
         return this.poly.toString();
     }
     
-    // alternatively, could initially refine a few times and use
-    // midpoint of isolating interval
-    toNumber(): number {
-        return this.poly.eval_approx(this.field.approx.toNumber());
-    }
-
     static check_same_field(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumberField {
         if (a.field === b.field)
             return a.field;
@@ -185,14 +185,17 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber> {
     
     div(b: AlgebraicNumber): AlgebraicNumber { return this.mul(b.inv()); }
     idiv(b: AlgebraicNumber): AlgebraicNumber { return this.idiv(b.inv()); }
-    
-    equals(b: AlgebraicNumber): boolean {
-        let K = AlgebraicNumber.check_same_field(this, b);
-        return this.poly.equals(b.poly);
+
+    toNumber(): number {
+        let [lo, hi] = this.interval();
+        let t = 0;
+        while (hi.toNumber()-lo.toNumber() > 1e-10) { // arbitrary
+            this.field.refine();
+            [lo, hi] = this.interval();
+        }
+        return (lo.toNumber()+hi.toNumber())/2;
     }
-
-    isZero(): boolean { return this.poly.degree == -1; }
-
+    
     compare(b: AlgebraicNumber): number { return this.sub(b).sign(); }
 
     interval(): [Fraction, Fraction] {

@@ -12,7 +12,6 @@ export interface RingElement<E> {
     clone(): E;
     equals(y: E): boolean;
     toString(): string;
-    toNumber(): number;
     iadd(y: E): E;
     add(y: E): E;
     isub(y: E): E;
@@ -24,10 +23,6 @@ export interface RingElement<E> {
     idiv(y: E): E;
     div(y: E): E;
     inv(): E;
-    // If ring is ordered (otherwise may throw)
-    sign(): number; 
-    compare(y: E): number;
-    abs(): E;
 }
 
 export interface Euclidean<E> {
@@ -37,19 +32,25 @@ export interface Euclidean<E> {
     mod(y: E): E;
 }
 
+export interface Ordered<E> {
+    toNumber(): number;
+    sign(): number; 
+    compare(y: E): number;
+    abs(): E;
+}
+
 export interface Ring<E> {
     zero(): E;
     one(): E;
     fromInt(n: number): E;
 }
 
-export class Integer implements RingElement<Integer>, Euclidean<Integer> {
+export class Integer implements RingElement<Integer>, Euclidean<Integer>, Ordered<Integer> {
     n: bigint;
     constructor(n: bigint) { this.n = n; }
     clone(): Integer { return new Integer(this.n); }
     equals(y: Integer): boolean { return this.n == y.n; }
     toString(): string { return String(this.n); }
-    toNumber(): number { return Number(this.n); }
     
     iadd(y: Integer): Integer { this.n += y.n; return this; }
     add(y: Integer): Integer { return this.clone().iadd(y); }
@@ -87,6 +88,7 @@ export class Integer implements RingElement<Integer>, Euclidean<Integer> {
     }
     div(y: Integer): Integer { return this.clone().idiv(y); }
     
+    toNumber(): number { return Number(this.n); }
     sign(): number { return sign(this.n); }
     abs(): Integer { return new Integer(abs(this.n)); }
     compare(y: Integer): number {
@@ -120,7 +122,6 @@ export class IntegerMod implements RingElement<IntegerMod> {
     
     equals(y: IntegerMod): boolean { this.check(y); return this.n == y.n; }
     toString(): string { return String(this.n); }
-    toNumber(): number { return Number(this.n); }
     
     iadd(y: IntegerMod): IntegerMod {
         this.check(y);
@@ -163,11 +164,6 @@ export class IntegerMod implements RingElement<IntegerMod> {
         } else
             throw new DivisionError("Multiplicative inverse does not exist");
     }
-
-    // These don't make sense mod m
-    sign(): number { return this.n == 0n ? 0 : 1; }
-    abs(): IntegerMod { return this.clone(); }
-    compare(y: IntegerMod): number { throw new TypeError('Unsupported operation') }
 }
 
 export class IntegersMod implements Ring<IntegerMod> {

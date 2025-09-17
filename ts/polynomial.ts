@@ -29,18 +29,13 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
         let s = "";
         if (this.degree == -1) return "0";
         for (let i=this.degree; i>=0; i--) {
-            let sign = this.coeffs[i].sign();
-            let abs = this.coeffs[i].abs();
-
-            if (sign < 0)
-                s += " - ";
-            else if (sign == 0)
+            if (this.coeffs[i].equals(this.coeff_ring.zero()))
                 continue;
-            else if (sign > 0 && i < this.degree)
+            else if (i < this.degree)
                 s += " + "
 
-            if (!abs.equals(this.coeff_ring.one()) || i == 0)
-                s += String(abs);
+            if (!this.coeffs[i].equals(this.coeff_ring.one()) || i == 0)
+                s += String(this.coeffs[i]);
 
             if (i >= 1)
                 s += "x";
@@ -70,13 +65,6 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
         return sum;
     }
     
-    eval_approx(arg: number): number {
-        let sum = 0;
-        for (let i=this.degree; i>=0; i--)
-            sum = sum*arg + this.coeffs[i].toNumber();
-        return sum;
-    }
-
     iadd(b: Polynomial<E>): Polynomial<E> {
         for (let i=0; i<b.coeffs.length; i++) {
             if (i < this.coeffs.length)
@@ -165,69 +153,59 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
             coeffs.push(this.coeff_ring.fromInt(i).imul(this.coeffs[i]));
         return new Polynomial<E>(this.coeff_ring, coeffs);
     }
+}
 
-    sturm_sequence(arg: E): number {
-        /* Number of sign changes in Sturm sequence at arg. */
-        let p0: Polynomial<E> = this, p1 = this.derivative();
-        let prev_sign = p0.eval(arg).sign();
-        let changes = 0;
-        while (p1.degree >= 0) {
-            let cur_sign = p1.eval(arg).sign();
-            if (cur_sign != 0) {
-                if (prev_sign != 0 && cur_sign != prev_sign)
-                    changes++;
-                prev_sign = cur_sign;
-            }
-            [p0, p1] = [p1, p0.mod(p1).neg()];
+function sturm_sequence(p0: Polynomial<Fraction>, arg: Fraction): number {
+    /* Number of sign changes in Sturm sequence at arg. */
+    let p1 = p0.derivative();
+    let prev_sign = p0.eval(arg).sign();
+    let changes = 0;
+    while (p1.degree >= 0) {
+        let cur_sign = p1.eval(arg).sign();
+        if (cur_sign != 0) {
+            if (prev_sign != 0 && cur_sign != prev_sign)
+                changes++;
+            prev_sign = cur_sign;
         }
-        return changes;
+        [p0, p1] = [p1, p0.mod(p1).neg()];
     }
+    return changes;
+}
 
-    count_roots(lower: E, upper: E): number {
-        /* Number of real roots in interval [lower, upper] */
-        return (this.eval(lower).sign() == 0 ? 1 : 0) + this.sturm_sequence(lower) - this.sturm_sequence(upper);
-    }
+export function count_roots(p: Polynomial<Fraction>, lower: Fraction, upper: Fraction): number {
+    /* Number of real roots in interval [lower, upper] */
+    return (p.eval(lower).sign() == 0 ? 1 : 0) + sturm_sequence(p, lower) - sturm_sequence(p, upper);
+}
         
-    /* Find an isolating interval for the real root nearest x.
-       If there is a tie, chooses the higher root. */
-    isolate_root(x: E): [E, E] {
-        if (this.degree <= 0) throw new RangeError("can't isolate root of a constant polynomial");
-
-        // Bound distance to root
-        let bound = this.coeff_ring.zero();
-        for (let i=0; i<this.degree; i++)
-            if (bound.compare(this.coeffs[i].abs()) > 0)
-                bound = this.coeffs[i].abs();
-        bound.idiv(this.coeffs[this.degree].abs());
-        bound.iadd(this.coeff_ring.one());
-
-        // Binary search for distance
-        let dmin = this.coeff_ring.zero();
-        let dmax = bound.add(x.abs());
-        for (let i=0; i<100; i++) {
-            let dmid = dmin.add(dmax).idiv(this.coeff_ring.fromInt(2)); // to do: restore middle
-            let lower = x.sub(dmid);
-            let upper = x.add(dmid);
-            let c = this.count_roots(lower, upper);
-            if (c == 1)
-                return [lower, upper];
-            else if (c == 0)
-                dmin = dmid;
-            else /* if (c > 1) */
-                dmax = dmid;
-        }
-        throw new Error(`can't isolate root nearest to ${x} (perhaps there was a tie)`);
+/* Find an isolating interval for the real root nearest x.
+   If there is a tie, chooses the higher root. */
+export function isolate_root(p: Polynomial<Fraction>, x: Fraction): [Fraction, Fraction] {
+    if (p.degree <= 0) throw new RangeError("can't isolate root of a constant polynomial");
+    
+    // Bound distance to root
+    let bound = p.coeff_ring.zero();
+    for (let i=0; i<p.degree; i++)
+        if (bound.compare(p.coeffs[i].abs()) > 0)
+            bound = p.coeffs[i].abs();
+    bound.idiv(p.coeffs[p.degree].abs());
+    bound.iadd(p.coeff_ring.one());
+    
+    // Binary search for distance
+    let dmin = p.coeff_ring.zero();
+    let dmax = bound.add(x.abs());
+    for (let i=0; i<100; i++) {
+        let dmid = dmin.add(dmax).idiv(p.coeff_ring.fromInt(2)); // to do: restore middle
+        let lower = x.sub(dmid);
+        let upper = x.add(dmid);
+        let c = count_roots(p, lower, upper);
+        if (c == 1)
+            return [lower, upper];
+        else if (c == 0)
+            dmin = dmid;
+        else /* if (c > 1) */
+            dmax = dmid;
     }
-
-    /* These methods don't make sense for Polynomials */
-    toNumber(): number {
-        if (this.degree == -1) return 0;
-        else if (this.degree == 0) return Number(this.coeffs[0]);
-        else throw new RangeError("can't convert to number");
-    }
-    sign(): number { return +1; }
-    abs(): Polynomial<E> { return this.clone(); }
-    compare(y: Polynomial<E>): number { return 0; }
+    throw new Error(`can't isolate root nearest to ${x} (perhaps there was a tie)`);
 }
 
 export function polynomial(coeffs: (Fraction|bigint|number)[]): Polynomial<Fraction> {

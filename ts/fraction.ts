@@ -1,7 +1,7 @@
-import { RingElement, Ring } from './ring';
+import { RingElement, Ring, Ordered } from './ring';
 import { gcd, sign, abs } from './bigutils';
 
-export class Fraction implements RingElement<Fraction> {
+export class Fraction implements RingElement<Fraction>, Ordered<Fraction> {
     n: bigint;
     d: bigint;
     constructor(n: bigint, d: bigint, reduce: boolean = true) {
@@ -15,7 +15,13 @@ export class Fraction implements RingElement<Fraction> {
         this.d = d;
         if (reduce) this.reduce();
     }
-
+    
+    clone(): Fraction { return new Fraction(this.n, this.d, false); }
+    
+    equals(y: Fraction): boolean {
+        return this.n * y.d == this.d * y.n;
+    }
+    
     reduce(): Fraction {
         let g = gcd(this.n, this.d);
         this.n /= g;
@@ -23,17 +29,12 @@ export class Fraction implements RingElement<Fraction> {
         return this;
     }
 
-    clone(): Fraction { return new Fraction(this.n, this.d, false); }
 
     toString(): string {
         if (this.d == 1n)
             return String(this.n);
         else
             return String(this.n) + '/' + String(this.d);
-    }
-
-    toNumber(): number {
-        return Number(this.n)/Number(this.d);
     }
 
     ineg(): Fraction { this.n = -this.n; return this; }
@@ -89,8 +90,22 @@ export class Fraction implements RingElement<Fraction> {
     }
     div(y: Fraction): Fraction { return this.clone().idiv(y); }
     
-    equals(y: Fraction): boolean {
-        return this.n * y.d == this.d * y.n;
+    toNumber(): number {
+        let [a,b] = [this.n, this.d];
+        if (a == 0n) return 0;
+        let e = 0;
+        // Want b/2 <= a < b
+        while (abs(2n*a) < abs(b)) {
+            a *= 2n;
+            e--;
+        }
+        while (abs(a) >= abs(b)) {
+            b *= 2n;
+            e++;
+        }
+        const p = 53;
+        let x = Number(a*2n**BigInt(p)/b)*2**(e-p);
+        return x;
     }
     sign(): number { return sign(this.n); }
     compare(y: Fraction): number {

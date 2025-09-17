@@ -1,17 +1,17 @@
-import { Polynomial, polynomial } from './polynomial';
+import { Polynomial, polynomial, count_roots, isolate_root } from './polynomial';
 import { Fraction, fraction } from './fraction';
 
 let polys = [
     {c: [], s: "0", f: x=>0},
     {c: [1], s: "1", f: x=>1},
-    {c: [-1], s: " - 1", f: x=>-1},
+    {c: [-1], s: "-1", f: x=>-1},
     {c: [0, 1], s: "x", f: x=>x},
     {c: [1, 1], s: "x + 1", f: x=>x+1},
-    {c: [-1, 1], s: "x - 1", f: x=>x-1},
-    {c: [1, -1], s: " - x + 1", f: x=>-x+1},
-    {c: [-1, -1], s: " - x - 1", f: x=>-x-1},
+    {c: [-1, 1], s: "x + -1", f: x=>x-1},
+    {c: [1, -1], s: "-1x + 1", f: x=>-x+1},
+    {c: [-1, -1], s: "-1x + -1", f: x=>-x-1},
     {c: [0, 2], s: "2x", f: x=>2*x},
-    {c: [0, -2], s: " - 2x", f: x=>-2*x},
+    {c: [0, -2], s: "-2x", f: x=>-2*x},
     {c: [0, 0, 1], s: "x²", f: x=>x**2},
 ];
 
@@ -35,13 +35,6 @@ test('eval', () => {
     for (let p of polys)
         for (let x of args)
             expect(polynomial(p.c).eval(fraction(x)).toNumber())
-                .toBeCloseTo(p.f(x));
-});
-
-test('eval_approx', () => {
-    for (let p of polys)
-        for (let x of args)
-            expect(polynomial(p.c).eval_approx(x))
                 .toBeCloseTo(p.f(x));
 });
 
@@ -109,7 +102,7 @@ test('count_roots', () => {
             for (let r of roots)
                 if (points[i] <= r && r <= points[j])
                     true_count += 1;
-            expect(poly.count_roots(fraction(points[i]), fraction(points[j]))).toBe(true_count);
+            expect(count_roots(poly, fraction(points[i]), fraction(points[j]))).toBe(true_count);
         }
 });
 
@@ -122,9 +115,9 @@ test('isolate_root', () => {
     for (let x of points) {
         roots.sort((a,b) => Math.abs(a-x) - Math.abs(b-x));
         let root = roots[0];
-        let [lower, upper] = poly.isolate_root(fraction(x*10,10));
+        let [lower, upper] = isolate_root(poly, fraction(x*10,10));
         expect(roots.filter(r => lower.toNumber() <= r && r <= upper.toNumber())).toEqual([root]);
     }
     for (let x of tie_points)
-        expect(() => poly.isolate_root(fraction(x*10,10))).toThrow();
+        expect(() => isolate_root(poly, fraction(x*10,10))).toThrow();
 });
