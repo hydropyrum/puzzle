@@ -1,4 +1,4 @@
-import { Ring, Integer, ZZ, IntegerMod, IntegersMod, power, product, gcd, extended_gcd, DivisionError } from './ring';
+import { Ring, Integer, ZZ, IntegerMod, IntegersMod, power_mod, product, gcd, extended_gcd, DivisionError } from './ring';
 import { Fraction, QQ } from './fraction';
 import { Polynomial, Polynomials, QQ_x } from './polynomial';
 import { primes, comb, sqrt, random, gcd as bigint_gcd } from './bigutils';
@@ -25,10 +25,9 @@ export function* combinations<T>(xs: T[], k: number, i: number = 0): Generator<T
     }
 }
 
-function factor_squarefree(A: Polynomial<Integer>) {
+function factor_squarefree(A: Polynomial<Fraction>): Polynomial<Integer> {
     /* Make A squarefree and primitive. */
-    let A_Q = A.map(QQ, c => new Fraction(c.n, 1n));
-    let A_sf = A_Q.div(gcd(QQ_x, A_Q, A_Q.derivative()).monic());
+    let A_sf = A.div(gcd(QQ_x, A, A.derivative()).monic());
     let n_gcd = A_sf.coeffs[0].n;
     let d_lcm = A_sf.coeffs[0].d;
     for (let c of A_sf.coeffs) {
@@ -59,7 +58,7 @@ function factor_distinct_degrees(A: Polynomial<IntegerMod>, p: bigint) {
     let V = A;
     let W = x;
     for (let d=1; 2*d<=A.degree; d++) {
-        W = power(Fpx, W, p, V); // ≡ x**(p**d) mod V
+        W = power_mod(Fpx, W, p, V); // ≡ x**(p**d) mod V
         let A_d = gcd(Fpx, W.sub(x), V);
         factors.push(A_d);
         V = V.div(A_d);
@@ -95,7 +94,7 @@ function factor_cantor_zassenhaus(A: Polynomial<IntegerMod>, d: number, p: bigin
         coeffs.push(new IntegerMod(1n, p));
         let T = new Polynomial(Fp, coeffs);
         // This is a non-trivial factor of A with probability close to 1/2
-        let B1 = gcd(Fpx, A, power(Fpx, T, (p**BigInt(d)-1n)/2n, A).sub(one)).monic();
+        let B1 = gcd(Fpx, A, power_mod(Fpx, T, (p**BigInt(d)-1n)/2n, A).sub(one)).monic();
         if (0 < B1.degree && B1.degree < A.degree) {
             let [B2,] = A.divmod(B1);
             let factors = factor_cantor_zassenhaus(B1, d, p).concat(factor_cantor_zassenhaus(B2, d, p));
@@ -270,10 +269,10 @@ function choose_prime(U: Polynomial<Integer>): [bigint, Polynomial<IntegerMod>] 
     throw new Error("this shouldn't happen");
 }
 
-export function factor(A: Polynomial<Integer>) {
+export function factor(A: Polynomial<Fraction>) {
     let verbose = false;
     if (verbose) console.log('to factor:', String(A));
-    
+
     // Make squarefree and primitive
     let U = factor_squarefree(A);
     if (verbose) console.log('squarefree and primitive:', String(U));
@@ -295,6 +294,6 @@ export function factor(A: Polynomial<Integer>) {
     let factors_q = hensel_lift(U, factors_p, p, e);
     if (verbose) console.log('factors mod', p**e, factors_q.map(String));
 
-    // Final combination
-    return combine_factors(U, factors_q, p**e);;
+    // Final combination and convert to rational
+    return combine_factors(U, factors_q, p**e).map(f => f.map(QQ, c => new Fraction(c.n, 1n)));
 }

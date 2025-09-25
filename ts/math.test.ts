@@ -1,8 +1,8 @@
 import { ExactVector3, ExactPlane, ExactQuaternion } from './math';
-import { AlgebraicNumber, QQ } from './exact';
+import { AlgebraicNumber, QQ_nothing } from './exact';
 import * as THREE from 'three';
 
-let fromNumber = (n) => QQ.fromInt(n);
+let fromNumber = (n) => QQ_nothing.fromInt(n);
 let planes = [
     new ExactPlane(new ExactVector3(fromNumber(1), fromNumber(1), fromNumber(1)), fromNumber(0)),
     new ExactPlane(new ExactVector3(fromNumber(1), fromNumber(1), fromNumber(1)), fromNumber(3)),

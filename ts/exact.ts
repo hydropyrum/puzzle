@@ -1,6 +1,7 @@
-import { RingElement, Ring, Ordered } from './ring';
-import { Polynomial, polynomial, isolate_root } from './polynomial';
-import { Fraction, fraction } from './fraction';
+import { RingElement, Ring, Ordered, gcd } from './ring';
+import { Polynomial, Polynomials, polynomial, QQ_x, count_roots, isolate_root, resultant } from './polynomial';
+import { factor } from './factoring';
+import { Fraction, fraction, QQ } from './fraction';
 
 /* ℚ(θ) where θ is a root of a polynomial with rational coefficients. */
 export class AlgebraicNumberField implements Ring<AlgebraicNumber> {
@@ -83,7 +84,7 @@ export function algebraicNumberField(poly: Polynomial<Fraction>|(Fraction|number
     return new AlgebraicNumberField(poly, approx);
 }
 
-export var QQ = algebraicNumberField([-1, 1], fraction(1));
+export var QQ_nothing = algebraicNumberField([-1, 1], fraction(1));
 
 export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<AlgebraicNumber> {
     field: AlgebraicNumberField;
@@ -184,7 +185,7 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<Al
     }
     
     div(b: AlgebraicNumber): AlgebraicNumber { return this.mul(b.inv()); }
-    idiv(b: AlgebraicNumber): AlgebraicNumber { return this.idiv(b.inv()); }
+    idiv(b: AlgebraicNumber): AlgebraicNumber { return this.imul(b.inv()); }
 
     toNumber(): number {
         let [lo, hi] = this.interval();
@@ -235,4 +236,141 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<Al
         else
             return this;
     }
+}
+
+function poly2(coeffs: (number|Fraction)[][]) { return new Polynomial(QQ_x, coeffs.map(polynomial)); }
+
+export function normal(B: Polynomial<AlgebraicNumber>): Polynomial<Fraction> {
+    /* If B is the minimal polynomial of β over K, find the minimal polynomial of β over Q.
+
+       Arguments:
+       - B: polynomial with coefficients in K
+
+       Returns:
+       - polynomial with coefficients in Q
+    */
+
+    let A = (B.coeff_ring as AlgebraicNumberField).poly;
+
+    // change α into inner variable, "transpose" inner and outer
+    let B_coeffs: Fraction[][] = [];
+    for (let i=0; i<=A.degree; i++)
+        B_coeffs.push(B.coeffs.map(c => i <= c.poly.degree ? c.poly.coeffs[i] : fraction(0)));
+
+    // Res_x(A(x), B(x,y))
+    let B_normal = resultant(poly2(A.coeffs.map(c => [c])), poly2(B_coeffs));
+    
+    // make squarefree
+    B_normal.idiv(gcd(QQ_x, B_normal, B_normal.derivative()));
+    return B_normal.monic();
+}
+
+export function extend(Q_alpha: AlgebraicNumberField, Q_beta: AlgebraicNumberField): [AlgebraicNumberField, AlgebraicNumber, AlgebraicNumber] {
+    /* Given Q(α) and Q(β), construct Q(α,β).
+       Arguments:
+       - Q_alpha, Q_beta: AlgebraicNumberFields
+       Returns: (Q_alpha_beta, alpha, beta)
+       - Q_alpha_beta: the new field
+       - alpha: the primitive element of Q_alpha, represented in Q_alpha_beta
+       - beta: the primitive element of Q_beta, represented in Q_alpha_beta
+    */
+    
+    let [A, B] = [Q_alpha.poly, Q_beta.poly];
+
+    // Choose primitive element. It will be of the form kα+β for some k.
+    let k: number;
+    let C_mult: Polynomial<Fraction>;
+    for (k=1;; k++) {
+        // Find a polynomial with root kα+β
+        let QQ_x_y = new Polynomials(QQ_x);
+        let A_bivar = poly2(A.coeffs.map(c => [c]));
+        let B_bivar = B.map(QQ_x_y, c => poly2([[c]]));
+        let beta = poly2([[0, 1], [-k]]); // z-kx
+        C_mult = resultant(A_bivar, B_bivar.eval(beta)); // Res_x(A(x), B(z-kx))
+        // If C_mult is squarefree, then all the conjugates of kα+β are distinct,
+        // so kα+β is a primitive element of Q(α,β).
+        if (gcd(QQ_x, C_mult, C_mult.derivative()).degree == 0)
+            break;
+    }
+
+    // Choose the factor of C_mult that has kα+β as a root. This is the minimal polynomial.
+    let C_factors = factor(C_mult);
+    let C: Polynomial<Fraction>|null = null;
+    let lower: Fraction|null = null;
+    let upper: Fraction|null = null;
+    for (let factor of C_factors) {
+        let count: number;
+        while (true) {
+            console.assert(k >= 0);
+            lower = Q_alpha.lower.mul(fraction(k)).iadd(Q_beta.lower);
+            upper = Q_alpha.upper.mul(fraction(k)).iadd(Q_beta.upper);
+            count = count_roots(factor, lower, upper);
+            if (count < 2)
+                break;
+            else {
+                Q_alpha.refine();
+                Q_beta.refine();
+            }
+        }
+        if (count == 1) {
+            C = factor;
+            break;
+        }
+    }
+    if (C === null)
+        throw new Error("Could not construct C (this shouldn't happen)");
+    
+    // to do: don't convert interval to midpoint and then back to interval again
+    let Q_gamma = new AlgebraicNumberField(C as Polynomial<Fraction>,
+                                           (lower as Fraction).add(upper as Fraction).idiv(fraction(2)));
+
+    // Choose the new field and represent α and β in it.
+
+    let field, alpha_vec, beta_vec;
+
+    beta_vec = helper(Q_alpha, B, C, [[0, k], [1]]);
+    if (beta_vec !== null) {
+        field = Q_alpha;
+        alpha_vec = Q_alpha.fromVector([0,1]);
+    } else {
+        alpha_vec = helper(Q_beta, A, C, [[0, 1], [k]]);
+        if (alpha_vec !== null) {
+            field = Q_beta;
+            beta_vec = Q_beta.fromVector([0,1]);
+        } else {
+            field = Q_gamma;
+            alpha_vec = helper(Q_gamma, A, B, [[0, 1], [-k]]);
+            beta_vec = helper(Q_gamma, B, A, [[0, fraction(1, k)], [fraction(-1, k)]]);
+        }
+    }
+    if (alpha_vec === null || beta_vec === null)
+        throw new Error("Could not represent alpha and beta (this shouldn't happen)");
+    
+    return [field, alpha_vec, beta_vec];
+}
+
+function helper(Q_alpha: AlgebraicNumberField, B: Polynomial<Fraction>, C: Polynomial<Fraction>, g: (Fraction|number)[][]): AlgebraicNumber|null {
+    /* Test whether the roots of f are in K.
+
+       Arguments:
+       - Q_alpha: an AlgebraicNumberField
+       - B: the Polynomial (in Q[y]) to be tested
+       - C: another Polynomial in Q[z]
+       - g: another Polynomial in Q[x,y]
+
+       C(g(α, y)) should have β as a root, but not any of its other conjugates.
+     */
+    // Represent β in Q(α) as gcd(B(y), C(g(α, y)))
+    function poly_alpha(coeffs: (number|Fraction)[][]) {
+        return new Polynomial(Q_alpha, coeffs.map(c => Q_alpha.fromVector(c)));
+    }
+    let Q_alpha_x = new Polynomials(Q_alpha);
+    let B_alpha = poly_alpha(B.coeffs.map(c => [c]));
+    let C_alpha_x = C.map(Q_alpha_x, c => poly_alpha([[c]]));
+    let gamma = poly_alpha(g);
+    let B_factor = gcd(Q_alpha_x, B_alpha, C_alpha_x.eval(gamma));
+    if (B_factor.degree == 1)
+        return B_factor.monic().coeffs[0].neg();
+    else
+        return null;
 }

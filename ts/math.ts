@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { AlgebraicNumber, QQ } from './exact';
+import { AlgebraicNumber, QQ_nothing } from './exact';
 
 export class ExactVector3 {
     x: AlgebraicNumber;
@@ -107,8 +107,8 @@ export class ExactQuaternion {
     }
 
     static identity(): ExactQuaternion {
-        let zero = QQ.fromInt(0);
-        let one = QQ.fromInt(1);
+        let zero = QQ_nothing.fromInt(0);
+        let one = QQ_nothing.fromInt(1);
         return new ExactQuaternion(zero, zero, zero, one);
     }
 
@@ -122,7 +122,7 @@ export class ExactQuaternion {
             if (xy.sign() > 0)
                 return ExactQuaternion.identity(); // 0 degrees
             else
-                return new ExactQuaternion(k.x, k.y, k.z, QQ.fromInt(0)); // 180 degrees
+                return new ExactQuaternion(k.x, k.y, k.z, QQ_nothing.fromInt(0)); // 180 degrees
         } else {
             return new ExactQuaternion(k.x, k.y, k.z, kxy.div(x.dot(x).sub(xy)));
         }
@@ -153,7 +153,7 @@ export class ExactQuaternion {
     }
 
     pseudoAngle(): AlgebraicNumber {
-        let one = QQ.fromInt(1);
+        let one = QQ_nothing.fromInt(1);
         let w = this.w;
         return one.sub(w.mul(w.abs()).div(this.normSquared()));
     }
@@ -182,7 +182,7 @@ export class ExactQuaternion {
     }
 
     apply(v: ExactVector3): ExactVector3 {
-        let zero = QQ.fromInt(0);
+        let zero = QQ_nothing.fromInt(0);
         let vq = new ExactQuaternion(v.x, v.y, v.z, zero);
         let vr = this.mul(vq).mul(this.inv());
         console.assert(vr.w.isZero());

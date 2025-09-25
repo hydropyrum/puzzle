@@ -1,4 +1,4 @@
-import { Polynomial, polynomial, count_roots, isolate_root } from './polynomial';
+import { Polynomial, polynomial, count_roots, isolate_root, resultant } from './polynomial';
 import { Fraction, fraction } from './fraction';
 
 let polys = [
@@ -120,4 +120,17 @@ test('isolate_root', () => {
     }
     for (let x of tie_points)
         expect(() => isolate_root(poly, fraction(x*10,10))).toThrow();
+});
+
+test('resultant', () => {
+    let roots1 = [1, 3, 5, 7];
+    let roots2 = [2, 4, 6, 8];
+    let poly1 = roots1
+        .map(x => polynomial([fraction(-x), fraction(1)]))
+        .reduce((p, q) => p.mul(q));
+    let poly2 = roots2
+        .map(x => polynomial([fraction(-x), fraction(1)]))
+        .reduce((p, q) => p.mul(q));
+    expect(resultant(poly1, poly2)).toStrictEqual(fraction(212625n));
+    expect(resultant(poly1, poly1)).toStrictEqual(fraction(0n));
 });

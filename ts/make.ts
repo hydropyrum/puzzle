@@ -5,7 +5,7 @@ import { PolyGeometry, cube_polygeometry, slice_polygeometry } from './piece';
 import { ExactPlane } from './math';
 import { setdefault } from './util';
 import * as polyhedra from './polyhedra';
-import { AlgebraicNumber, QQ } from './exact';
+import { AlgebraicNumber, QQ_nothing } from './exact';
 import * as parse from './parse';
 
 function get_color(i: number): THREE.Color {
@@ -26,7 +26,7 @@ const cut_color = new THREE.Color(0x666666);
 export function make_shell(faces: ExactPlane[]): PolyGeometry {
     /* Find intersection of backs of faces and return as a Geometry. 
        Only works for convex polyhedra. */
-    let g = cube_polygeometry(QQ.fromInt(1000), cut_color, true);
+    let g = cube_polygeometry(QQ_nothing.fromInt(1000), cut_color, true);
     let front;
     for (let i=0; i<faces.length; i++)
         [front, g] = slice_polygeometry(g, faces[i], get_color(i), false);

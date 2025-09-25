@@ -1,5 +1,5 @@
-import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber } from './exact';
-import { polynomial } from './polynomial';
+import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber, normal, extend } from './exact';
+import { Polynomial, polynomial } from './polynomial';
 import { fraction } from './fraction';
 
 // ℚ(√2,√3)
@@ -72,4 +72,47 @@ test('divide', () => {
 test('sign', () => {
     for (let a of vals.map(v => K.fromVector(v.c)))
         expect(a.sign()).toBe(Math.sign(a.toNumber()));
+});
+
+test('normal', () => {
+    // x² - √2
+    let p = new Polynomial(K, [
+        K.fromVector([fraction(0), fraction(-9,2), fraction(0), fraction(1,2)]).neg(),
+        K.fromVector([]),
+        K.fromVector([fraction(1)])]);
+    expect(normal(p)).toStrictEqual(polynomial([-2, 0, 0, 0, 1]));
+});
+
+let K2 = algebraicNumberField([-2, 0, 1], fraction(1414214,1000000));
+let K3 = algebraicNumberField([-3, 0, 1], fraction(1732051,1000000));
+let K5 = algebraicNumberField([-5, 0, 1], fraction(2236068,1000000));
+let K2p3 = algebraicNumberField([1, 0, -10, 0, 1], fraction(3146264,1000000));
+let K3p5 = algebraicNumberField([4, 0, -16, 0, 1], fraction(3968119,1000000));
+
+function equals(Q_gamma, alpha, Q_alpha) {
+    // Check whether alpha ∈ Q_gamma is equal to primitive element of Q_alpha
+    let [alpha_lower, alpha_upper] = alpha.interval();
+    for (let t=0; t<100; t++) {
+        if (alpha_lower.compare(Q_alpha.lower) >= 0 && alpha_upper.compare(Q_alpha.upper) <= 0)
+            return true;
+        if (alpha_upper.compare(Q_alpha.lower) < 0 || alpha_lower.compare(Q_alpha.upper) > 0)
+            return false;
+
+        Q_gamma.refine();
+        [alpha_lower, alpha_upper] = alpha.interval();
+    }
+    return false;
+}
+
+test('extend', () => {
+    for (let Q_alpha of [K2, K3, K5, K2p3, K3p5])
+        for (let Q_beta of [K2, K3, K5, K2p3, K3p5]) {
+            let [Q_gamma, alpha, beta] = extend(Q_alpha, Q_beta);
+            
+            expect(Q_alpha.poly.map(Q_gamma, c => Q_gamma.fromVector([c])).eval(alpha)).toStrictEqual(Q_gamma.zero());
+            expect(equals(Q_gamma, alpha, Q_alpha)).toBe(true);
+            
+            expect(Q_beta.poly.map(Q_gamma, c => Q_gamma.fromVector([c])).eval(beta)).toStrictEqual(Q_gamma.zero());
+            expect(equals(Q_gamma, beta, Q_beta)).toBe(true);
+        }
 });

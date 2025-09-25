@@ -174,7 +174,7 @@ export class IntegersMod implements Ring<IntegerMod> {
     fromInt(n: number): IntegerMod { return new IntegerMod(BigInt(n), this.m); }
 }
 
-export function power<E extends RingElement<E> & Euclidean<E>>(K: Ring<E>, g: E, n: bigint, q: E) {
+export function power<E extends RingElement<E>>(K: Ring<E>, g: E, n: bigint) {
     /* Compute g**n by repeated squaring. Cohen, Algorithm 1.2.1. */
     if (n < 0) throw new RangeError();
     // k = 0
@@ -184,11 +184,27 @@ export function power<E extends RingElement<E> & Euclidean<E>>(K: Ring<E>, g: E,
     while (m > 0n) {
         // invariant: g^n = (g^(m * 2^k)) * y, z = g^(2^k)
         if (m % 2n == 1n) {
+            y = y.mul(z);
+            m--;
+        } else {
+            z = z.mul(z);
+            // k += 1
+            m /= 2n;
+        }
+    }
+    return y;
+}
+
+export function power_mod<E extends RingElement<E> & Euclidean<E>>(K: Ring<E>, g: E, n: bigint, q: E) {
+    let y = K.one();
+    let z = g;
+    let m = n;
+    while (m > 0n) {
+        if (m % 2n == 1n) {
             y = y.mul(z).mod(q);
             m--;
         } else {
             z = z.mul(z).mod(q);
-            // k += 1
             m /= 2n;
         }
     }
