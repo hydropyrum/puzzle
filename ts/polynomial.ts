@@ -238,7 +238,7 @@ export function isolate_root(p: Polynomial<Fraction>, x: Fraction): [Fraction, F
     let dmin = p.coeff_ring.zero();
     let dmax = bound.add(x.abs());
     for (let i=0; i<100; i++) {
-        let dmid = dmin.add(dmax).idiv(p.coeff_ring.fromInt(2)); // to do: restore middle
+        let dmid = dmin.middle(dmax);
         let lower = x.sub(dmid);
         let upper = x.add(dmid);
         let c = count_roots(p, lower, upper);

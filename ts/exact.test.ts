@@ -1,4 +1,4 @@
-import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber, normal, extend } from './exact';
+import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber, QQ_nothing, normal, extend } from './exact';
 import { Polynomial, polynomial } from './polynomial';
 import { fraction } from './fraction';
 
@@ -105,8 +105,8 @@ function equals(Q_gamma, alpha, Q_alpha) {
 }
 
 test('extend', () => {
-    for (let Q_alpha of [K2, K3, K5, K2p3, K3p5])
-        for (let Q_beta of [K2, K3, K5, K2p3, K3p5]) {
+    for (let Q_alpha of [QQ_nothing, K2, K3, K5, K2p3, K3p5])
+        for (let Q_beta of [QQ_nothing, K2, K3, K5, K2p3, K3p5]) {
             let [Q_gamma, alpha, beta] = extend(Q_alpha, Q_beta);
             
             expect(Q_alpha.poly.map(Q_gamma, c => Q_gamma.fromVector([c])).eval(alpha)).toStrictEqual(Q_gamma.zero());

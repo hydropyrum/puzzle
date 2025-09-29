@@ -5,8 +5,7 @@ import { polyhedron } from './polyhedra';
 import { Puzzle, Cut, find_cuts, find_stops, make_move } from './move';
 import { PolyGeometry } from './piece';
 import { ExactPlane, ExactVector3, ExactQuaternion } from './math';
-import { AlgebraicNumberField, AlgebraicNumber } from './exact';
-import { makeFields } from './fields';
+import { AlgebraicNumberField, AlgebraicNumber, promote } from './exact';
 import { setdefault } from './util';
 import * as parse from './parse';
 
@@ -368,7 +367,7 @@ class RecipeForm {
 var recipeForm = new RecipeForm();
 recipeForm.set_from_recipe(recipe);
 
-function shapes_to_planes(shapes: parse.Shape[], field: AlgebraicNumberField, values: {[key: string]: AlgebraicNumber}): ExactPlane[] {
+function shapes_to_planes(shapes: parse.Shape[]): ExactPlane[] {
     let pplanes: parse.Plane[] = [];
     for (let s of shapes) {
         switch (s.tag) {
@@ -383,10 +382,10 @@ function shapes_to_planes(shapes: parse.Shape[], field: AlgebraicNumberField, va
     
     let eplanes: ExactPlane[] = [];
     for (let pp of pplanes) {
-        eplanes.push(new ExactPlane(new ExactVector3(parse.evalExpr(pp.a, field, values),
-                                                     parse.evalExpr(pp.b, field, values),
-                                                     parse.evalExpr(pp.c, field, values)),
-                                    parse.evalExpr(pp.d, field, values)));
+        eplanes.push(new ExactPlane(new ExactVector3(parse.evalExpr(pp.a),
+                                                     parse.evalExpr(pp.b),
+                                                     parse.evalExpr(pp.c)),
+                                    parse.evalExpr(pp.d)));
     }
     return eplanes;
 }
@@ -399,31 +398,26 @@ function apply_cuts(): void {
     set_url(recipe);
 
     console.time('pieces constructed in');
-    let shell: PolyGeometry|undefined;
-    let cutplanes: ExactPlane[]|undefined;
-    for (let fv of makeFields()) {
-        try {
-            shell = make_shell(shapes_to_planes(recipe.shell, fv.field, fv.values));
-            cutplanes = shapes_to_planes(recipe.cuts, fv.field, fv.values);
-            break;
-        } catch (e) {
-            if (e instanceof parse.ParseError) {
-                // do nothing
-            } else {
-                throw e;
-            }
-        }
+    let shell_planes = shapes_to_planes(recipe.shell);
+    let cut_planes = shapes_to_planes(recipe.cuts);
+    let all_planes = shell_planes.concat(cut_planes);
+    let all_numbers: AlgebraicNumber[] = [];
+    for (let plane of all_planes)
+        all_numbers.push(plane.normal.x, plane.normal.y, plane.normal.z, plane.constant);
+    all_numbers = promote(all_numbers);
+    console.log(`Computing in field ${all_numbers[0].field}`);
+    let i = 0;
+    for (let plane of all_planes) {
+        [plane.normal.x, plane.normal.y, plane.normal.z, plane.constant] = all_numbers.slice(i, i+4);
+        i += 4;
     }
-    if (shell !== undefined && cutplanes !== undefined) {
-        let newPuzzle = new Puzzle(make_cuts(cutplanes, [shell]));
-        // Find circumradius, which we will scale to 1
-        let r = 0;
-        for (let v of shell.vertices.map(v => v.toThree()))
-            if (v.length() > r) r = v.length();
-        draw_puzzle(newPuzzle, scene, 1/r);
-    } else {
-        throw new Error("couldn't find a field");
-    }
+    let shell = make_shell(shell_planes);
+    let newPuzzle = new Puzzle(make_cuts(cut_planes, [shell]));
+    // Find circumradius, which we will scale to 1
+    let r = 0;
+    for (let v of shell.vertices.map(v => v.toThree()))
+        if (v.length() > r) r = v.length();
+    draw_puzzle(newPuzzle, scene, 1/r);
     console.timeEnd('pieces constructed in');
     console.log('pieces with at least one exterior face:', puzzle.pieces.length);
     render_requested = true;

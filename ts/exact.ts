@@ -33,7 +33,7 @@ export class AlgebraicNumberField implements Ring<AlgebraicNumber> {
     }
 
     toString(): string {
-        return this.poly.toString();
+        return `Q(root of ${this.poly})`;
     }
 
     zero() { return new AlgebraicNumber(this, polynomial([])); }
@@ -92,7 +92,7 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<Al
 
     constructor(field: AlgebraicNumberField, poly: Polynomial<Fraction>) {
         this.field = field;
-        this.poly = poly;
+        this.poly = poly.mod(field.poly);
     }
 
     equals(b: AlgebraicNumber): boolean {
@@ -106,7 +106,7 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<Al
     }
 
     toString(): string {
-        return this.poly.toString();
+        return `${this.poly} in ${this.field}`;
     }
     
     static check_same_field(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumberField {
@@ -322,7 +322,7 @@ export function extend(Q_alpha: AlgebraicNumberField, Q_beta: AlgebraicNumberFie
     
     // to do: don't convert interval to midpoint and then back to interval again
     let Q_gamma = new AlgebraicNumberField(C as Polynomial<Fraction>,
-                                           (lower as Fraction).add(upper as Fraction).idiv(fraction(2)));
+                                           (lower as Fraction).middle(upper as Fraction));
 
     // Choose the new field and represent α and β in it.
 
@@ -331,12 +331,12 @@ export function extend(Q_alpha: AlgebraicNumberField, Q_beta: AlgebraicNumberFie
     beta_vec = helper(Q_alpha, B, C, [[0, k], [1]]);
     if (beta_vec !== null) {
         field = Q_alpha;
-        alpha_vec = Q_alpha.fromVector([0,1]);
+        alpha_vec = Q_alpha.fromVector([0, 1]);
     } else {
         alpha_vec = helper(Q_beta, A, C, [[0, 1], [k]]);
         if (alpha_vec !== null) {
             field = Q_beta;
-            beta_vec = Q_beta.fromVector([0,1]);
+            beta_vec = Q_beta.fromVector([0, 1]);
         } else {
             field = Q_gamma;
             alpha_vec = helper(Q_gamma, A, B, [[0, 1], [-k]]);
@@ -373,4 +373,17 @@ function helper(Q_alpha: AlgebraicNumberField, B: Polynomial<Fraction>, C: Polyn
         return B_factor.monic().coeffs[0].neg();
     else
         return null;
+}
+
+export function promote(xs: AlgebraicNumber[]) {
+    /* Promote a list of algebraic numbers to all be in the same number field. */
+    for (let i=1; i<xs.length; i++) {
+        let [field, alpha, beta] = extend(xs[i-1].field, xs[i].field);
+        if (field !== xs[i-1].field)
+            for (let j=0; j<i; j++)
+                xs[j] = xs[j].poly.map(field, c => field.fromVector([c])).eval(alpha);
+        if (field !== xs[i].field)
+            xs[i] = xs[i].poly.map(field, c => field.fromVector([c])).eval(beta);
+    }
+    return xs;
 }

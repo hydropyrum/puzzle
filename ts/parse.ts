@@ -1,6 +1,7 @@
 /* Parse expressions and URLs */
 
-import { AlgebraicNumberField, AlgebraicNumber } from './exact';
+import { AlgebraicNumberField, AlgebraicNumber, QQ_nothing, normal, promote } from './exact';
+import { Polynomial } from './polynomial';
 import { fraction, Fraction } from './fraction';
 
 export class ParseError extends Error {
@@ -52,24 +53,38 @@ export interface Puzzle {
   F -> <constant>
 */
 
-export function evalExpr(x: Expr, field: AlgebraicNumberField, values: {[key: string]: AlgebraicNumber}): AlgebraicNumber {
+function root(x: AlgebraicNumber, k: number) {
+    /* Compute the k-th root of x, possibly in a different number field. */
+    let field = x.field;
+    let coeffs = [x.neg()];
+    for (let i=0; i<k-1; i++)
+        coeffs.push(field.fromInt(0));
+    coeffs.push(field.fromInt(1));
+    let poly = normal(new Polynomial(field, coeffs));
+    let new_field = new AlgebraicNumberField(poly, fraction(1));
+    return new_field.fromVector([0, 1]);
+}
+
+export function evalExpr(x: Expr): AlgebraicNumber {
     function visit(x: Expr): AlgebraicNumber {
         let args = x.args.map(visit);
+        if (args.length == 2)
+            args = promote([args[0], args[1]]);
         switch (x.op) {
             case '+': return args[0].add(args[1]);
             case '-': return args[0].sub(args[1]);
             case '*': return args[0].mul(args[1]);
             case '/': return args[0].div(args[1]);
             case 'neg': return args[0].neg();
-            case 'num': return field.fromVector([x.val!]);
+            case 'num': return QQ_nothing.fromVector([x.val!]);
             case 'sqrt':
                 if (x.args.length !== 1)
                     throw new ParseError('sqrt must have an argument');
-                let s = generateExpr(x);
-                if (s in values)
-                    return values[s];
-                else
-                    throw new ParseError(`I can't compute ${s}`);
+                return root(args[0], 2);
+            case 'cbrt':
+                if (x.args.length !== 1)
+                    throw new ParseError('sqrt must have an argument');
+                return root(args[0], 3);
             default: throw new ParseError(`unknown operation '${x.op}'`);
         }
     }

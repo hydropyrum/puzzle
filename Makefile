@@ -1,5 +1,5 @@
 JSFILES=TrackballControls
-TSFILES=make move util main piece parse polyhedra fraction polynomial exact math fields ring factoring
+TSFILES=make move util main piece parse polyhedra fraction polynomial exact math ring factoring
 BIN=./node_modules/.bin
 
 all: build/main.js build/dummy
@@ -9,9 +9,6 @@ test:
 
 ts/polyhedra.ts: py/poly2js.py
 	python3 py/poly2js.py > $@
-
-ts/fields.ts: py/fields.py
-	python3 py/fields.py > $@
 
 $(patsubst %,js/%.js,$(TSFILES)): $(patsubst %,ts/%.ts,$(TSFILES)) $(patsubst %,ts/%.d.ts,$(JSFILES))
 	$(BIN)/tsc $^ -outDir js --target es2020 --module es6 --moduleResolution node --strict
