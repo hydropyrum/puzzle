@@ -179,7 +179,7 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
     }
 }
 
-export function resultant<E extends RingElement<E>>(a: Polynomial<E>, b: Polynomial<E>) {
+export function resultant<E extends RingElement<E>>(a: Polynomial<E>, b: Polynomial<E>): E {
     let K = a.coeff_ring;
     let res = K.one();
     let res_d = K.one();

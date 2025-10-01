@@ -1,4 +1,4 @@
-import { IntegerMod, IntegersMod, Integer, ZZ, product } from './ring';
+import { product } from './ring';
 import { combinations, factor } from './factoring';
 import { polynomial, Polynomial, Polynomials, ZZ_x } from './polynomial';
 
@@ -9,11 +9,7 @@ test('combinations', () => {
     expect(combs.length).toBe(10);
 });
 
-function makepoly(coeffs) {
-    return new Polynomial(ZZ, coeffs.map(c => new Integer(BigInt(c))));
-}
-
-let polys = [
+let polys: [number[],number[][]][] = [
   [
     [2, 3, 1],
     [
@@ -113,8 +109,8 @@ let polys = [
 ];
 
 test('factor', () => {
-    for (let [poly, true_factors] of polys) {
-        let test_factors = factor(makepoly(poly));
-        expect(test_factors.map(String).sort()).toStrictEqual(true_factors.map(cs => String(makepoly(cs))).sort());
+    for (let [coeffs, true_factors] of polys) {
+        let test_factors = factor(polynomial(coeffs));
+        expect(test_factors.map(String).sort()).toStrictEqual(true_factors.map(cs => String(polynomial(cs))).sort());
     }
 });

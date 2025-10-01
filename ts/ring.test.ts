@@ -1,4 +1,4 @@
-import { RingElement, Ring, Integer, ZZ, IntegersMod, power, gcd } from './ring';
+import { RingElement, Ring, Integer, ZZ, IntegersMod, power_mod, gcd } from './ring';
 
 test('TestInteger', () => {
 });
@@ -30,10 +30,10 @@ test('TestIntegerMod', () => {
     expect(() => mod10(2).inv()).toThrow("Multiplicative inverse does not exist");
 });
 
-test('power', () => {
-    expect(power(ZZ, int(2n), 0n, int(100n))).toStrictEqual(int(1n));
-    expect(power(ZZ, int(2n), 1n, int(100n))).toStrictEqual(int(2n));
-    expect(power(ZZ, int(2n), 10n, int(100n))).toStrictEqual(int(24n));
+test('power_mod', () => {
+    expect(power_mod(ZZ, int(2n), 0n, int(100n))).toStrictEqual(int(1n));
+    expect(power_mod(ZZ, int(2n), 1n, int(100n))).toStrictEqual(int(2n));
+    expect(power_mod(ZZ, int(2n), 10n, int(100n))).toStrictEqual(int(24n));
 });
 
 test('gcd', () => {

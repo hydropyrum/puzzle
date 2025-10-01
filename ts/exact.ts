@@ -1,4 +1,4 @@
-import { RingElement, Ring, Ordered, gcd } from './ring';
+import { RingElement, Ring, Ordered, gcd, extended_gcd } from './ring';
 import { Polynomial, Polynomials, polynomial, QQ_x, count_roots, isolate_root, resultant } from './polynomial';
 import { factor } from './factoring';
 import { Fraction, fraction, QQ } from './fraction';
@@ -166,22 +166,10 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<Al
         return this;
     }
     inv(): AlgebraicNumber {
-        // Inverse of a modulo b=this.poly
-        // Extended Euclidean algorithm to find ra+sb=1
-        let K = this.field;
-        let a = K.poly;
-        let b = this.poly;
-        let zero = polynomial([0]);
-        let r0 = a, r1 = b;
-        let t0 = zero, t1 = polynomial([1]);
-        while (!r1.equals(zero)) {
-            let [q, r2] = r0.divmod(r1);
-            [r0, r1] = [r1, r2];
-            [t0, t1] = [t1, t0.sub(q.mul(t1))];
-        }
-        if (r0.degree > 0)
+        let [r, s, t] = extended_gcd(QQ_x, this.field.poly, this.poly);
+        if (r.degree > 0)
             throw new RangeError("Division by zero: " + this);
-        return new AlgebraicNumber(K, t0.div(r0));
+        return new AlgebraicNumber(this.field, t.div(r));
     }
     
     div(b: AlgebraicNumber): AlgebraicNumber { return this.mul(b.inv()); }
