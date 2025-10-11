@@ -1,14 +1,6 @@
 import sympy
-import sys
+import sys, os
 import re
-import requests
-
-def download(name):
-    url = f'http://dmccooey.com/polyhedra/{name}.txt'
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    r = requests.get(url, headers=headers)
-    r.raise_for_status()
-    return r.text
 
 class ParseError(Exception):
     pass
@@ -214,6 +206,8 @@ def process(data):
     print( '')
 
 if __name__ == "__main__":
+
+    dir = sys.argv[1]
     
     print("import { fraction } from './fraction';")
     print("import * as parse from './parse';")
@@ -244,7 +238,7 @@ if __name__ == "__main__":
         'mD': 'DisdyakisTriacontahedron',
         # Prisms and antiprisms
         'P3': 'TriangularPrism',
-        #'P5': 'PentagonalPrism',
+        'P5': 'PentagonalPrism',
         'P6': 'HexagonalPrism',
         #'A4': 'SquareAntiprism',
         'A5': 'PentagonalAntiprism',
@@ -258,7 +252,7 @@ if __name__ == "__main__":
         #'dA6': 'HexagonalTrapezohedron',
     }
     for code, name in shapes.items():
-        text = download(name)
+        text = open(os.path.join(dir, name+'.txt')).read()
         data = parse(code, name, text)
         process(data)
     print("    default: throw new Error(`unknown polyhedron: '${code}'`)");

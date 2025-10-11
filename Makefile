@@ -8,7 +8,7 @@ test:
 	$(BIN)/jest
 
 ts/polyhedra.ts: py/poly2js.py
-	python3 py/poly2js.py > $@
+	python3 py/poly2js.py data > $@
 
 $(patsubst %,js/%.js,$(TSFILES)): $(patsubst %,ts/%.ts,$(TSFILES)) $(patsubst %,ts/%.d.ts,$(JSFILES))
 	$(BIN)/tsc $^ -outDir js --target es2020 --module es6 --moduleResolution node --strict
