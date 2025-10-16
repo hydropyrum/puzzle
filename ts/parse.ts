@@ -1,6 +1,6 @@
 /* Parse expressions and URLs */
 
-import { AlgebraicNumberField, AlgebraicNumber, QQ_nothing, normal, promote } from './exact';
+import { AlgebraicNumberField, AlgebraicNumber, QQ_nothing, normal, promote, root } from './exact';
 import { Polynomial } from './polynomial';
 import { fraction, Fraction } from './fraction';
 
@@ -52,18 +52,6 @@ export interface Puzzle {
   F -> <function> ( E )
   F -> <constant>
 */
-
-function root(x: AlgebraicNumber, k: number) {
-    /* Compute the k-th root of x, possibly in a different number field. */
-    let field = x.field;
-    let coeffs = [x.neg()];
-    for (let i=0; i<k-1; i++)
-        coeffs.push(field.fromInt(0));
-    coeffs.push(field.fromInt(1));
-    let poly = normal(new Polynomial(field, coeffs));
-    let new_field = new AlgebraicNumberField(poly, fraction(1));
-    return new_field.fromVector([0, 1]);
-}
 
 export function evalExpr(x: Expr): AlgebraicNumber {
     function visit(x: Expr): AlgebraicNumber {

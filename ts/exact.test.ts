@@ -1,4 +1,4 @@
-import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber, QQ_nothing, normal, extend } from './exact';
+import { AlgebraicNumberField, algebraicNumberField, AlgebraicNumber, QQ_nothing, normal, extend, root } from './exact';
 import { Polynomial, polynomial } from './polynomial';
 import { fraction } from './fraction';
 
@@ -115,4 +115,18 @@ test('extend', () => {
             expect(Q_beta.poly.map(Q_gamma, c => Q_gamma.fromVector([c])).eval(beta)).toStrictEqual(Q_gamma.zero());
             expect(equals(Q_gamma, beta, Q_beta)).toBe(true);
         }
+});
+
+test('pentagon', () => {
+    function sqrt(x) { return root(x, 2); }
+    function num(x) { return QQ_nothing.fromInt(x); }
+    let C0 = sqrt(num(10).mul(num(5).sub(sqrt(num(5))))).div(num(20));
+    let C1 = sqrt(num(5).mul(num(5).add(num(2).mul(sqrt(num(5)))))).div(num(10));
+    let C2 = num(1).add(sqrt(num(5))).div(num(4));
+    let C3 = sqrt(num(10).mul(num(5).add(sqrt(num(5))))).div(num(10));
+    let [K0, a0, b0] = extend(QQ_nothing, C0.field);
+    let [K1, a1, b1] = extend(K0, C1.field);
+    let [K2, a2, b2] = extend(K1, C2.field);
+    let [K3, a3, b3] = extend(K2, C3.field);
+    expect(K3.poly).toStrictEqual(polynomial([2000,0,-100,0,1]));
 });

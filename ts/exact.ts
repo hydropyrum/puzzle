@@ -1,5 +1,5 @@
-import { RingElement, Ring, Ordered, gcd, extended_gcd } from './ring';
-import { Polynomial, Polynomials, polynomial, QQ_x, count_roots, isolate_root, resultant } from './polynomial';
+import { RingElement, Ring, Ordered, extended_gcd } from './ring';
+import { Polynomial, Polynomials, polynomial, QQ_x, count_roots, isolate_root, gcd, resultant } from './polynomial';
 import { factor } from './factoring';
 import { Fraction, fraction, QQ } from './fraction';
 
@@ -33,7 +33,7 @@ export class AlgebraicNumberField implements Ring<AlgebraicNumber> {
     }
 
     toString(): string {
-        return `Q(root of ${this.poly})`;
+        return `Q(root of ${this.poly} in [${this.lower},${this.upper}])`;
     }
 
     zero() { return new AlgebraicNumber(this, polynomial([])); }
@@ -249,7 +249,7 @@ export function normal(B: Polynomial<AlgebraicNumber>): Polynomial<Fraction> {
     let B_normal = resultant(poly2(A.coeffs.map(c => [c])), poly2(B_coeffs));
     
     // make squarefree
-    B_normal.idiv(gcd(QQ_x, B_normal, B_normal.derivative()));
+    B_normal.idiv(gcd(/*QQ_x,*/ B_normal, B_normal.derivative()));
     return B_normal.monic();
 }
 
@@ -262,6 +262,12 @@ export function extend(Q_alpha: AlgebraicNumberField, Q_beta: AlgebraicNumberFie
        - alpha: the primitive element of Q_alpha, represented in Q_alpha_beta
        - beta: the primitive element of Q_beta, represented in Q_alpha_beta
     */
+
+    // Check if the fields are the same
+    if (Q_alpha.poly.equals(Q_beta.poly)) {
+        if (Q_alpha.lower.compare(Q_beta.upper) <= 0 && Q_beta.lower.compare(Q_alpha.upper) <= 0)
+            return [Q_alpha, Q_alpha.fromVector([0,1]), Q_alpha.fromVector([0,1])];
+    }
     
     let [A, B] = [Q_alpha.poly, Q_beta.poly];
 
@@ -277,7 +283,7 @@ export function extend(Q_alpha: AlgebraicNumberField, Q_beta: AlgebraicNumberFie
         C_mult = resultant(A_bivar, B_bivar.eval(beta)); // Res_x(A(x), B(z-kx))
         // If C_mult is squarefree, then all the conjugates of kα+β are distinct,
         // so kα+β is a primitive element of Q(α,β).
-        if (gcd(QQ_x, C_mult, C_mult.derivative()).degree == 0)
+        if (gcd(/*QQ_x,*/ C_mult, C_mult.derivative()).degree == 0)
             break;
     }
 
@@ -356,7 +362,7 @@ function helper(Q_alpha: AlgebraicNumberField, B: Polynomial<Fraction>, C: Polyn
     let B_alpha = poly_alpha(B.coeffs.map(c => [c]));
     let C_alpha_x = C.map(Q_alpha_x, c => poly_alpha([[c]]));
     let gamma = poly_alpha(g);
-    let B_factor = gcd(Q_alpha_x, B_alpha, C_alpha_x.eval(gamma));
+    let B_factor = gcd(/*Q_alpha_x,*/ B_alpha, C_alpha_x.eval(gamma));
     if (B_factor.degree == 1)
         return B_factor.monic().coeffs[0].neg();
     else
@@ -374,4 +380,18 @@ export function promote(xs: AlgebraicNumber[]) {
             xs[i] = xs[i].poly.map(field, c => field.fromVector([c])).eval(beta);
     }
     return xs;
+}
+
+export function root(x: AlgebraicNumber, k: number) {
+    /* Compute the k-th root of x, possibly in a different number field. */
+    let field = x.field;
+    let coeffs = [x.neg()];
+    for (let i=0; i<k-1; i++)
+        coeffs.push(field.fromInt(0));
+    coeffs.push(field.fromInt(1));
+    let poly = normal(new Polynomial(field, coeffs));
+    let approx = x.toNumber() ** (1/k);
+    // to do: find better approximation
+    let new_field = new AlgebraicNumberField(poly, fraction(Math.floor(approx*1000),1000));
+    return new_field.fromVector([0, 1]);
 }

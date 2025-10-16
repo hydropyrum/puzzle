@@ -114,6 +114,7 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
     isdiv(b: E): Polynomial<E> { for (let c of this.coeffs) c.idiv(b); this.trim(); return this; }
     sdiv(b: E): Polynomial<E> { return this.clone().isdiv(b); }
     pseudo_divmod(b: Polynomial<E>): [E, Polynomial<E>, Polynomial<E>] {
+        /* return [p,q,r] such that pa = qb+r */
         let m = this.degree;
         let n = b.degree;
         let p = this.coeff_ring.one();
@@ -179,24 +180,48 @@ export class Polynomial<E extends RingElement<E>> implements RingElement<Polynom
     }
 }
 
+export function gcd<E extends RingElement<E>>(a: Polynomial<E>, b: Polynomial<E>): Polynomial<E> {
+    let K = a.coeff_ring;
+    let zero = new Polynomial(K, []);
+
+    if (a.degree < b.degree)
+        [a, b] = [b, a];
+    let [r0, r1] = [a, b];
+    let psi = K.fromInt(-1);
+    let d = r0.degree - r1.degree;
+    let beta = K.fromInt((-1)**(d+1));
+    let gamma = r1.lc();
+
+    while (!r1.equals(zero)) {
+        let g = power(K, gamma, BigInt(d+1));
+        let [q, r2] = r0.smul(g).divmod(r1);
+        r2.isdiv(beta);
+        [r0, r1] = [r1, r2];
+        g = power(K, gamma.neg(), BigInt(d));
+        if (d > 1n)
+            g.idiv(power(K, psi, BigInt(d-1)));
+        else if (d < 1n)
+            g.imul(power(K, psi, BigInt(1-d)));
+        psi = g;
+        d = r0.degree - r1.degree;
+        beta = gamma.neg().imul(power(K, psi, BigInt(d)));
+        gamma = r1.lc();
+    }
+    return r0;
+}
+
 export function resultant<E extends RingElement<E>>(a: Polynomial<E>, b: Polynomial<E>): E {
     let K = a.coeff_ring;
     let res = K.one();
-    let res_d = K.one();
-    if (a.degree < b.degree) {
-        [a, b] = [b, a];
+    if (a.degree < b.degree)
         res.imul(K.fromInt((-1)**(a.degree*b.degree)));
+    let g = gcd(a, b);
+    if (g.degree == 0) {
+        res.imul(g.coeffs[0]);
+        return res;
+    } else {
+        return K.zero();
     }
-    while (b.degree > 0) {
-        let [p, q, r] = a.pseudo_divmod(b);
-        res.imul(K.fromInt((-1)**(a.degree*b.degree)));
-        res.imul(power(K, b.coeffs[b.degree], BigInt(a.degree-r.degree)));
-        res_d.imul(power(K, p, BigInt(b.degree)));
-        [a, b] = [b, r];
-    }
-    if (b.degree == -1) return K.zero();
-    res.imul(power(K, b.coeffs[0], BigInt(a.degree)));
-    return res.div(res_d);
 }
 
 function sturm_sequence(p0: Polynomial<Fraction>, arg: Fraction): number {
@@ -226,11 +251,12 @@ export function count_roots(p: Polynomial<Fraction>, lower: Fraction, upper: Fra
 export function isolate_root(p: Polynomial<Fraction>, x: Fraction): [Fraction, Fraction] {
     if (p.degree <= 0) throw new RangeError("can't isolate root of a constant polynomial");
     
-    // Bound distance to root
+    // Bound distance to root (Cauchy bound)
     let bound = p.coeff_ring.zero();
-    for (let i=0; i<p.degree; i++)
-        if (bound.compare(p.coeffs[i].abs()) > 0)
+    for (let i=0; i<p.degree; i++) {
+        if (bound.compare(p.coeffs[i].abs()) < 0)
             bound = p.coeffs[i].abs();
+    }
     bound.idiv(p.coeffs[p.degree].abs());
     bound.iadd(p.coeff_ring.one());
     
@@ -249,7 +275,7 @@ export function isolate_root(p: Polynomial<Fraction>, x: Fraction): [Fraction, F
         else /* if (c > 1) */
             dmax = dmid;
     }
-    throw new Error(`can't isolate root nearest to ${x} (perhaps there was a tie)`);
+    throw new Error(`can't isolate root of ${p} nearest to ${x} (perhaps there was a tie)`);
 }
 
 export function polynomial(coeffs: (Fraction|bigint|number)[]): Polynomial<Fraction> {

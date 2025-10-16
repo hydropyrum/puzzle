@@ -1,4 +1,4 @@
-import { Polynomial, polynomial, count_roots, isolate_root, resultant } from './polynomial';
+import { Polynomial, polynomial, QQ_x, count_roots, isolate_root, gcd, resultant } from './polynomial';
 import { Fraction, fraction } from './fraction';
 
 let polys = [
