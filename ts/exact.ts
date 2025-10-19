@@ -1,4 +1,4 @@
-import { RingElement, Ring, Ordered, extended_gcd } from './ring';
+import { RingElement, Ring, Ordered, power, extended_gcd } from './ring';
 import { Polynomial, Polynomials, polynomial, QQ_x, count_roots, isolate_root, gcd, resultant } from './polynomial';
 import { factor } from './factoring';
 import { Fraction, fraction, QQ } from './fraction';
@@ -382,16 +382,24 @@ export function promote(xs: AlgebraicNumber[]) {
     return xs;
 }
 
-export function root(x: AlgebraicNumber, k: number) {
+export function root(x: AlgebraicNumber, k: bigint) {
     /* Compute the k-th root of x, possibly in a different number field. */
     let field = x.field;
     let coeffs = [x.neg()];
-    for (let i=0; i<k-1; i++)
+    for (let i=0; i<k-1n; i++)
         coeffs.push(field.fromInt(0));
     coeffs.push(field.fromInt(1));
     let poly = normal(new Polynomial(field, coeffs));
-    let approx = x.toNumber() ** (1/k);
-    // to do: find better approximation
-    let new_field = new AlgebraicNumberField(poly, fraction(Math.floor(approx*1000),1000));
+    let lower = fraction(0);
+    let upper = x.interval()[1].add(fraction(1));
+    while (count_roots(poly, lower, upper) > 1) {
+        let mid = lower.middle(upper);
+        if (QQ_nothing.fromVector([power(QQ, mid, k)]).compare(x) < 0)
+            lower = mid;
+        else
+            upper = mid;
+    }
+    // to do: don't convert interval to midpoint and then back to interval again
+    let new_field = new AlgebraicNumberField(poly, lower.add(upper).idiv(fraction(2)))
     return new_field.fromVector([0, 1]);
 }

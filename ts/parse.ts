@@ -68,11 +68,11 @@ export function evalExpr(x: Expr): AlgebraicNumber {
             case 'sqrt':
                 if (x.args.length !== 1)
                     throw new ParseError('sqrt must have an argument');
-                return root(args[0], 2);
+                return root(args[0], 2n);
             case 'cbrt':
                 if (x.args.length !== 1)
                     throw new ParseError('sqrt must have an argument');
-                return root(args[0], 3);
+                return root(args[0], 3n);
             default: throw new ParseError(`unknown operation '${x.op}'`);
         }
     }

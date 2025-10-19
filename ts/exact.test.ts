@@ -118,7 +118,7 @@ test('extend', () => {
 });
 
 test('pentagon', () => {
-    function sqrt(x) { return root(x, 2); }
+    function sqrt(x) { return root(x, 2n); }
     function num(x) { return QQ_nothing.fromInt(x); }
     let C0 = sqrt(num(10).mul(num(5).sub(sqrt(num(5))))).div(num(20));
     let C1 = sqrt(num(5).mul(num(5).add(num(2).mul(sqrt(num(5)))))).div(num(10));
