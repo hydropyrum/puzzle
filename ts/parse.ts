@@ -3,6 +3,7 @@
 import { AlgebraicNumberField, AlgebraicNumber, QQ_nothing, normal, promote, root } from './exact';
 import { Polynomial } from './polynomial';
 import { fraction, Fraction } from './fraction';
+import { power } from './ring';
 
 export class ParseError extends Error {
     constructor(message: string) {
@@ -46,16 +47,32 @@ export interface Puzzle {
   T -> T * F
   T -> T / F
   T -> F
-  F -> <integer>
-  F -> ( E )
   F -> - F
-  F -> <function> ( E )
-  F -> <constant>
+  F -> P ^ F
+  F -> P
+  P -> <integer>
+  P -> ( E )
+  P -> <function> ( E )
+  P -> <constant>
 */
 
 export function evalExpr(x: Expr): AlgebraicNumber {
     function visit(x: Expr): AlgebraicNumber {
         let args = x.args.map(visit);
+        if (x.op == '^') {
+            let x = args[0];
+            if (args[1].poly.degree != 0)
+                throw new ParseError('exponent must be a fraction');
+            let y = args[1].poly.coeffs[0];
+            if (args[0].sign() < 0) {
+                if (y.d != 1n)
+                    throw new ParseError('exponent of negative number must be an integer');
+            }
+            let z = power(x.field, x, y.n);
+            if (y.d != 1n)
+                z = root(z, y.d);
+            return z;
+        }
         if (args.length == 2)
             args = promote([args[0], args[1]]);
         switch (x.op) {
@@ -71,7 +88,7 @@ export function evalExpr(x: Expr): AlgebraicNumber {
                 return root(args[0], 2n);
             case 'cbrt':
                 if (x.args.length !== 1)
-                    throw new ParseError('sqrt must have an argument');
+                    throw new ParseError('cbrt must have an argument');
                 return root(args[0], 3n);
             default: throw new ParseError(`unknown operation '${x.op}'`);
         }
@@ -81,7 +98,7 @@ export function evalExpr(x: Expr): AlgebraicNumber {
 
 export function parseExpr(s: string): Expr {
     let tokens: (string|Fraction)[] = [];
-    let tokenRE = /\s*(?:([+\-*/()])|([A-Za-z_][A-Za-z_0-9]*)|(\d+)(\.\d+)?)\s*/y;
+    let tokenRE = /\s*(?:([+\-*/^()])|([A-Za-z_][A-Za-z_0-9]*)|(\d+)(\.\d+)?)\s*/y;
     while (tokenRE.lastIndex < s.length) {
         let pos = tokenRE.lastIndex;
         let m = tokenRE.exec(s);
@@ -136,7 +153,22 @@ export function parseExpr(s: string): Expr {
             i++;
             let x = parseFactor();
             return {op: 'neg', args: [x]};
-        } else if (token == '(') {
+        } else {
+            let x = parsePrimary();
+            if (i < n && tokens[i] == '^') {
+                i++;
+                let y = parseFactor();
+                return {op: '^', args: [x, y]};
+            } else {
+                return x;
+            }
+        }
+    }
+    function parsePrimary(): Expr {
+        if (i == n)
+            throw new ParseError('Unexpected end of expression');
+        let token = tokens[i];
+        if (token == '(') {
             i++;
             let x = parseStart();
             parseToken(')');
@@ -216,16 +248,22 @@ export function generateExpr(x: Expr, prec: number = 10): string {
     switch (x.op) {
         case '+':
         case '-':
-            s = `${generateExpr(x.args[0], 4)}${x.op}${generateExpr(x.args[1], 3)}`;
-            if (prec < 4) s = `(${s})`;
+            s = `${generateExpr(x.args[0], 6)}${x.op}${generateExpr(x.args[1], 5)}`;
+            if (prec < 6) s = `(${s})`;
             return s;
         case '*':
         case '/':
-            s = `${generateExpr(x.args[0], 2)}${x.op}${generateExpr(x.args[1], 1)}`;
+            s = `${generateExpr(x.args[0], 4)}${x.op}${generateExpr(x.args[1], 3)}`;
+            if (prec < 4) s = `(${s})`;
+            return s;
+        case '^':
+            s = `${generateExpr(x.args[0], 1)}${x.op}${generateExpr(x.args[1], 2)}`;
             if (prec < 2) s = `(${s})`;
             return s;
         case 'neg':
-            return `-${generateExpr(x.args[0], 0)}`;
+            s = `-${generateExpr(x.args[0], 2)}`;
+            if (prec < 2) s = `(${s})`;
+            return s;
         case 'num':
             return String(x.val);
         case 'sqrt':

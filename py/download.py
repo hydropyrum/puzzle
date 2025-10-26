@@ -24,7 +24,7 @@ if __name__ == "__main__":
         'kC': 'TetrakisHexahedron',
         'kO': 'TriakisOctahedron',
         'oC': 'DeltoidalIcositetrahedron',
-        #'gC': 'RpentagonalIcositetrahedron',
+        'gC': 'RpentagonalIcositetrahedron',
         'jD': 'RhombicTriacontahedron',
         'mC': 'DisdyakisDodecahedron',
         'kD': 'PentakisDodecahedron',

@@ -160,10 +160,11 @@ def process(data):
     def translate_number(x):
         if isinstance(x, sympy.Rational):
             return f'{{op: "num", args: [], val: fraction({x.numerator}, {x.denominator})}}'
-        elif isinstance(x, sympy.Pow) and x.args[1] == sympy.Rational(1, 2):
-            return f'{{op: "sqrt", args: [{translate_number(x.args[0])}]}}'
-        elif isinstance(x, sympy.Pow) and isinstance(x.args[1], sympy.Integer):
-            return f'{{op: "*", args: [{translate_number(x.args[0])}, {translate_number(sympy.Pow(x.args[0], x.args[1]-1))}]}}'
+        elif isinstance(x, sympy.Pow):
+            if isinstance(x.args[1], (sympy.Integer, sympy.Rational)):
+                return f'{{op: "^", args: [{translate_number(x.args[0])}, {translate_number(x.args[1])}]}}'
+            else:
+                raise ValueError(f"Don't to how to raise to the {x.args[1]} power")
         elif isinstance(x, sympy.Mul):
             return f'{{op: "*", args: [{translate_number(x.args[0])}, {translate_number(sympy.Mul(*x.args[1:]))}]}}'
         elif isinstance(x, sympy.Add):
@@ -171,7 +172,7 @@ def process(data):
         elif isinstance(x, sympy.Symbol):
             return str(x)
         else:
-            raise TypeError(type(x))
+            raise TypeError(f"Don't know how to translate expression of type {type(x)}")
     
     sub = {}
     for name in data['consts']:
@@ -228,7 +229,7 @@ if __name__ == "__main__":
         'kC': 'TetrakisHexahedron',
         'kO': 'TriakisOctahedron',
         'oC': 'DeltoidalIcositetrahedron',
-        #'gC': 'RpentagonalIcositetrahedron',
+        'gC': 'RpentagonalIcositetrahedron',
         'jD': 'RhombicTriacontahedron',
         'mC': 'DisdyakisDodecahedron',
         'kD': 'PentakisDodecahedron',
@@ -240,18 +241,19 @@ if __name__ == "__main__":
         'P3': 'TriangularPrism',
         'P5': 'PentagonalPrism',
         'P6': 'HexagonalPrism',
-        #'A4': 'SquareAntiprism',
+        'A4': 'SquareAntiprism',
         'A5': 'PentagonalAntiprism',
-        #'A6': 'HexagonalAntiprism',
+        'A6': 'HexagonalAntiprism',
         # Dipyramids and trapezohedra
         'dP3': 'TriangularDipyramid',
-        #'dP5': 'PentagonalDipyramid',
+        'dP5': 'PentagonalDipyramid',
         'dP6': 'HexagonalDipyramid',
-        #'dA4': 'TetragonalTrapezohedron',
+        'dA4': 'TetragonalTrapezohedron',
         'dA5': 'PentagonalTrapezohedron',
-        #'dA6': 'HexagonalTrapezohedron',
+        'dA6': 'HexagonalTrapezohedron',
     }
     for code, name in shapes.items():
+        print(name, file=sys.stderr)
         text = open(os.path.join(dir, name+'.txt')).read()
         data = parse(code, name, text)
         process(data)
