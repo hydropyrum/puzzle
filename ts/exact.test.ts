@@ -3,7 +3,7 @@ import { Polynomial, polynomial } from './polynomial';
 import { fraction } from './fraction';
 
 // ℚ(√2,√3)
-let K = algebraicNumberField([1, 0, -10, 0, 1], fraction(3146264,1000000));
+let K = algebraicNumberField([1, 0, -10, 0, 1], fraction(3146264,1000000), fraction(3146265,1000000));
 
 let vals = [
     {c: [fraction(0), fraction(0), fraction(0), fraction(0)], a: 0},
@@ -83,11 +83,11 @@ test('normal', () => {
     expect(normal(p)).toStrictEqual(polynomial([-2, 0, 0, 0, 1]));
 });
 
-let K2 = algebraicNumberField([-2, 0, 1], fraction(1414214,1000000));
-let K3 = algebraicNumberField([-3, 0, 1], fraction(1732051,1000000));
-let K5 = algebraicNumberField([-5, 0, 1], fraction(2236068,1000000));
-let K2p3 = algebraicNumberField([1, 0, -10, 0, 1], fraction(3146264,1000000));
-let K3p5 = algebraicNumberField([4, 0, -16, 0, 1], fraction(3968119,1000000));
+let K2 = algebraicNumberField([-2, 0, 1], fraction(1414213,1000000), fraction(1414214,1000000));
+let K3 = algebraicNumberField([-3, 0, 1], fraction(1732050,1000000), fraction(1732051,1000000));
+let K5 = algebraicNumberField([-5, 0, 1], fraction(2236067,1000000), fraction(2236068,1000000));
+let K2p3 = algebraicNumberField([1, 0, -10, 0, 1], fraction(3146264,1000000), fraction(3146265,1000000));
+let K3p5 = algebraicNumberField([4, 0, -16, 0, 1], fraction(3968118,1000000), fraction(3968119,1000000));
 
 function equals(Q_gamma, alpha, Q_alpha) {
     // Check whether alpha ∈ Q_gamma is equal to primitive element of Q_alpha

@@ -245,38 +245,6 @@ export function count_roots(p: Polynomial<Fraction>, lower: Fraction, upper: Fra
     /* Number of real roots in interval [lower, upper] */
     return (p.eval(lower).sign() == 0 ? 1 : 0) + sturm_sequence(p, lower) - sturm_sequence(p, upper);
 }
-        
-/* Find an isolating interval for the real root nearest x.
-   If there is a tie, chooses the higher root. */
-export function isolate_root(p: Polynomial<Fraction>, x: Fraction): [Fraction, Fraction] {
-    if (p.degree <= 0) throw new RangeError("can't isolate root of a constant polynomial");
-    
-    // Bound distance to root (Cauchy bound)
-    let bound = p.coeff_ring.zero();
-    for (let i=0; i<p.degree; i++) {
-        if (bound.compare(p.coeffs[i].abs()) < 0)
-            bound = p.coeffs[i].abs();
-    }
-    bound.idiv(p.coeffs[p.degree].abs());
-    bound.iadd(p.coeff_ring.one());
-    
-    // Binary search for distance
-    let dmin = p.coeff_ring.zero();
-    let dmax = bound.add(x.abs());
-    for (let i=0; i<100; i++) {
-        let dmid = dmin.middle(dmax);
-        let lower = x.sub(dmid);
-        let upper = x.add(dmid);
-        let c = count_roots(p, lower, upper);
-        if (c == 1)
-            return [lower, upper];
-        else if (c == 0)
-            dmin = dmid;
-        else /* if (c > 1) */
-            dmax = dmid;
-    }
-    throw new Error(`can't isolate root of ${p} nearest to ${x} (perhaps there was a tie)`);
-}
 
 export function polynomial(coeffs: (Fraction|bigint|number)[]): Polynomial<Fraction> {
     return new Polynomial(QQ, coeffs.map(c => c instanceof Fraction ? c : fraction(c)));

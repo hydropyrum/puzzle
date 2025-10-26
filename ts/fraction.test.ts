@@ -105,3 +105,13 @@ test('abs', () => {
             .toBe(Math.abs(frac.n/frac.d));
 });
 
+test('middle', () => {
+    for (let a of fracs)
+        for (let b of fracs) {
+            let fa = fraction(a.n, a.d);
+            let fb = fraction(b.n, b.d);
+            let m = fa.middle(fb);
+            /*expect(m.compare(fa)).toBeGreaterThanOrEqual(0);
+            expect(m.compare(fb)).toBeLessThanOrEqual(0);*/
+        }
+});

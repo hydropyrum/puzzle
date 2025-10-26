@@ -114,18 +114,17 @@ export class Fraction implements RingElement<Fraction>, Ordered<Fraction> {
     iabs(): Fraction { this.n = abs(this.n); return this; }
     abs(): Fraction { return this.clone().iabs(); }
 
-    /* Find a fraction between this and y that doesn't increase denominator too much */
+    /* Find a fraction between this and y whose denominator is a power of 2 */
     middle(y: Fraction): Fraction {
         let x = this;
-        let d = x.d * y.d / gcd(x.d, y.d);
-        let xn = x.n * d / x.d;
-        let yn = y.n * d / y.d;
-        if (xn > yn)
-            [xn, yn] = [yn, xn];
-        if (yn - xn >= 2n)
-            return new Fraction((xn+yn)/2n, d);
-        else
-            return new Fraction(xn+yn, 2n*d);
+        if (x.equals(y)) return x;
+        let d = 1n;
+        while (y.sub(x).abs().compare(fraction(1n,d)) <= 0)
+            d *= 2n;
+        let m = x.add(y).imul(fraction(d, 2n));
+        m.iadd(fraction(BigInt(m.sign()), 2n));
+        let n = m.n / m.d;
+        return new Fraction(n, d);
     }
 }
 

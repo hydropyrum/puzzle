@@ -1,5 +1,5 @@
 import { RingElement, Ring, Ordered, power, extended_gcd } from './ring';
-import { Polynomial, Polynomials, polynomial, QQ_x, count_roots, isolate_root, gcd, resultant } from './polynomial';
+import { Polynomial, Polynomials, polynomial, QQ_x, count_roots, gcd, resultant } from './polynomial';
 import { factor } from './factoring';
 import { Fraction, fraction, QQ } from './fraction';
 
@@ -7,19 +7,14 @@ import { Fraction, fraction, QQ } from './fraction';
 export class AlgebraicNumberField implements Ring<AlgebraicNumber> {
     degree: number;
     poly: Polynomial<Fraction>; // minimal polynomial of θ
-    lower: Fraction;  // lower bound on θ
-    approx: Fraction; // approximation of θ
-    upper: Fraction;  // upper bound on θ
+    lower: Fraction; // lower bound on θ
+    upper: Fraction; // upper bound on θ
     powers: Polynomial<Fraction>[];
     powers_upper: Fraction[] = [];
     powers_lower: Fraction[] = [];
-    constructor(poly: Polynomial<Fraction>, approx: Fraction) {
+    constructor(poly: Polynomial<Fraction>, lower: Fraction, upper: Fraction) {
         this.degree = poly.degree;
         this.poly = poly;
-        [this.lower, this.upper] = isolate_root(poly, approx);
-        while (this.upper.sub(this.lower).compare(fraction(1,1000)) > 0)
-            this.refine();
-        this.approx = this.lower.middle(this.upper);
 
         // Precompute powers of poly up to 2*degree to speed up multiplication (Cohen)
         this.powers = [];
@@ -29,7 +24,22 @@ export class AlgebraicNumberField implements Ring<AlgebraicNumber> {
         for (let i=this.degree; i<=2*this.degree; i++)
             this.powers.push(this.powers[i-1].mul(polynomial([0,1])).mod(this.poly));
 
+        if (count_roots(poly, lower, upper) != 1)
+            throw Error("Interval must contain exactly one root");
+        [this.lower, this.upper] = [lower, upper];
         this.precompute_interval_powers();
+    }
+
+    clone(): AlgebraicNumberField {
+        return new AlgebraicNumberField(this.poly.clone(), this.lower.clone(), this.upper.clone());
+    }
+    equals(other: AlgebraicNumberField) {
+        if (this === other) return true;
+        if (!this.poly.equals(other.poly)) return false;
+        let lower = this.lower.compare(other.lower) > 0 ? this.lower : other.lower;
+        let upper = this.upper.compare(other.upper) < 0 ? this.upper : other.upper;
+        if (lower.compare(upper) > 0) return false;
+        return count_roots(this.poly, lower, upper) == 1;
     }
 
     toString(): string {
@@ -69,6 +79,7 @@ export class AlgebraicNumberField implements Ring<AlgebraicNumber> {
             this.lower = mid;
         else /* if (sm == su) */
             this.upper = mid;
+        //console.assert(count_roots(this.poly, this.lower, this.upper) == 1);
         this.precompute_interval_powers();
     }
 
@@ -78,13 +89,15 @@ export class AlgebraicNumberField implements Ring<AlgebraicNumber> {
 };
 
 export function algebraicNumberField(poly: Polynomial<Fraction>|(Fraction|number|bigint)[],
-                                     approx: Fraction|number|bigint) : AlgebraicNumberField {
+                                     lower: Fraction|number|bigint,
+                                     upper: Fraction|number|bigint) : AlgebraicNumberField {
     if (!(poly instanceof Polynomial<Fraction>)) poly = polynomial(poly);
-    if (!(approx instanceof Fraction)) approx = fraction(approx);
-    return new AlgebraicNumberField(poly, approx);
+    if (!(lower instanceof Fraction)) lower = fraction(lower);
+    if (!(upper instanceof Fraction)) upper = fraction(upper);
+    return new AlgebraicNumberField(poly, lower, upper);
 }
 
-export var QQ_nothing = algebraicNumberField([-1, 1], fraction(1));
+export var QQ_nothing = algebraicNumberField([-1, 1], fraction(1), fraction(1));
 
 export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<AlgebraicNumber> {
     field: AlgebraicNumberField;
@@ -110,9 +123,7 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<Al
     }
     
     static check_same_field(a: AlgebraicNumber, b: AlgebraicNumber): AlgebraicNumberField {
-        if (a.field === b.field)
-            return a.field;
-        if (a.field.poly.equals(b.field.poly))
+        if (a.field.equals(b.field))
             return a.field;
         if (a.field.poly.degree == 1)
             return b.field;
@@ -176,11 +187,15 @@ export class AlgebraicNumber implements RingElement<AlgebraicNumber>, Ordered<Al
     idiv(b: AlgebraicNumber): AlgebraicNumber { return this.imul(b.inv()); }
 
     toNumber(): number {
-        let [lo, hi] = this.interval();
-        let t = 0;
-        while (hi.toNumber()-lo.toNumber() > 1e-10) { // arbitrary
-            this.field.refine();
-            [lo, hi] = this.interval();
+        // cloning the field helps with debugging
+        //let K = this.field.clone();
+        //let x = new AlgebraicNumber(K, this.poly);
+        let K = this.field;
+        let x = this;
+        let [lo, hi] = x.interval();
+        while (hi.toNumber() - lo.toNumber() > 1e-3) {
+            K.refine();
+            [lo, hi] = x.interval();
         }
         return (lo.toNumber()+hi.toNumber())/2;
     }
@@ -249,7 +264,7 @@ export function normal(B: Polynomial<AlgebraicNumber>): Polynomial<Fraction> {
     let B_normal = resultant(poly2(A.coeffs.map(c => [c])), poly2(B_coeffs));
     
     // make squarefree
-    B_normal.idiv(gcd(/*QQ_x,*/ B_normal, B_normal.derivative()));
+    B_normal.idiv(gcd(B_normal, B_normal.derivative()));
     return B_normal.monic();
 }
 
@@ -257,18 +272,16 @@ export function extend(Q_alpha: AlgebraicNumberField, Q_beta: AlgebraicNumberFie
     /* Given Q(α) and Q(β), construct Q(α,β).
        Arguments:
        - Q_alpha, Q_beta: AlgebraicNumberFields
-       Returns: (Q_alpha_beta, alpha, beta)
+       Returns: [Q_alpha_beta, alpha, beta]
        - Q_alpha_beta: the new field
        - alpha: the primitive element of Q_alpha, represented in Q_alpha_beta
        - beta: the primitive element of Q_beta, represented in Q_alpha_beta
     */
 
     // Check if the fields are the same
-    if (Q_alpha.poly.equals(Q_beta.poly)) {
-        if (Q_alpha.lower.compare(Q_beta.upper) <= 0 && Q_beta.lower.compare(Q_alpha.upper) <= 0)
-            return [Q_alpha, Q_alpha.fromVector([0,1]), Q_alpha.fromVector([0,1])];
-    }
-    
+    if (Q_alpha.equals(Q_beta))
+        return [Q_alpha, Q_alpha.fromVector([0,1]), Q_beta.fromVector([0,1])];
+
     let [A, B] = [Q_alpha.poly, Q_beta.poly];
 
     // Choose primitive element. It will be of the form kα+β for some k.
@@ -283,67 +296,61 @@ export function extend(Q_alpha: AlgebraicNumberField, Q_beta: AlgebraicNumberFie
         C_mult = resultant(A_bivar, B_bivar.eval(beta)); // Res_x(A(x), B(z-kx))
         // If C_mult is squarefree, then all the conjugates of kα+β are distinct,
         // so kα+β is a primitive element of Q(α,β).
-        if (gcd(/*QQ_x,*/ C_mult, C_mult.derivative()).degree == 0)
+        if (gcd(C_mult, C_mult.derivative()).degree == 0)
             break;
     }
 
     // Choose the factor of C_mult that has kα+β as a root. This is the minimal polynomial.
     let C_factors = factor(C_mult);
     let C: Polynomial<Fraction>|null = null;
-    let lower: Fraction|null = null;
-    let upper: Fraction|null = null;
-    for (let factor of C_factors) {
-        let count: number;
-        while (true) {
-            console.assert(k >= 0);
-            lower = Q_alpha.lower.mul(fraction(k)).iadd(Q_beta.lower);
-            upper = Q_alpha.upper.mul(fraction(k)).iadd(Q_beta.upper);
-            count = count_roots(factor, lower, upper);
-            if (count < 2)
-                break;
-            else {
-                Q_alpha.refine();
-                Q_beta.refine();
-            }
+    let lower = Q_alpha.lower.mul(fraction(k)).iadd(Q_beta.lower);
+    let upper = Q_alpha.upper.mul(fraction(k)).iadd(Q_beta.upper);
+    while (true) {
+        let total = 0;
+        for (let factor of C_factors) {
+            let count = count_roots(factor, lower, upper);
+            total += count;
+            if (count > 0) C = factor;
         }
-        if (count == 1) {
-            C = factor;
-            break;
-        }
+        if (total == 1) break;
+        Q_alpha.refine();
+        Q_beta.refine();
+        lower = Q_alpha.lower.mul(fraction(k)).iadd(Q_beta.lower);
+        upper = Q_alpha.upper.mul(fraction(k)).iadd(Q_beta.upper);
     }
     if (C === null)
         throw new Error("Could not construct C (this shouldn't happen)");
     
-    // to do: don't convert interval to midpoint and then back to interval again
     let Q_gamma = new AlgebraicNumberField(C as Polynomial<Fraction>,
-                                           (lower as Fraction).middle(upper as Fraction));
+                                           lower as Fraction, upper as Fraction);
 
     // Choose the new field and represent α and β in it.
 
     let field, alpha_vec, beta_vec;
 
-    beta_vec = helper(Q_alpha, B, C, [[0, k], [1]]);
+    beta_vec = extend_helper(Q_alpha, B, C, [[0, k], [1]]);
     if (beta_vec !== null) {
         field = Q_alpha;
         alpha_vec = Q_alpha.fromVector([0, 1]);
     } else {
-        alpha_vec = helper(Q_beta, A, C, [[0, 1], [k]]);
+        alpha_vec = extend_helper(Q_beta, A, C, [[0, 1], [k]]);
         if (alpha_vec !== null) {
             field = Q_beta;
             beta_vec = Q_beta.fromVector([0, 1]);
         } else {
             field = Q_gamma;
-            alpha_vec = helper(Q_gamma, A, B, [[0, 1], [-k]]);
-            beta_vec = helper(Q_gamma, B, A, [[0, fraction(1, k)], [fraction(-1, k)]]);
+            alpha_vec = extend_helper(Q_gamma, A, B, [[0, 1], [-k]]);
+            beta_vec = extend_helper(Q_gamma, B, A, [[0, fraction(1, k)], [fraction(-1, k)]]);
         }
     }
     if (alpha_vec === null || beta_vec === null)
         throw new Error("Could not represent alpha and beta (this shouldn't happen)");
-    
+    //console.assert(Math.abs(Q_alpha.fromVector([0, 1]).toNumber() - alpha_vec!.toNumber()) < 1e-9);
+    //console.assert(Math.abs(Q_beta.fromVector([0, 1]).toNumber() - beta_vec!.toNumber()) < 1e-9);
     return [field, alpha_vec, beta_vec];
 }
 
-function helper(Q_alpha: AlgebraicNumberField, B: Polynomial<Fraction>, C: Polynomial<Fraction>, g: (Fraction|number)[][]): AlgebraicNumber|null {
+function extend_helper(Q_alpha: AlgebraicNumberField, B: Polynomial<Fraction>, C: Polynomial<Fraction>, g: (Fraction|number)[][]): AlgebraicNumber|null {
     /* Test whether the roots of f are in K.
 
        Arguments:
@@ -362,7 +369,7 @@ function helper(Q_alpha: AlgebraicNumberField, B: Polynomial<Fraction>, C: Polyn
     let B_alpha = poly_alpha(B.coeffs.map(c => [c]));
     let C_alpha_x = C.map(Q_alpha_x, c => poly_alpha([[c]]));
     let gamma = poly_alpha(g);
-    let B_factor = gcd(/*Q_alpha_x,*/ B_alpha, C_alpha_x.eval(gamma));
+    let B_factor = gcd(B_alpha, C_alpha_x.eval(gamma));
     if (B_factor.degree == 1)
         return B_factor.monic().coeffs[0].neg();
     else
@@ -391,6 +398,7 @@ export function root(x: AlgebraicNumber, k: bigint) {
     coeffs.push(field.fromInt(1));
     let poly = normal(new Polynomial(field, coeffs));
     let lower = fraction(0);
+    // bug: what if x is negative?
     let upper = x.interval()[1].add(fraction(1));
     while (count_roots(poly, lower, upper) > 1) {
         let mid = lower.middle(upper);
@@ -399,7 +407,6 @@ export function root(x: AlgebraicNumber, k: bigint) {
         else
             upper = mid;
     }
-    // to do: don't convert interval to midpoint and then back to interval again
-    let new_field = new AlgebraicNumberField(poly, lower.add(upper).idiv(fraction(2)))
+    let new_field = new AlgebraicNumberField(poly, lower, upper)
     return new_field.fromVector([0, 1]);
 }

@@ -406,6 +406,7 @@ function apply_cuts(): void {
         all_numbers.push(plane.normal.x, plane.normal.y, plane.normal.z, plane.constant);
     all_numbers = promote(all_numbers);
     console.log(`Computing in field ${all_numbers[0].field}`);
+
     let i = 0;
     for (let plane of all_planes) {
         [plane.normal.x, plane.normal.y, plane.normal.z, plane.constant] = all_numbers.slice(i, i+4);
