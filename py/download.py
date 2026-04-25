@@ -32,6 +32,16 @@ if __name__ == "__main__":
         'oD': 'DeltoidalHexecontahedron',
         'gD': 'RpentagonalHexecontahedron',
         'mD': 'DisdyakisTriacontahedron',
+        # Uniform dual
+        'UD16': 'TetradyakisHexahedron',
+        'UD20': 'GreatDisdyakisDodecahedron',
+        'UD37': 'SmallStellapentakisDodecahedron',
+        'UD38': 'MedialDeltoidalHexecontahedron',
+        'UD45': 'TridyakisIcosahedron',
+        'UD55': 'GreatStellapentakisDodecahedron',
+        'UD59': 'MedialDisdyakisTriacontahedron',
+        'UD66': 'GreatTriakisIcosahedron',
+        'UD68': 'GreatDisdyakisTriacontahedron',
         # Prisms and antiprisms
         'P3': 'TriangularPrism',
         'P5': 'PentagonalPrism',
